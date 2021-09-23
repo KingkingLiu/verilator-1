@@ -41,7 +41,9 @@ protected:
 public:
     GraphAcycVertex(V3Graph* graphp, V3GraphVertex* origVertexp)
         : V3GraphVertex{graphp}
-        , m_origVertexp{origVertexp} {}
+        , m_origVertexp{origVertexp} {
+        this->allow_cycles(origVertexp->allow_cycles());
+    }
     virtual ~GraphAcycVertex() override = default;
     V3GraphVertex* origVertexp() const { return m_origVertexp; }
     void setDelete() { m_deleted = true; }
@@ -345,14 +347,10 @@ void GraphAcyc::simplifyOut(GraphAcycVertex* avertexp) {
                 nextp = inEdgep->inNextp();
                 V3GraphVertex* inVertexp = inEdgep->fromp();
                 if (inVertexp == avertexp) {
-                    if (debug()) v3error("Non-cutable edge forms a loop, vertex=" << avertexp);
-                    v3error("Circular logic when ordering code (non-cutable edge loop)");
-                    m_origGraphp->reportLoops(
-                        &V3GraphEdge::followNotCutable,
-                        avertexp->origVertexp());  // calls OrderGraph::loopsVertexCb
-                    // Things are unlikely to end well at this point,
-                    // but we'll try something to get to further errors...
-                    inEdgep->cutable(true);
+                    // cutting off the cycles, exactly in the first node causing a cycle
+                    // the method for choosing the node to be cut should be changed
+                    // TODO psagan -> add optional cut only when appropriate
+                    avertexp->origVertexp()->unlinkDelete(m_origGraphp);
                     return;
                 }
                 // Make a new edge connecting the two vertices directly

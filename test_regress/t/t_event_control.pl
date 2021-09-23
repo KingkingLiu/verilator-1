@@ -8,14 +8,15 @@ if (!$::Driver) { use FindBin; exec("$FindBin::Bin/bootstrap.pl", @ARGV, $0); di
 # Version 2.0.
 # SPDX-License-Identifier: LGPL-3.0-only OR Artistic-2.0
 
-scenarios(dist => 1);
+scenarios(simulator => 1);
 
-$Self->{clean_command} = 'rm -rf ../examples/*/build ../examples/*/obj*';
+compile(
+    );
 
-my @examples = sort(glob("../examples/*"));
-for my $example (@examples) {
-    run(cmd=>["$ENV{MAKE} -C $example"]);
-}
+execute(
+    check_finished => 1,
+    expect_filename => $Self->{golden_filename},
+    );
 
 ok(1);
 1;

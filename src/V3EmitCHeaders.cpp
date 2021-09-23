@@ -72,6 +72,13 @@ class EmitCHeader final : public EmitCConstInit {
                 } else if (anonMembers > lim) {
                     anonL1s = (anonMembers + lim - 1) / lim;
                 }
+
+                ////XXX
+                anonL1s = 0;
+                anonL2s = 0;
+                anonL3s = 0;
+                ////XXX
+
                 if (anonL1s != 1)
                     puts("// Anonymous structures to workaround compiler member-count bugs\n");
                 auto it = varList.cbegin();
@@ -225,7 +232,7 @@ class EmitCHeader final : public EmitCConstInit {
 
         for (const AstCFunc* const funcp : funcsp) {
             if (inClassBody) ofp()->putsPrivate(funcp->declPrivate());
-            emitCFuncDecl(funcp, modp);
+            emitCFuncDecl(funcp, modp, cFuncArgs(funcp));
         }
     }
     void emitAll(const AstNodeModule* modp) {
@@ -259,6 +266,7 @@ class EmitCHeader final : public EmitCConstInit {
         puts(" {\n");
         ofp()->resetPrivate();
         ofp()->putsPrivate(false);  // public:
+        if (modp->isTop()) puts("VerilatedNBACtrl verilated_nba_ctrl;");
 
         // Emit all class body contents
         emitCellDecls(modp);

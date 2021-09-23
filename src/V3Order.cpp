@@ -658,6 +658,7 @@ private:
     bool m_inPre = false;  // Underneath AstAssignPre
     bool m_inPost = false;  // Underneath AstAssignPost
     bool m_inPostponed = false;  // Underneath AstAssignPostponed
+    bool m_inTimedEvent = false;  // Underneath TimedEvent
     OrderLogicVertex* m_activeSenVxp = nullptr;  // Sensitivity vertex
     // STATE... for inside process
     AstCFunc* m_pomNewFuncp = nullptr;  // Current function being created
@@ -685,10 +686,9 @@ private:
             // VV*****  We reset user4p()
             AstNode::user4ClearTree();
             UASSERT_OBJ(m_activep && m_activep->sensesp(), nodep, "nullptr");
-            // If inside combo logic, ignore the domain, we'll assign one based on interconnect
-            AstSenTree* startDomainp = m_activep->sensesp();
-            if (startDomainp->hasCombo()) startDomainp = nullptr;
-            m_logicVxp = new OrderLogicVertex(&m_graph, m_scopep, startDomainp, nodep);
+            AstSenTree* domainp = m_activep->sensesp();
+            OrderLogicVertex* logicVxOldp = m_logicVxp;
+            m_logicVxp = new OrderLogicVertex(&m_graph, m_scopep, domainp, nodep);
             if (m_activeSenVxp) {
                 // If in a clocked activation, add a link from the sensitivity to this block
                 // Add edge logic_sensitive_vertex->logic_vertex
@@ -696,7 +696,7 @@ private:
             }
             nodep->user1p(m_modp);
             iterateChildren(nodep);
-            m_logicVxp = nullptr;
+            m_logicVxp = logicVxOldp;
         }
     }
 
@@ -1011,7 +1011,10 @@ private:
         }
     }
     virtual void visit(AstNodeVarRef* nodep) override {
-        if (m_scopep) {
+        if (m_inTimedEvent && nodep->access()) {
+            // Ignore var being set under AstTimedEvent, it is being set in the
+            // "future" not in this time cycle
+        } else if (m_scopep) {
             AstVarScope* varscp = nodep->varScopep();
             UASSERT_OBJ(varscp, nodep, "Var didn't get varscoped in V3Scope.cpp");
             if (m_inSenTree) {
@@ -1021,6 +1024,8 @@ private:
                 OrderVarVertex* varVxp = newVarUserVertex(varscp, WV_STD);
                 varVxp->isClock(true);
                 new OrderEdge(&m_graph, varVxp, m_activeSenVxp, WEIGHT_MEDIUM);
+                m_activeSenVxp->allow_cycles(true);
+                varVxp->allow_cycles(true);
             } else {
                 UASSERT_OBJ(m_logicVxp, nodep, "Var ref not under a logic block");
                 // What new directions is this used
@@ -1089,6 +1094,7 @@ private:
                             // ALWAYS do it:
                             //    There maybe a wire a=b; between the two blocks
                             OrderVarVertex* postVxp = newVarUserVertex(varscp, WV_POST);
+                            postVxp->allow_cycles(true);
                             new OrderEdge(&m_graph, postVxp, m_logicVxp, WEIGHT_POST);
                         }
                         if (con) {
@@ -1155,6 +1161,12 @@ private:
             new OrderEdge(&m_graph, m_logicVxp, m_dpiExportTriggerVxp, WEIGHT_NORMAL);
         }
         iterateChildren(nodep);
+    }
+    virtual void visit(AstTimedEvent* nodep) override {
+        iterateAndNextNull(nodep->timep());
+        m_inTimedEvent = true;
+        iterateAndNextNull(nodep->varrefp());
+        m_inTimedEvent = false;
     }
     virtual void visit(AstSenTree* nodep) override {
         // Having a node derived from the sentree isn't required for
@@ -1732,9 +1744,15 @@ AstActive* OrderVisitor::processMoveOneLogic(const OrderLogicVertex* lvertexp,
     UASSERT(modp, "nullptr");
     if (VN_IS(nodep, SenTree)) {
         // Just ignore sensitivities, we'll deal with them when we move statements that need them
+    } else if (VN_IS(nodep, AssignPre) || VN_IS(nodep, AssignPost)) {
+        // Ignore assign pre and assign post for now
     } else {  // Normal logic
         // Move the logic into a CFunc
         nodep->unlinkFrBack();
+
+        newFuncpr
+            = nullptr;  // Otherwise initial blocks are all joined together and not independent
+                        // XXX there should be a better way
 
         // Process procedures per statement (unless profCFuncs), so we can split CFuncs within
         // procedures. Everything else is handled in one go
@@ -1751,7 +1769,16 @@ AstActive* OrderVisitor::processMoveOneLogic(const OrderLogicVertex* lvertexp,
                     && v3Global.opt.outputSplitCFuncs() < newStmtsr)) {
                 // Put every statement into a unique function to ease profiling or reduce function
                 // size
-                newFuncpr = nullptr;
+                if (!domainp
+                         ->hasInitial())  // Otherwise initial blocks get split on every statement
+                                          // XXX there should be a better way
+                    newFuncpr = nullptr;
+            }
+            if (auto callp = VN_CAST(nodep, CCall)) {
+                if (callp->funcp()->dpiImportWrapper())
+                    newFuncpr = nullptr;  // XXX VPI now has to be called from main thread.
+                                          // With this change, sometimes the calls are out of
+                                          // order. Needs a better fix.
             }
             if (!newFuncpr && domainp != m_deleteDomainp) {
                 const string name = cfuncName(modp, domainp, scopep, nodep);
@@ -1759,13 +1786,21 @@ AstActive* OrderVisitor::processMoveOneLogic(const OrderLogicVertex* lvertexp,
                 newFuncpr->isStatic(false);
                 newFuncpr->isLoose(true);
                 newStmtsr = 0;
-                if (domainp->hasInitial() || domainp->hasSettle()) newFuncpr->slow(true);
+                if (domainp->hasInitial()) { newFuncpr->oneshot(true); }
+                if (domainp->hasInitial() || domainp->hasSettle()) { newFuncpr->slow(true); }
                 scopep->addActivep(newFuncpr);
                 // Create top call to it
-                AstCCall* const callp = new AstCCall(nodep->fileline(), newFuncpr);
+                AstNodeCCall* newCallp;
+                if (auto callp = VN_CAST(nodep, CCall)) {
+                    if (callp->funcp()->dpiImportWrapper())
+                        newCallp = new AstCCall(nodep->fileline(), newFuncpr);
+                } else {
+                    newFuncpr->proc(true);
+                    newCallp = new AstCTrigger(nodep->fileline(), newFuncpr);
+                }
                 // Where will we be adding the call?
                 AstActive* const newActivep = new AstActive(nodep->fileline(), name, domainp);
-                newActivep->addStmtsp(callp);
+                newActivep->addStmtsp(newCallp);
                 if (!activep) {
                     activep = newActivep;
                 } else {
@@ -1782,6 +1817,9 @@ AstActive* OrderVisitor::processMoveOneLogic(const OrderLogicVertex* lvertexp,
                 UINFO(4, " Ordering deleting pre-settled " << nodep << endl);
                 VL_DO_DANGLING(pushDeletep(nodep), nodep);
             } else {
+                if (newFuncpr->stmtsp())
+                    newFuncpr->addStmtsp(new AstCStmt(
+                        nodep->fileline(), "if (vlSymsp->_vm_contextp__->gotFinish()) return;\n"));
                 newFuncpr->addStmtsp(nodep);
                 if (v3Global.opt.outputSplitCFuncs()) {
                     // Add in the number of nodes we're adding
@@ -1803,16 +1841,18 @@ void OrderVisitor::processMTasksInitial(InitialLogicE logic_type) {
     int initStmts = 0;
     AstCFunc* initCFunc = nullptr;
     AstScope* lastScopep = nullptr;
+    AstNode* lastBackp = nullptr;
     for (V3GraphVertex* initVxp = m_graph.verticesBeginp(); initVxp;
          initVxp = initVxp->verticesNextp()) {
         OrderLogicVertex* initp = dynamic_cast<OrderLogicVertex*>(initVxp);
         if (!initp) continue;
         if ((logic_type == LOGIC_INITIAL) && !initp->domainp()->hasInitial()) continue;
         if ((logic_type == LOGIC_SETTLE) && !initp->domainp()->hasSettle()) continue;
-        if (initp->scopep() != lastScopep) {
+        if (initp->scopep() != lastScopep || initp->nodep()->backp() != lastBackp) {
             // Start new cfunc, don't let the cfunc cross scopes
             initCFunc = nullptr;
             lastScopep = initp->scopep();
+            lastBackp = initp->nodep()->backp();
         }
         AstActive* newActivep = processMoveOneLogic(initp, initCFunc /*ref*/, initStmts /*ref*/);
         if (newActivep) m_scopetopp->addActivep(newActivep);

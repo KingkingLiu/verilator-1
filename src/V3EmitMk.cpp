@@ -58,8 +58,9 @@ public:
         of.puts(v3Global.useParallelBuild() ? "1" : "0");
         of.puts("\n");
         of.puts("# Threaded output mode?  0/1/N threads (from --threads)\n");
-        of.puts("VM_THREADS = ");
-        of.puts(cvtToStr(v3Global.opt.threads()));
+        of.puts("VM_THREADS = 1");
+        // XXX always enable VM_THREADS for now, use switch in future
+        // of.puts(cvtToStr(v3Global.opt.threads()));
         of.puts("\n");
         of.puts("# Tracing output mode?  0/1 (from --trace/--trace-fst)\n");
         of.puts("VM_TRACE = ");
@@ -101,6 +102,8 @@ public:
                     // have them.
                 } else if (support == 2 && !slow) {
                     putMakeClassEntry(of, "verilated.cpp");
+                    putMakeClassEntry(
+                        of, "verilated_dynamic_scheduler.cpp");  // XXX disable using switch
                     if (v3Global.dpi()) putMakeClassEntry(of, "verilated_dpi.cpp");
                     if (v3Global.opt.vpi()) putMakeClassEntry(of, "verilated_vpi.cpp");
                     if (v3Global.opt.savable()) putMakeClassEntry(of, "verilated_save.cpp");

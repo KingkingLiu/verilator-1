@@ -576,7 +576,7 @@ void EmitCSyms::emitSymImpPreamble() {
     for (const auto& pair : m_scopeFuncs) {
         const AstCFunc* const funcp = pair.second.m_cfuncp;
         if (!funcp->dpiExportImpl()) continue;
-        emitCFuncDecl(funcp, pair.second.m_modp);
+        emitCFuncDecl(funcp, pair.second.m_modp, cFuncArgs(funcp));
         needsNewLine = true;
     }
     if (needsNewLine) puts("\n");

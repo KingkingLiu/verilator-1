@@ -234,7 +234,7 @@ private:
         nodep->varScopep(nullptr);
         UINFO(9, "  refout " << nodep << endl);
     }
-    virtual void visit(AstCCall* nodep) override {
+    virtual void visit(AstNodeCCallOrCTrigger* nodep) override {
         // UINFO(9, "       " << nodep << endl);
         iterateChildren(nodep);
         // Convert the hierch name

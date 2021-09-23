@@ -43,6 +43,7 @@
 #include "V3Depth.h"
 #include "V3DepthBlock.h"
 #include "V3Descope.h"
+#include "V3DynamicScheduler.h"
 #include "V3EmitC.h"
 #include "V3EmitCMain.h"
 #include "V3EmitCMake.h"
@@ -328,9 +329,10 @@ static void process() {
         V3Active::activeAll(v3Global.rootp());
 
         // Split single ALWAYS blocks into multiple blocks for better ordering chances
+#if 0
         if (v3Global.opt.oSplit()) V3Split::splitAlwaysAll(v3Global.rootp());
         V3SplitAs::splitAsAll(v3Global.rootp());
-
+#endif
         // Create tracing sample points, before we start eliminating signals
         if (v3Global.opt.trace()) V3TraceDecl::traceDeclAll(v3Global.rootp());
 
@@ -359,11 +361,18 @@ static void process() {
         }
 
         // Reorder assignments in pipelined blocks
+#if 0
         if (v3Global.opt.oReorder()) V3Split::splitReorderAll(v3Global.rootp());
+#endif
 
+        // XXX leaving this here to remember to restore it later with a switch
+        // for the static scheduler
+#if 0
         // Create delayed assignments
         // This creates lots of duplicate ACTIVES so ActiveTop needs to be after this step
         V3Delayed::delayedAll(v3Global.rootp());
+#endif
+        V3DynamicScheduler::dynSched(v3Global.rootp());
 
         // Make Active's on the top level.
         // Differs from V3Active, because identical clocks may be pushed
@@ -425,7 +434,7 @@ static void process() {
         V3Descope::descopeAll(v3Global.rootp());
 
         // Icache packing; combine common code in each module's functions into subroutines
-        if (v3Global.opt.oCombine()) V3Combine::combineAll(v3Global.rootp());
+        // if (v3Global.opt.oCombine()) V3Combine::combineAll(v3Global.rootp());
     }
 
     V3Error::abortIfErrors();
@@ -595,7 +604,6 @@ static void verilate(const string& argString) {
 
     // Read first filename
     v3Global.readFiles();
-
     // Link, etc, if needed
     if (!v3Global.opt.preprocOnly()) {  //
         process();

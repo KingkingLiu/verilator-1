@@ -584,8 +584,6 @@ private:
             VL_DO_DANGLING(pushDeletep(nodep->unlinkFrBack()), nodep);
             return;
         }
-        nodep->v3warn(STMTDLY, "Unsupported: Ignoring delay on this delayed statement.");
-        VL_DO_DANGLING(pushDeletep(nodep->unlinkFrBack()), nodep);
     }
     virtual void visit(AstFork* nodep) override {
         if (VN_IS(m_ftaskp, Func) && !nodep->joinType().joinNone()) {
@@ -594,20 +592,7 @@ private:
             VL_DO_DANGLING(pushDeletep(nodep->unlinkFrBack()), nodep);
             return;
         }
-        if (v3Global.opt.bboxUnsup()
-            // With no statements, begin is identical
-            || !nodep->stmtsp()
-            // With one statement, a begin block does as good as a fork/join or join_any
-            || (!nodep->stmtsp()->nextp() && !nodep->joinType().joinNone())) {
-            AstNode* stmtsp = nullptr;
-            if (nodep->stmtsp()) stmtsp = nodep->stmtsp()->unlinkFrBack();
-            AstBegin* newp = new AstBegin{nodep->fileline(), nodep->name(), stmtsp};
-            nodep->replaceWith(newp);
-            VL_DO_DANGLING(nodep->deleteTree(), nodep);
-        } else {
-            nodep->v3warn(E_UNSUPPORTED, "Unsupported: fork statements");
-            // TBD might support only normal join, if so complain about other join flavors
-        }
+        iterateChildren(nodep);
     }
     virtual void visit(AstDisableFork* nodep) override {
         nodep->v3warn(E_UNSUPPORTED, "Unsupported: disable fork statements");
@@ -1311,13 +1296,6 @@ private:
         AstConst* newp = new AstConst(nodep->fileline(), AstConst::RealDouble(), time);
         nodep->replaceWith(newp);
         VL_DO_DANGLING(nodep->deleteTree(), nodep);
-    }
-    virtual void visit(AstTimingControl* nodep) override {
-        nodep->v3warn(E_UNSUPPORTED, "Unsupported: timing control statement in this location\n"
-                                         << nodep->warnMore()
-                                         << "... Suggest have one timing control statement "
-                                         << "per procedure, at the top of the procedure");
-        VL_DO_DANGLING(nodep->unlinkFrBack()->deleteTree(), nodep);
     }
     virtual void visit(AstAttrOf* nodep) override {
         VL_RESTORER(m_attrp);
@@ -3066,13 +3044,27 @@ private:
             nodep->dtypeFrom(adtypep->subDTypep());  // Best guess
         }
     }
+    AstVar* getCreateTriggeredVar(AstNode* nodep) {
+        auto* varp = VN_CAST(nodep, VarRef)->varp();
+        if (varp->triggeredVarRefp()) return varp->triggeredVarRefp()->varp();
+        string triggeredVarName = nodep->name() + string("__Vtriggered");
+        auto* triggeredVarFileline = nodep->fileline();
+        while (!VN_CAST(nodep, NodeModule)) nodep = nodep->backp();
+        auto* modp = VN_CAST(nodep, NodeModule);
+        auto* newvarp = new AstVar(triggeredVarFileline, AstVarType::MODULETEMP, triggeredVarName,
+                                   VFlagLogicPacked(), 1);
+        varp->triggeredVarRefp(new AstVarRef(triggeredVarFileline, newvarp, VAccess::READWRITE));
+        modp->addStmtp(newvarp);
+        return newvarp;
+    }
     void methodCallEvent(AstMethodCall* nodep, AstBasicDType*) {
         // Method call on event
         if (nodep->name() == "triggered") {
-            // We represent events as numbers, so can just return number
+            // Replace with reference to new __Vtriggered variable
             methodOkArguments(nodep, 0, 0);
-            AstNode* newp = nodep->fromp()->unlinkFrBack();
-            nodep->replaceWith(newp);
+            auto* newvarp = getCreateTriggeredVar(nodep->fromp());
+            auto* varrefp = new AstVarRef(nodep->fileline(), newvarp, VAccess::READ);
+            nodep->replaceWith(varrefp);
             VL_DO_DANGLING(pushDeletep(nodep), nodep);
         } else {
             nodep->v3error("Unknown built-in event method " << nodep->prettyNameQ());
@@ -4593,6 +4585,9 @@ private:
         }
         userIterateChildren(nodep, nullptr);
     }
+    virtual void visit(AstWait* nodep) override {
+        userIterateChildren(nodep, WidthVP(SELF, PRELIM).p());
+    }
     virtual void visit(AstNode* nodep) override {
         // Default: Just iterate
         UASSERT_OBJ(!m_vup, nodep,
@@ -5365,6 +5360,10 @@ private:
             AstNode* oldp = underp;  // Need FINAL on children; otherwise splice would block it
             underp = spliceCvtString(underp);
             underp = userIterateSubtreeReturnEdits(oldp, WidthVP(SELF, FINAL).p());
+        } else if (VN_IS(nodep, AssignW) && VN_IS(VN_CAST(nodep, AssignW)->lhsp(), VarRef)
+                   && VN_CAST(VN_CAST(nodep, AssignW)->lhsp(), VarRef)->varp()->varType()
+                          == AstVarType::MODULETEMP) {
+            // Don't verify width in assignments to temporary variables
         } else {
             AstBasicDType* expBasicp = expDTypep->basicp();
             AstBasicDType* underBasicp = underp->dtypep()->basicp();

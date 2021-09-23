@@ -262,7 +262,7 @@ public:
     enum en m_e;
     bool clockedStmt() const {
         static const bool clocked[]
-            = {false, false, true, true, true, true, true, false, false, false};
+            = {false, true, true, true, true, true, true, false, false, false};
         return clocked[m_e];
     }
     VEdgeType invert() const {
@@ -2108,17 +2108,19 @@ private:
     bool m_unnamed;  // Originally unnamed (name change does not affect this)
 protected:
     AstNodeBlock(AstType t, FileLine* fl, const string& name, AstNode* stmtsp)
-        : AstNode{t, fl}
-        , m_name{name} {
+        : AstNode{t, fl} {
+        this->name(name);
         addNOp1p(stmtsp);
-        m_unnamed = (name == "");
     }
 
 public:
     ASTNODE_BASE_FUNCS(NodeBlock)
     virtual void dump(std::ostream& str) const override;
     virtual string name() const override { return m_name; }  // * = Block name
-    virtual void name(const string& name) override { m_name = name; }
+    virtual void name(const string& name) override {
+        m_name = name;
+        m_unnamed = (name == "");
+    }
     // op1 = Statements
     AstNode* stmtsp() const { return op1p(); }  // op1 = List of statements
     void addStmtsp(AstNode* nodep) { addNOp1p(nodep); }
@@ -2453,12 +2455,12 @@ public:
     const char* charIQWN() const {
         return (isString() ? "N" : isWide() ? "W" : isQuad() ? "Q" : "I");
     }
-    string cType(const string& name, bool forFunc, bool isRef) const;
+    string cType(const string& name, bool forFunc, bool isRef, bool monitored = true) const;
     bool isLiteralType() const;  // Does this represent a C++ LiteralType? (can be constexpr)
 
 private:
     class CTypeRecursed;
-    CTypeRecursed cTypeRecurse(bool compound) const;
+    CTypeRecursed cTypeRecurse(bool compound, bool monitored = true) const;
 };
 
 class AstNodeUOrStructDType VL_NOT_FINAL : public AstNodeDType {

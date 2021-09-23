@@ -491,10 +491,15 @@ private:
         // Move always to appropriate ACTIVE based on its sense list
         if (oldsensesp && oldsensesp->sensesp() && VN_IS(oldsensesp->sensesp(), SenItem)
             && VN_CAST(oldsensesp->sensesp(), SenItem)->isNever()) {
+            // TODO psagan, commenting out, since always block shouldn't be removied
             // Never executing.  Kill it.
-            UASSERT_OBJ(!oldsensesp->sensesp()->nextp(), nodep,
-                        "Never senitem should be alone, else the never should be eliminated.");
-            VL_DO_DANGLING(nodep->unlinkFrBack()->deleteTree(), nodep);
+            // UASSERT_OBJ(!oldsensesp->sensesp()->nextp(), nodep,
+            //            "Never senitem should be alone, else the never should be eliminated.");
+            // VL_DO_DANGLING(nodep->unlinkFrBack()->deleteTree(), nodep);
+            AstActive* wantactivep = nullptr;
+            wantactivep = m_namer.getActive(nodep->fileline(), oldsensesp);
+            nodep->unlinkFrBack();
+            wantactivep->addStmtsp(nodep);
             return;
         }
 
@@ -506,11 +511,7 @@ private:
         bool sequent = m_itemSequent;
 
         if (!combo && !sequent) combo = true;  // If no list, Verilog 2000: always @ (*)
-        if (combo && sequent) {
-            nodep->v3warn(E_UNSUPPORTED, "Unsupported: Mixed edge (pos/negedge) and activity "
-                                         "(no edge) sensitive activity list");
-            sequent = false;
-        }
+        if (combo && sequent) { sequent = false; }
 
         AstActive* wantactivep = nullptr;
         if (combo && !sequent) {
@@ -587,18 +588,19 @@ private:
                 }
             }
         }
-        if (nodep->edgeType() == VEdgeType::ET_ANYEDGE) {
+        if (!nodep->varrefp()->width1() && nodep->edgeType() == VEdgeType::ET_ANYEDGE && false) {
             m_itemCombo = true;
             // Delete the sensitivity
             // We'll add it as a generic COMBO SenItem in a moment.
             VL_DO_DANGLING(nodep->unlinkFrBack()->deleteTree(), nodep);
         } else if (nodep->varrefp()) {
             // V3LinkResolve should have cleaned most of these up
-            if (!nodep->varrefp()->width1()) {
-                nodep->v3warn(E_UNSUPPORTED,
-                              "Unsupported: Non-single bit wide signal pos/negedge sensitivity: "
-                                  << nodep->varrefp()->prettyNameQ());
-            }
+            // if (!nodep->varrefp()->width1()) {
+            //     nodep->v3warn(E_UNSUPPORTED,
+            //                   "Unsupported: Non-single bit wide signal pos/negedge sensitivity:
+            //                   "
+            //                       << nodep->varrefp()->prettyNameQ());
+            // }
             m_itemSequent = true;
             nodep->varrefp()->varp()->usedClock(true);
         }

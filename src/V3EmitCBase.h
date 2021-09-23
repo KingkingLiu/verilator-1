@@ -102,8 +102,11 @@ public:
 
     static AstCFile* newCFile(const string& filename, bool slow, bool source);
     string cFuncArgs(const AstCFunc* nodep);
-    void emitCFuncHeader(const AstCFunc* funcp, const AstNodeModule* modp, bool withScope);
-    void emitCFuncDecl(const AstCFunc* funcp, const AstNodeModule* modp, bool cLinkage = false);
+    void emitCFuncHeader(const AstCFunc* funcp, const AstNodeModule* modp, const std::string& args,
+                         bool withScope);
+    void emitCFuncDecl(const AstCFunc* funcp, const AstNodeModule* modp, const std::string& args,
+                       bool cLinkage = false);
+    void emitPublicCFuncDecl(AstNodeModule* modp, const AstCFunc* funcp);
     void emitVarDecl(const AstVar* nodep, bool asRef = false);
     void emitModCUse(const AstNodeModule* modp, VUseType useType);
     void emitTextSection(const AstNodeModule* modp, AstType type);

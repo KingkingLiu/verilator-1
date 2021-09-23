@@ -18,7 +18,13 @@ execute(
     check_finished => 1,
     );
 
-file_grep(glob_one("$Self->{obj_dir}/$Self->{VM_PREFIX}___024root__DepSet_*__0__Slow.cpp"), qr/VL_RAND_RESET/);
+my $VL_RAND_RESET = 0;
+my $globbed = "$Self->{obj_dir}/$Self->{VM_PREFIX}___024root__DepSet_*__0__Slow.cpp";
+foreach my $file (glob_all($globbed)) {
+    my $text = file_contents($file);
+    $VL_RAND_RESET |= $text =~ qr/VL_RAND_RESET/;
+}
+error("$globbed does not have 'VL_RAND_RESET'") if !$VL_RAND_RESET;
 
 ok(1);
 1;

@@ -370,6 +370,7 @@ private:
                    || nodep->displayType() == AstDisplayType::DT_FATAL) {
             replaceDisplay(nodep, "%%Error");
         } else if (nodep->displayType() == AstDisplayType::DT_MONITOR) {
+            return;  // $monitor is handled by Monitor class in verilated.h
             nodep->displayType(AstDisplayType::DT_DISPLAY);
             const auto fl = nodep->fileline();
             const auto monNum = ++m_monitorNum;
@@ -389,6 +390,7 @@ private:
             AstNode* newp = new AstAlwaysPostponed{fl, ifp};
             m_modp->addStmtp(newp);
         } else if (nodep->displayType() == AstDisplayType::DT_STROBE) {
+            return;  // $strobe is handled by Strobe class in verilated.h
             nodep->displayType(AstDisplayType::DT_DISPLAY);
             // Need one-shot
             const auto fl = nodep->fileline();
@@ -411,6 +413,7 @@ private:
         }
     }
     virtual void visit(AstMonitorOff* nodep) override {
+        return;
         const auto newp
             = new AstAssign(nodep->fileline(), newMonitorOffVarRefp(nodep, VAccess::WRITE),
                             new AstConst(nodep->fileline(), AstConst::BitTrue{}, nodep->off()));

@@ -85,7 +85,7 @@ private:
     }
     void computeCppWidth(AstNode* nodep) {
         if (!nodep->user2() && nodep->hasDType()) {
-            if (VN_IS(nodep, Var)
+            if (VN_IS(nodep, Var) || nodep->dtypep() == nullptr  // XXX workaround for params
                 || VN_IS(nodep, NodeDType)  // Don't want to change variable widths!
                 || VN_IS(nodep->dtypep()->skipRefp(), AssocArrayDType)  // Or arrays
                 || VN_IS(nodep->dtypep()->skipRefp(), DynArrayDType)

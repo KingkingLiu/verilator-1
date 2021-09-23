@@ -2089,11 +2089,12 @@ public:
     string scType() const;  // Return SysC type: bool, uint32_t, uint64_t, sc_bv
     // Return C /*public*/ type for argument: bool, uint32_t, uint64_t, etc.
     string cPubArgType(bool named, bool forReturn) const;
+    string cPubArgTypeNoRef() const;
     string dpiArgType(bool named, bool forReturn) const;  // Return DPI-C type for argument
     string dpiTmpVarType(const string& varName) const;
     // Return Verilator internal type for argument: CData, SData, IData, WData
     string vlArgType(bool named, bool forReturn, bool forFunc, const string& namespc = "",
-                     bool asRef = false) const;
+                     bool asRef = false, bool monitored = false) const;
     string vlEnumType() const;  // Return VerilatorVarType: VLVT_UINT32, etc
     string vlEnumDir() const;  // Return VerilatorVarDir: VLVD_INOUT, etc
     string vlPropDecl(const string& propName) const;  // Return VerilatorVarProps declaration
@@ -2263,6 +2264,8 @@ public:
     const MTaskIdSet& mtaskIds() const { return m_mtaskIds; }
     void pinNum(int id) { m_pinNum = id; }
     int pinNum() const { return m_pinNum; }
+    void triggeredVarRefp(AstVarRef* varrefp);
+    AstVarRef* triggeredVarRefp();
 };
 
 class AstDefParam final : public AstNode {
@@ -2402,6 +2405,7 @@ public:
 };
 
 class AstVarRef final : public AstNodeVarRef {
+private:
     // A reference to a variable (lvalue or rvalue)
 public:
     AstVarRef(FileLine* fl, const string& name, const VAccess& access)
@@ -3428,6 +3432,9 @@ public:
 };
 
 class AstAssignDly final : public AstNodeAssign {
+private:
+    bool m_delayedEval = false;  // Delay eval of RHS until NBA region?
+
 public:
     AstAssignDly(FileLine* fl, AstNode* lhsp, AstNode* rhsp)
         : ASTGEN_SUPER_AssignDly(fl, lhsp, rhsp) {}
@@ -3438,6 +3445,8 @@ public:
     virtual bool isGateOptimizable() const override { return false; }
     virtual string verilogKwd() const override { return "<="; }
     virtual bool brokeLhsMustBeLvalue() const override { return true; }
+    void delayedEval(bool delayed) { m_delayedEval = delayed; }
+    bool delayedEval() const { return m_delayedEval; }
 };
 
 class AstAssignW final : public AstNodeAssign {
@@ -4516,7 +4525,17 @@ public:
         addNOp3p(bodysp);
     }
     ASTNODE_NODE_FUNCS(Wait)
+    virtual string verilogKwd() const { return "wait(%l)"; }
+    virtual bool isGateOptimizable() const { return false; }
+    virtual bool isPredictOptimizable() const { return false; }
+    virtual bool isPure() const { return false; }
+    virtual bool isOutputter() const { return false; }
+    virtual int instrCount() const { return 0; }
+    virtual V3Hash sameHash() const { return V3Hash(); }
+    AstNode* condp() const { return op2p(); }
     AstNode* bodysp() const { return op3p(); }  // op3 = body of loop
+    void varrefps(AstVarRef* nodep) { addNOp4p(nodep); }
+    AstVarRef* varrefps() const { return VN_CAST(op4p(), VarRef); }
 };
 
 class AstWhile final : public AstNodeStmt {
@@ -4610,6 +4629,16 @@ public:
     virtual bool isBrancher() const override {
         return true;  // SPECIAL: We don't process code after breaks
     }
+};
+
+class AstEventTrigger final : public AstNodeStmt {
+public:
+    explicit AstEventTrigger(FileLine* fl, AstNode* trigger = NULL)
+        : ASTGEN_SUPER_EventTrigger(fl) {
+        setNOp1p(trigger);
+    }
+    ASTNODE_NODE_FUNCS(EventTrigger)
+    AstNode* trigger() const { return op1p(); }
 };
 
 class AstGenIf final : public AstNodeIf {
@@ -4727,6 +4756,24 @@ public:
         return true;  // SPECIAL: We don't process code after breaks
     }
     AstJumpLabel* labelp() const { return m_labelp; }
+};
+
+class AstTimedEvent final : public AstNodeStmt {
+    // Schedule event for later time
+    // Parents:  {statement list}
+    // Children: {Math, VarRef lvalue}
+public:
+    AstTimedEvent(FileLine* fl, AstNode* timep, AstNodeVarRef* varrefp)
+        : ASTGEN_SUPER_TimedEvent(fl) {
+        addOp1p(timep);
+        addOp2p(varrefp);
+    }
+    ASTNODE_NODE_FUNCS(TimedEvent)
+    virtual int instrCount() const { return 100; }
+    virtual V3Hash sameHash() const { return V3Hash(); }
+    virtual bool same(const AstNode* samep) const { return true; }
+    AstNode* timep() const { return op1p(); }  // op1 = Time to activate
+    AstNode* varrefp() const { return op2p(); }  // op2 = Variable to activate
 };
 
 class AstChangeXor final : public AstNodeBiComAsv {
@@ -6685,7 +6732,7 @@ public:
         out.opOr(lhs, rhs);
     }
     virtual string emitVerilog() override { return "%k(%l %f| %r)"; }
-    virtual string emitC() override { return "VL_OR_%lq(%lW, %P, %li, %ri)"; }
+    virtual string emitC() override { return "VL_OR_%lq(%rW, %P, %li, %ri)"; }
     virtual string emitSimpleOperator() override { return "|"; }
     virtual bool cleanOut() const override { V3ERROR_NA_RETURN(false); }
     virtual bool cleanLhs() const override { return false; }
@@ -8109,8 +8156,10 @@ public:
     }
     virtual string emitVerilog() override { return "%f$fgets(%l,%r)"; }
     virtual string emitC() override {
-        return strgp()->dtypep()->basicp()->isString() ? "VL_FGETS_NI(%li, %ri)"
-                                                       : "VL_FGETS_%nqX%rq(%lw, %P, &(%li), %ri)";
+        return strgp()->dtypep()->basicp()->isString()
+                   ? "VL_FGETS_NI(%li, %ri)"
+                   : (strgp()->isWide() ? "VL_FGETS_%nqX%rq(%lw, %P, %li, %ri)"
+                                        : "VL_FGETS_%nqX%rq(%lw, %P, &(%li), %ri)");
     }
     virtual bool cleanOut() const override { return false; }
     virtual bool cleanLhs() const override { return true; }
@@ -8779,6 +8828,7 @@ private:
     bool m_declPrivate : 1;  // Declare it private
     bool m_formCallTree : 1;  // Make a global function to call entire tree of functions
     bool m_slow : 1;  // Slow routine, called once or just at init time
+    bool m_oneshot : 1;  // Called once or just at init time
     bool m_funcPublic : 1;  // From user public task/function
     bool m_isConstructor : 1;  // Is C class constructor
     bool m_isDestructor : 1;  // Is C class destructor
@@ -8794,6 +8844,8 @@ private:
     bool m_dpiImportPrototype : 1;  // This is the DPI import prototype (i.e.: provided by user)
     bool m_dpiImportWrapper : 1;  // Wrapper for invoking DPI import prototype from generated code
     bool m_dpiContext : 1;  // Declared as 'context' DPI import/export function
+    bool m_proc : 1;
+
 public:
     AstCFunc(FileLine* fl, const string& name, AstScope* scopep, const string& rtnType = "")
         : ASTGEN_SUPER_CFunc(fl) {
@@ -8807,6 +8859,7 @@ public:
         m_declPrivate = false;
         m_formCallTree = false;
         m_slow = false;
+        m_oneshot = false;
         m_funcPublic = false;
         m_isConstructor = false;
         m_isDestructor = false;
@@ -8821,6 +8874,7 @@ public:
         m_dpiImportPrototype = false;
         m_dpiImportWrapper = false;
         m_dpiContext = false;
+        m_proc = false;
     }
     ASTNODE_NODE_FUNCS(CFunc)
     virtual string name() const override { return m_name; }
@@ -8863,6 +8917,8 @@ public:
     void formCallTree(bool flag) { m_formCallTree = flag; }
     bool slow() const { return m_slow; }
     void slow(bool flag) { m_slow = flag; }
+    bool oneshot() const { return m_oneshot; }
+    void oneshot(bool flag) { m_oneshot = flag; }
     bool funcPublic() const { return m_funcPublic; }
     void funcPublic(bool flag) { m_funcPublic = flag; }
     void argTypes(const string& str) { m_argTypes = str; }
@@ -8898,6 +8954,8 @@ public:
     void dpiImportWrapper(bool flag) { m_dpiImportWrapper = flag; }
     bool dpiContext() const { return m_dpiContext; }
     void dpiContext(bool flag) { m_dpiContext = flag; }
+    bool proc() const { return m_proc; }
+    void proc(bool flag) { m_proc = flag; }
     //
     // If adding node accessors, see below emptyBody
     AstNode* argsp() const { return op1p(); }
@@ -8915,21 +8973,38 @@ public:
     }
 };
 
-class AstCCall final : public AstNodeCCall {
-    // C++ function call
-    // Parents:  Anything above a statement
-    // Children: Args to the function
+class AstNodeCCallOrCTrigger VL_NOT_FINAL : public AstNodeCCall {
+    // Either AstCCall or AstCTrigger
 
     string m_selfPointer;  // Output code object pointer (e.g.: 'this')
 
 public:
-    AstCCall(FileLine* fl, AstCFunc* funcp, AstNode* argsp = nullptr)
-        : ASTGEN_SUPER_CCall(fl, funcp, argsp) {}
-    ASTNODE_NODE_FUNCS(CCall)
+    AstNodeCCallOrCTrigger(AstType t, FileLine* fl, AstCFunc* funcp, AstNode* argsp = nullptr)
+        : AstNodeCCall(t, fl, funcp, argsp) {}
 
     string selfPointer() const { return m_selfPointer; }
     void selfPointer(const string& value) { m_selfPointer = value; }
     string selfPointerProtect(bool useSelfForThis) const;
+};
+
+class AstCCall final : public AstNodeCCallOrCTrigger {
+    // C++ function call
+    // Parents:  Anything above a statement
+    // Children: Args to the function
+public:
+    AstCCall(FileLine* fl, AstCFunc* funcp, AstNode* argsp = nullptr)
+        : ASTGEN_SUPER_CCall(fl, funcp, argsp) {}
+    ASTNODE_NODE_FUNCS(CCall)
+};
+
+class AstCTrigger final : public AstNodeCCallOrCTrigger {
+    // C++ thread start
+    // Parents:  Anything above a statement
+    // Children: Args to the function
+public:
+    AstCTrigger(FileLine* fl, AstCFunc* funcp, AstNode* argsp = nullptr)
+        : ASTGEN_SUPER_CTrigger(fl, funcp, argsp) {}
+    ASTNODE_NODE_FUNCS(CTrigger)
 };
 
 class AstCMethodCall final : public AstNodeCCall {

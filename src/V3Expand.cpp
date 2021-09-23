@@ -94,16 +94,25 @@ private:
     }
     static AstNode* newWordAssign(AstNodeAssign* placep, int word, AstNode* lhsp, AstNode* rhsp) {
         FileLine* const fl = placep->fileline();
-        return new AstAssign{fl,
-                             new AstWordSel{fl, lhsp->cloneTree(true),
-                                            new AstConst{fl, static_cast<uint32_t>(word)}},
-                             rhsp};
+        if (VN_IS(placep, AssignDly)) {
+            return new AstAssignDly{fl,
+                                    new AstWordSel{fl, lhsp->cloneTree(true),
+                                                   new AstConst{fl, static_cast<uint32_t>(word)}},
+                                    rhsp};
+        } else {
+            return new AstAssign{fl,
+                                 new AstWordSel{fl, lhsp->cloneTree(true),
+                                                new AstConst{fl, static_cast<uint32_t>(word)}},
+                                 rhsp};
+        }
     }
-    static void addWordAssign(AstNodeAssign* placep, int word, AstNode* lhsp, AstNode* rhsp) {
-        insertBefore(placep, newWordAssign(placep, word, lhsp, rhsp));
+    static AstNode* addWordAssign(AstNodeAssign* placep, int word, AstNode* lhsp, AstNode* rhsp) {
+        auto assignp = newWordAssign(placep, word, lhsp, rhsp);
+        insertBefore(placep, assignp);
+        return assignp;
     }
-    static void addWordAssign(AstNodeAssign* placep, int word, AstNode* rhsp) {
-        addWordAssign(placep, word, placep->lhsp(), rhsp);
+    static AstNode* addWordAssign(AstNodeAssign* placep, int word, AstNode* rhsp) {
+        return addWordAssign(placep, word, placep->lhsp(), rhsp);
     }
 
     static void fixCloneLvalue(AstNode* nodep) {
@@ -488,6 +497,7 @@ private:
         FileLine* const lfl = lhsp->fileline();
         const bool destwide = lhsp->fromp()->isWide();
         const bool ones = nodep->rhsp()->isAllOnesV();
+        auto* dlyp = VN_CAST(nodep, AssignDly);
         if (VN_IS(lhsp->lsbp(), Const)) {
             // The code should work without this constant test, but it won't
             // constify as nicely as we'd like.
@@ -525,7 +535,11 @@ private:
                             newp = new AstAnd{lfl, newp, new AstConst{lfl, cleanmask}};
                         }
 
-                        addWordAssign(nodep, w, destp, new AstOr{lfl, oldvalp, newp});
+                        newp = addWordAssign(nodep, w, destp, new AstOr{lfl, oldvalp, newp});
+                        if (dlyp) {
+                            dlyp->delayedEval(true);
+                            VN_CAST(newp, AssignDly)->delayedEval(true);
+                        }
                     }
                 }
                 VL_DO_DANGLING(rhsp->deleteTree(), rhsp);
@@ -545,7 +559,13 @@ private:
                 AstNode* const shifted = new AstShiftL{
                     lfl, rhsp, new AstConst{lfl, static_cast<uint32_t>(lsb)}, destp->width()};
                 AstNode* const cleaned = new AstAnd{lfl, shifted, new AstConst{lfl, cleanmask}};
-                AstNode* const newp = new AstAssign{nfl, destp, new AstOr{lfl, oldvalp, cleaned}};
+                AstNode* newp = new AstOr{lfl, oldvalp, cleaned};
+                if (dlyp) {
+                    auto* newDlyp = new AstAssignDly(nfl, destp, newp);
+                    newDlyp->delayedEval(true);
+                    newp = newDlyp;
+                } else
+                    newp = new AstAssign(nfl, destp, newp);
                 insertBefore(nodep, newp);
             }
             return true;
@@ -570,9 +590,15 @@ private:
                 // Restrict the shift amount to 0-31, see bug804.
                 AstNode* const shiftp = new AstAnd{nfl, lhsp->lsbp()->cloneTree(true),
                                                    new AstConst{nfl, VL_EDATASIZE - 1}};
-                AstNode* const newp = new AstAssign{
-                    nfl, newWordSel(nfl, destp, lhsp->lsbp()),
-                    new AstOr{lfl, oldvalp, new AstShiftL{lfl, rhsp, shiftp, VL_EDATASIZE}}};
+                AstNode* newp
+                    = new AstOr{lfl, oldvalp, new AstShiftL{lfl, rhsp, shiftp, VL_EDATASIZE}};
+                if (dlyp) {
+                    auto* newDlyp
+                        = new AstAssignDly(nfl, newWordSel(nfl, destp, lhsp->lsbp()), newp);
+                    newDlyp->delayedEval(true);
+                    newp = newDlyp;
+                } else
+                    newp = new AstAssign(nfl, newWordSel(nfl, destp, lhsp->lsbp()), newp);
                 insertBefore(nodep, newp);
                 return true;
             } else if (destwide) {
@@ -619,7 +645,13 @@ private:
                     newp = new AstAnd{lfl, newp, new AstConst{lfl, cleanmask}};
                 }
 
-                newp = new AstAssign{nfl, destp, new AstOr{lfl, oldvalp, newp}};
+                newp = new AstOr{lfl, oldvalp, newp};
+                if (dlyp) {
+                    auto* newDlyp = new AstAssignDly{nfl, destp, newp};
+                    newDlyp->delayedEval(true);
+                    newp = newDlyp;
+                } else
+                    newp = new AstAssign{nfl, destp, newp};
                 // newp->dumpTree(cout, "-  new: ");
                 insertBefore(nodep, newp);
                 return true;

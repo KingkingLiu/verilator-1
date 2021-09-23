@@ -166,6 +166,12 @@ class EmitCModel final : public EmitCFunc {
         ofp()->putsPrivate(false);  // public:
         puts("void final();\n");
 
+        puts("/// Return true if no more timed work to do. Application uses to exit.\n");
+        puts("bool timeSlotsEmpty() { return contextp()->dynamic->timedQEmpty(); }\n");
+        puts("/// Return earliest time slot. Application uses to advance time.\n");
+        puts("vluint64_t timeSlotsEarliestTime() { return "
+             "contextp()->dynamic->timedQEarliestTime(); }\n");
+
         if (v3Global.opt.trace()) {
             puts("/// Trace signals in the model; called by application code\n");
             puts("void trace(" + v3Global.opt.traceClassBase()
@@ -202,7 +208,9 @@ class EmitCModel final : public EmitCFunc {
 
             if (!funcps.empty()) {
                 puts("\n/// DPI Export functions\n");
-                for (const AstCFunc* funcp : funcps) { emitCFuncDecl(funcp, modp); }
+                for (const AstCFunc* funcp : funcps) {
+                    emitCFuncDecl(funcp, modp, cFuncArgs(funcp));
+                }
             }
         }
 
@@ -318,12 +326,38 @@ class EmitCModel final : public EmitCFunc {
         }
         if (v3Global.opt.trace()) puts("vlSymsp->__Vm_activity = true;\n");
         puts("do {\n");
+        // Reset events and their __Vtriggered vars
+        // TODO: find a better way to do this
+        for (auto* nodep = modp->stmtsp(); nodep; nodep = nodep->nextp()) {
+            if (auto* varp = VN_CAST(nodep, Var)) {
+                if (nodep->dtypep() && nodep->dtypep()->basicp()
+                    && nodep->dtypep()->basicp()->isEventValue()) {
+                    puts("vlSymsp->TOP.");
+                    puts(nodep->nameProtect());
+                    puts(".assign_no_notify(0);\n");
+                    if (auto* varrefp = varp->triggeredVarRefp()) {
+                        puts("vlSymsp->TOP.");
+                        puts(varrefp->varp()->nameProtect());
+                        puts(".assign_no_notify(0);\n");
+                    }
+                }
+            }
+        }
+        puts("do {\n");
+        puts("vlSymsp->TOP.");
+        puts(protect("__eval_change_counter"));
+        puts(" = 0;\n");
         puts("VL_DEBUG_IF(VL_DBG_MSGF(\"+ ");
         puts(initial ? "Initial" : "Clock");
         puts(" loop\\n\"););\n");
         if (initial)
             puts(topModNameProtected + "__" + protect("_eval_settle") + "(&(vlSymsp->TOP));\n");
         puts(topModNameProtected + "__" + protect("_eval") + "(&(vlSymsp->TOP));\n");
+        puts("vlSymsp->TOP.verilated_nba_ctrl.assign();\n");
+        puts("} while (!vlSymsp->_vm_contextp__->gotFinish() && vlSymsp->TOP.");
+        puts(protect("__eval_change_counter"));
+        puts(" != 0);\n");
+        puts("vlSymsp->_vm_contextp__->dynamic->strobe.display();\n");
         if (v3Global.rootp()->changeRequest()) {
             puts("if (VL_UNLIKELY(++__VclockLoop > " + cvtToStr(v3Global.opt.convergeLimit())
                  + ")) {\n");
@@ -396,8 +430,10 @@ class EmitCModel final : public EmitCFunc {
              + "(&(vlSymsp->TOP));\n");
         puts("#endif  // VL_DEBUG\n");
         putsDecoration("// Initialize\n");
-        puts("if (VL_UNLIKELY(!vlSymsp->__Vm_didInit)) " + protect("_eval_initial_loop")
+        puts("if (VL_UNLIKELY(!vlSymsp->__Vm_didInit)) {\n" + protect("_eval_initial_loop")
              + "(vlSymsp);\n");
+        puts("vlSymsp->_vm_contextp__->dynamic->thread_pool.wait_for_idle();\n}\n");
+        puts("vlSymsp->_vm_contextp__->dynamic->timedQActivate(VL_TIME_Q());\n");
 
         if (v3Global.opt.threads() == 1) {
             uint32_t mtaskId = 0;

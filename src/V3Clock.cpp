@@ -86,6 +86,7 @@ private:
     AstSenTree* m_lastSenp = nullptr;  // Last sensitivity match, so we can detect duplicates.
     AstIf* m_lastIfp = nullptr;  // Last sensitivity if active to add more under
     AstMTaskBody* m_mtaskBodyp = nullptr;  // Current mtask body
+    AstVarScope* m_evalCounterVarScopep = nullptr;
 
     // METHODS
     VL_DEBUG_FUNC;  // Declare debug()
@@ -94,13 +95,15 @@ private:
         if (vscp->user1p()) return static_cast<AstVarScope*>(vscp->user1p());
         AstVar* varp = vscp->varp();
         if (!varp->width1()) {
-            varp->v3warn(E_UNSUPPORTED, "Unsupported: Clock edge on non-single bit signal: "
-                                            << varp->prettyNameQ());
+            // TODO psagan
+            //  varp->v3warn(E_UNSUPPORTED, "Unsupported: Clock edge on non-single bit signal: "
+            //                                  << varp->prettyNameQ());
+            // return vscp;
         }
         string newvarname
             = (string("__Vclklast__") + vscp->scopep()->nameDotless() + "__" + varp->name());
         AstVar* newvarp = new AstVar(vscp->fileline(), AstVarType::MODULETEMP, newvarname,
-                                     VFlagLogicPacked(), 1);
+                                     VFlagLogicPacked(), varp->width());
         newvarp->noReset(true);  // Reset by below assign
         m_modp->addStmtp(newvarp);
         AstVarScope* newvscp = new AstVarScope(vscp->fileline(), m_scopep, newvarp);
@@ -163,6 +166,12 @@ private:
         } else if (nodep->edgeType() == VEdgeType::ET_LOWEDGE) {
             newp = new AstNot(nodep->fileline(),
                               new AstVarRef(nodep->fileline(), clkvscp, VAccess::READ));
+        } else if (nodep->edgeType() == VEdgeType::ET_ANYEDGE) {
+            AstVarScope* lastVscp = getCreateLastClk(clkvscp);
+            newp = new AstXor(
+                nodep->fileline(),
+                new AstVarRef(nodep->fileline(), nodep->varrefp()->varScopep(), VAccess::READ),
+                new AstVarRef(nodep->fileline(), lastVscp, VAccess::READ));
         } else {
             nodep->v3fatalSrc("Bad edge type");
         }
@@ -254,6 +263,17 @@ private:
         m_initFuncp = makeTopFunction("_eval_initial", /* slow: */ true);
         m_settleFuncp = makeTopFunction("_eval_settle", /* slow: */ true);
         m_finalFuncp = makeTopFunction("_final", /* slow: */ true);
+
+        // Create counter for the _eval loop
+        AstVar* cntVarp = new AstVar(nodep->fileline(), AstVarType::MODULETEMP,
+                                     "__eval_change_counter", VFlagLogicPacked(), 32);
+        m_evalCounterVarScopep = new AstVarScope(m_scopep->fileline(), m_scopep, cntVarp);
+        cntVarp->sigPublic(true);  // public sig so it's never optimized out
+
+        m_scopep->addVarp(m_evalCounterVarScopep);
+
+        m_modp->addStmtp(cntVarp);
+
         // Process the activates
         iterateChildren(nodep);
         UINFO(4, " TOPSCOPE iter done " << nodep << endl);
@@ -342,6 +362,9 @@ private:
     void addToInitial(AstNode* stmtsp) {
         m_initFuncp->addStmtsp(stmtsp);  // add to top level function
     }
+    virtual void visit(AstTimingControl* nodep) override {
+        // Do not iterate to keep sentree in place
+    }
     virtual void visit(AstActive* nodep) override {
         // Careful if adding variables here, ACTIVES can be under other ACTIVES
         // Need to save and restore any member state in AstUntilStable block
@@ -387,9 +410,37 @@ private:
                 } else {
                     clearLastSen();
                     m_lastSenp = nodep->sensesp();
+
+                    auto* syncp = new AstCStmt(
+                        nodep->fileline(),
+                        "vlSymsp->_vm_contextp__->dynamic->thread_pool.wait_for_idle();\n");
+                    addToEvalLoop(syncp);
+
                     // Make a new if statement
                     m_lastIfp = makeActiveIf(m_lastSenp);
                     addToEvalLoop(m_lastIfp);
+
+                    AstNode* incp = new AstAdd(
+                        nodep->fileline(),
+                        new AstVarRef(nodep->fileline(), m_evalCounterVarScopep, VAccess::WRITE),
+                        new AstConst(nodep->fileline(), 1));
+                    AstAssign* assignp = new AstAssign(
+                        nodep->fileline(),
+                        new AstVarRef(nodep->fileline(), m_evalCounterVarScopep, VAccess::WRITE),
+                        incp);
+                    m_lastIfp->addIfsp(assignp);
+                    for (auto* senItemp = nodep->sensesp()->sensesp(); senItemp;
+                         senItemp = VN_CAST(nodep->nextp(), SenItem)) {
+                        if (senItemp->edgeType() == VEdgeType::ET_HIGHEDGE
+                            && senItemp->varrefp()->dtypep()->basicp()->isEventValue()) {
+                            auto* assignp = new AstAssign(
+                                nodep->fileline(),
+                                new AstVarRef(nodep->fileline(), senItemp->varrefp()->varScopep(),
+                                              VAccess::WRITE),
+                                new AstConst(nodep->fileline(), 0));
+                            m_lastIfp->addIfsp(assignp);
+                        }
+                    }
                 }
                 // Move statements to if
                 m_lastIfp->addIfsp(stmtsp);
