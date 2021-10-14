@@ -339,7 +339,7 @@ string AstVar::verilogKwd() const {
 }
 
 string AstVar::vlArgType(bool named, bool forReturn, bool forFunc, const string& namespc,
-                         bool asRef, bool monitored) const {
+                         bool asRef) const {
     UASSERT_OBJ(!forReturn, this,
                 "Internal data is never passed as return, but as first argument");
     string ostatic;
@@ -355,7 +355,7 @@ string AstVar::vlArgType(bool named, bool forReturn, bool forFunc, const string&
         if (!namespc.empty()) oname += namespc + "::";
         oname += VIdProtect::protectIf(name(), protect());
     }
-    return ostatic + dtypep()->cType(oname, forFunc, isRef, monitored);
+    return ostatic + dtypep()->cType(oname, forFunc, isRef);
 }
 
 string AstVar::vlEnumType() const {
@@ -660,11 +660,9 @@ class AstNodeDType::CTypeRecursed final {
 public:
     string m_type;  // The base type, e.g.: "Foo_t"s
     string m_dims;  // Array dimensions, e.g.: "[3][2][1]"
-    string render(const string& name, bool isRef, bool monitored) const {
+    string render(const string& name, bool isRef) const {
         string out;
-        if (monitored) out += "MonitoredValue<";
         out += m_type;
-        if (monitored) out += m_dims + ">";
         if (!name.empty()) out += " ";
         if (isRef) {
             if (!m_dims.empty()) out += "(";
@@ -674,22 +672,17 @@ public:
         } else {
             out += name;
         }
-        if (!monitored) out += m_dims;
+        out += m_dims;
         return out;
     }
 };
 
-static bool canBeWrappedByMonitoredValue(const string& name) {
-    return name.find("MonitoredValue") == std::string::npos
-           && (name.find("Data") != std::string::npos || name.find("double") != std::string::npos);
+string AstNodeDType::cType(const string& name, bool forFunc, bool isRef) const {
+    const CTypeRecursed info = cTypeRecurse(false);
+    return info.render(name, isRef);
 }
 
-string AstNodeDType::cType(const string& name, bool forFunc, bool isRef, bool monitored) const {
-    CTypeRecursed info = cTypeRecurse(false, monitored);
-    return info.render(name, isRef, monitored && canBeWrappedByMonitoredValue(info.m_type));
-}
-
-AstNodeDType::CTypeRecursed AstNodeDType::cTypeRecurse(bool compound, bool monitored) const {
+AstNodeDType::CTypeRecursed AstNodeDType::cTypeRecurse(bool compound) const {
     // Legacy compound argument currently just passed through and unused
     CTypeRecursed info;
 
@@ -698,31 +691,19 @@ AstNodeDType::CTypeRecursed AstNodeDType::cTypeRecurse(bool compound, bool monit
         const CTypeRecursed key = adtypep->keyDTypep()->cTypeRecurse(true);
         const CTypeRecursed val = adtypep->subDTypep()->cTypeRecurse(true);
         info.m_type = "VlAssocArray<";
-        if (monitored && canBeWrappedByMonitoredValue(key.m_type))
-            info.m_type += "MonitoredValue<" + key.m_type + '>';
-        else
-            info.m_type += key.m_type;
+        info.m_type += key.m_type;
         info.m_type += ", ";
-        if (monitored && canBeWrappedByMonitoredValue(val.m_type))
-            info.m_type += "MonitoredValue<" + val.m_type + '>';
-        else
-            info.m_type += val.m_type;
+        info.m_type += val.m_type;
         info.m_type += '>';
     } else if (const auto* adtypep = VN_CAST_CONST(dtypep, DynArrayDType)) {
         const CTypeRecursed sub = adtypep->subDTypep()->cTypeRecurse(true);
         info.m_type = "VlQueue<";
-        if (monitored && canBeWrappedByMonitoredValue(sub.m_type))
-            info.m_type += "MonitoredValue<" + sub.m_type + '>';
-        else
-            info.m_type += sub.m_type;
+        info.m_type += sub.m_type;
         info.m_type += '>';
     } else if (const auto* adtypep = VN_CAST_CONST(dtypep, QueueDType)) {
         const CTypeRecursed sub = adtypep->subDTypep()->cTypeRecurse(true);
         info.m_type = "VlQueue<";
-        if (monitored && canBeWrappedByMonitoredValue(sub.m_type))
-            info.m_type += "MonitoredValue<" + sub.m_type + '>';
-        else
-            info.m_type += sub.m_type;
+        info.m_type += sub.m_type;
         // + 1 below as VlQueue uses 0 to mean unlimited, 1 to mean size() max is 1
         if (adtypep->boundp()) info.m_type += ", " + cvtToStr(adtypep->boundConst() + 1);
         info.m_type += '>';
@@ -730,20 +711,10 @@ AstNodeDType::CTypeRecursed AstNodeDType::cTypeRecurse(bool compound, bool monit
         info.m_type = "VlClassRef<" + EmitCBaseVisitor::prefixNameProtect(adtypep) + ">";
     } else if (const auto* adtypep = VN_CAST_CONST(dtypep, UnpackArrayDType)) {
         if (adtypep->isCompound()) compound = true;
-        const CTypeRecursed sub = adtypep->subDTypep()->cTypeRecurse(compound, monitored);
+        const CTypeRecursed sub = adtypep->subDTypep()->cTypeRecurse(compound);
         auto dims = cvtToStr(adtypep->declRange().elements());
-        if (monitored && canBeWrappedByMonitoredValue(sub.m_type)) {
-            dims = '[' + dims + ']';
-            info.m_type = sub.m_type;
-            size_t i = info.m_type.find('[');
-            if (i != std::string::npos)
-                info.m_type.insert(i, dims);
-            else
-                info.m_type += dims;
-        } else {
-            info.m_type = "VlUnpacked<" + sub.m_type;
-            info.m_type += ", " + dims + '>';
-        }
+        info.m_type = "VlUnpacked<" + sub.m_type;
+        info.m_type += ", " + dims + '>';
     } else if (const AstBasicDType* bdtypep = dtypep->basicp()) {
         // We don't print msb()/lsb() as multidim packed would require recursion,
         // and may confuse users as C++ data is stored always with bit 0 used
@@ -769,7 +740,7 @@ AstNodeDType::CTypeRecursed AstNodeDType::cTypeRecurse(bool compound, bool monit
         } else if (dtypep->isQuad()) {
             info.m_type = "QData" + bitvec;
         } else if (dtypep->isWide()) {
-            info.m_type = "WData[" + cvtToStr(dtypep->widthWords()) + "]" + bitvec;
+            info.m_type = "VlWide<" + cvtToStr(dtypep->widthWords()) + ">" + bitvec;
         }
     } else {
         v3fatalSrc("Unknown data type in var type emitter: " << dtypep->prettyName());
@@ -833,7 +804,6 @@ int AstNodeDType::widthPow2() const {
 }
 
 bool AstNodeDType::isLiteralType() const {
-    return false;  // XXX based on dynamic scheduler switch
     if (auto* const dtypep = VN_CAST_CONST(skipRefp(), BasicDType)) {
         return dtypep->keyword().isLiteralType();
     } else if (auto* const dtypep = VN_CAST_CONST(skipRefp(), UnpackArrayDType)) {

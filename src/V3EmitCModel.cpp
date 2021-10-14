@@ -167,10 +167,9 @@ class EmitCModel final : public EmitCFunc {
         puts("void final();\n");
 
         puts("/// Return true if no more timed work to do. Application uses to exit.\n");
-        puts("bool timeSlotsEmpty() { return contextp()->dynamic->timedQEmpty(); }\n");
+        puts("bool timeSlotsEmpty();\n");
         puts("/// Return earliest time slot. Application uses to advance time.\n");
-        puts("vluint64_t timeSlotsEarliestTime() { return "
-             "contextp()->dynamic->timedQEarliestTime(); }\n");
+        puts("vluint64_t timeSlotsEarliestTime();\n");
 
         if (v3Global.opt.trace()) {
             puts("/// Trace signals in the model; called by application code\n");
@@ -208,9 +207,7 @@ class EmitCModel final : public EmitCFunc {
 
             if (!funcps.empty()) {
                 puts("\n/// DPI Export functions\n");
-                for (const AstCFunc* funcp : funcps) {
-                    emitCFuncDecl(funcp, modp, cFuncArgs(funcp));
-                }
+                for (const AstCFunc* funcp : funcps) { emitCFuncDecl(funcp, modp); }
             }
         }
 
@@ -325,6 +322,7 @@ class EmitCModel final : public EmitCFunc {
             puts("QData __Vchange = 1;\n");
         }
         if (v3Global.opt.trace()) puts("vlSymsp->__Vm_activity = true;\n");
+
         puts("do {\n");
         // Reset events and their __Vtriggered vars
         // TODO: find a better way to do this
@@ -352,12 +350,19 @@ class EmitCModel final : public EmitCFunc {
         puts(" loop\\n\"););\n");
         if (initial)
             puts(topModNameProtected + "__" + protect("_eval_settle") + "(&(vlSymsp->TOP));\n");
-        puts(topModNameProtected + "__" + protect("_eval") + "(&(vlSymsp->TOP));\n");
+        // puts(topModNameProtected + "__" + protect("_eval") + "(&(vlSymsp->TOP));\n");
+        puts("vlSymsp->__Vm_taskQueue.push_back([vlSymsp = vlSymsp] () { ");
+        puts(topModNameProtected + "__" + protect("_eval"));
+        puts("(&(vlSymsp->TOP)); });\n");
+        // puts("vlSymsp->__Vm_taskQueue.run();\n");
+        puts("while (!vlSymsp->__Vm_taskQueue.empty()) {\n");
+        puts("auto task = vlSymsp->__Vm_taskQueue.front();\n");
+        puts("vlSymsp->__Vm_taskQueue.erase(vlSymsp->__Vm_taskQueue.begin());\n");
+        puts("task();\n}\n");
         puts("vlSymsp->TOP.verilated_nba_ctrl.assign();\n");
         puts("} while (!vlSymsp->_vm_contextp__->gotFinish() && vlSymsp->TOP.");
         puts(protect("__eval_change_counter"));
         puts(" != 0);\n");
-        puts("vlSymsp->_vm_contextp__->dynamic->strobe.display();\n");
         if (v3Global.rootp()->changeRequest()) {
             puts("if (VL_UNLIKELY(++__VclockLoop > " + cvtToStr(v3Global.opt.convergeLimit())
                  + ")) {\n");
@@ -398,9 +403,11 @@ class EmitCModel final : public EmitCFunc {
 
         // Forward declarations
         puts("\n");
-        puts("void " + topModNameProtected + "__" + protect("_eval_initial") + selfDecl + ";\n");
-        puts("void " + topModNameProtected + "__" + protect("_eval_settle") + selfDecl + ";\n");
-        puts("void " + topModNameProtected + "__" + protect("_eval") + selfDecl + ";\n");
+        puts("CoroutineTask " + topModNameProtected + "__" + protect("_eval_initial") + selfDecl
+             + ";\n");
+        puts("CoroutineTask " + topModNameProtected + "__" + protect("_eval_settle") + selfDecl
+             + ";\n");
+        puts("CoroutineTask " + topModNameProtected + "__" + protect("_eval") + selfDecl + ";\n");
         if (v3Global.rootp()->changeRequest()) {
             puts("QData " + topModNameProtected + "__" + protect("_change_request") + selfDecl
                  + ";\n");
@@ -409,7 +416,7 @@ class EmitCModel final : public EmitCFunc {
         puts("void " + topModNameProtected + "__" + protect("_eval_debug_assertions") + selfDecl
              + ";\n");
         puts("#endif  // VL_DEBUG\n");
-        puts("void " + topModNameProtected + "__" + protect("_final") + selfDecl + ";\n");
+        puts("CoroutineTask " + topModNameProtected + "__" + protect("_final") + selfDecl + ";\n");
 
         // _eval_initial_loop
         puts("\nstatic void " + protect("_eval_initial_loop") + "(" + symClassVar() + ")"
@@ -431,9 +438,15 @@ class EmitCModel final : public EmitCFunc {
         puts("#endif  // VL_DEBUG\n");
         putsDecoration("// Initialize\n");
         puts("if (VL_UNLIKELY(!vlSymsp->__Vm_didInit)) {\n" + protect("_eval_initial_loop")
-             + "(vlSymsp);\n");
-        puts("vlSymsp->_vm_contextp__->dynamic->thread_pool.wait_for_idle();\n}\n");
-        puts("vlSymsp->_vm_contextp__->dynamic->timedQActivate(VL_TIME_Q());\n");
+             + "(vlSymsp);\n}\n");
+        for (int i = 0; i < v3Global.opt.threads() - 1; i++) {
+            puts("vlSymsp->__Vm_threadPoolp->workerp(" + cvtToStr(i)
+                 + ")->activate(VL_TIME_Q());\n");
+        }
+        puts("vlSymsp->__Vm_timedQueue.activate(VL_TIME_Q(), vlSymsp->__Vm_taskQueue);\n");
+        // puts("while (VL_LIKELY(vlSymsp->__Vm_timedQueue.queued(VL_TIME_Q()))) {\n");
+        // puts("vlSymsp->__Vm_taskQueue.push_back(vlSymsp->__Vm_timedQueue.pop());\n");
+        // puts("}\n");
 
         if (v3Global.opt.threads() == 1) {
             uint32_t mtaskId = 0;
@@ -510,6 +523,13 @@ class EmitCModel final : public EmitCFunc {
         puts("\nvoid " + topClassName() + "::final() {\n");
         puts(topModNameProtected + "__" + protect("_final") + "(&(vlSymsp->TOP));\n");
         puts("}\n");
+
+        putSectionDelimiter("Dynamic scheduler");
+        puts("bool " + topClassName()
+             + "::timeSlotsEmpty() { return vlSymsp->__Vm_timedQueue.empty(); }\n");
+        puts("vluint64_t " + topClassName()
+             + "::timeSlotsEarliestTime() { return "
+               "vlSymsp->__Vm_timedQueue.nextTimeSlot(); }\n");
 
         putSectionDelimiter("Utilities");
         // ::contextp

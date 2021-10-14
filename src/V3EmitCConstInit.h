@@ -53,7 +53,7 @@ protected:
         // Note the double {{ initializer. The first { starts the initializer of the VlUnpacked,
         // and the second starts the initializer of m_storage within the VlUnpacked.
         puts("{");
-        // ofp()->putsNoTracking("{"); // XXX dependent on switch?
+        ofp()->putsNoTracking("{");
         puts("\n");
         for (uint32_t n = 0; n < size; ++n) {
             m_unpackedWord = n;
@@ -62,7 +62,7 @@ protected:
         }
         puts("\n");
         puts("}");
-        // ofp()->putsNoTracking("}"); // XXX dependent on switch?
+        ofp()->putsNoTracking("}");
     }
 
     virtual void visit(AstInitItem* nodep) override {  // LCOV_EXCL_START
@@ -83,7 +83,7 @@ protected:
             // Note the double {{ initializer. The first { starts the initializer of the VlWide,
             // and the second starts the initializer of m_storage within the VlWide.
             puts("{");
-            // ofp()->putsNoTracking("{"); // XXX dependent on switch?
+            ofp()->putsNoTracking("{");
             if (m_inUnpacked) puts(" // VlWide " + cvtToStr(m_unpackedWord));
             puts("\n");
             for (uint32_t n = 0; n < size; ++n) {
@@ -92,7 +92,7 @@ protected:
             }
             puts("\n");
             puts("}");
-            // ofp()->putsNoTracking("}"); // XXX dependent on switch?
+            ofp()->putsNoTracking("}");
         } else if (dtypep->isDouble()) {
             const double dnum = num.toDouble();
             const char* const fmt

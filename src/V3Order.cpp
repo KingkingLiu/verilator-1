@@ -1774,15 +1774,9 @@ AstActive* OrderVisitor::processMoveOneLogic(const OrderLogicVertex* lvertexp,
                                           // XXX there should be a better way
                     newFuncpr = nullptr;
             }
-            if (auto callp = VN_CAST(nodep, CCall)) {
-                if (callp->funcp()->dpiImportWrapper())
-                    newFuncpr = nullptr;  // XXX VPI now has to be called from main thread.
-                                          // With this change, sometimes the calls are out of
-                                          // order. Needs a better fix.
-            }
             if (!newFuncpr && domainp != m_deleteDomainp) {
                 const string name = cfuncName(modp, domainp, scopep, nodep);
-                newFuncpr = new AstCFunc(nodep->fileline(), name, scopep);
+                newFuncpr = new AstCFunc(nodep->fileline(), name, scopep, "CoroutineTask");
                 newFuncpr->isStatic(false);
                 newFuncpr->isLoose(true);
                 newStmtsr = 0;
@@ -1791,13 +1785,9 @@ AstActive* OrderVisitor::processMoveOneLogic(const OrderLogicVertex* lvertexp,
                 scopep->addActivep(newFuncpr);
                 // Create top call to it
                 AstNodeCCall* newCallp;
-                if (auto callp = VN_CAST(nodep, CCall)) {
-                    if (callp->funcp()->dpiImportWrapper())
-                        newCallp = new AstCCall(nodep->fileline(), newFuncpr);
-                } else {
-                    newFuncpr->proc(true);
-                    newCallp = new AstCTrigger(nodep->fileline(), newFuncpr);
-                }
+                newCallp = new AstCCall(nodep->fileline(), newFuncpr);
+                /*newFuncpr->proc(true);
+                newCallp = new AstCTrigger(nodep->fileline(), newFuncpr);*/
                 // Where will we be adding the call?
                 AstActive* const newActivep = new AstActive(nodep->fileline(), name, domainp);
                 newActivep->addStmtsp(newCallp);
@@ -1818,8 +1808,9 @@ AstActive* OrderVisitor::processMoveOneLogic(const OrderLogicVertex* lvertexp,
                 VL_DO_DANGLING(pushDeletep(nodep), nodep);
             } else {
                 if (newFuncpr->stmtsp())
-                    newFuncpr->addStmtsp(new AstCStmt(
-                        nodep->fileline(), "if (vlSymsp->_vm_contextp__->gotFinish()) return;\n"));
+                    newFuncpr->addStmtsp(
+                        new AstCStmt(nodep->fileline(),
+                                     "if (vlSymsp->_vm_contextp__->gotFinish()) co_return;\n"));
                 newFuncpr->addStmtsp(nodep);
                 if (v3Global.opt.outputSplitCFuncs()) {
                     // Add in the number of nodes we're adding

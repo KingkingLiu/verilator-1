@@ -90,18 +90,6 @@ static inline void VL_SET_SVLV_Q(int, svLogicVecVal* owp, const QData ld) VL_MT_
     owp[1].bval = 0;
 }
 
-static inline void VL_SET_W_SVBV(int obits, MonitoredPointer<WData> owp,
-                                 const svBitVecVal* lwp) VL_MT_SAFE {
-    VL_LOCK_MONITORED_VALUE(owp);
-    VL_SET_W_SVBV(obits, owp.data(), lwp);
-}
-
-static inline void VL_SET_W_SVLV(int obits, MonitoredPointer<WData> owp,
-                                 const svLogicVecVal* lwp) VL_MT_SAFE {
-    VL_LOCK_MONITORED_VALUE(owp);
-    VL_SET_W_SVLV(obits, owp.data(), lwp);
-}
-
 //======================================================================
 
 #endif  // Guard

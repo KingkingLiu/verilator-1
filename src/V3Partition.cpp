@@ -2756,7 +2756,7 @@ static const std::vector<AstCFunc*> createThreadFunctions(const ThreadSchedule& 
         const uint32_t threadId = schedule.threadId(thread.front());
         string name = "__Vthread_";
         name += cvtToStr(threadId);
-        AstCFunc* const funcp = new AstCFunc(fl, name, nullptr, "void");
+        AstCFunc* const funcp = new AstCFunc(fl, name, nullptr, "CoroutineTask");
         modp->addStmtp(funcp);
         funcps.push_back(funcp);
         funcp->isStatic(true);  // Uses void self pointer, so static and hand rolled
@@ -2806,6 +2806,7 @@ static void addThreadStartToExecGraph(AstExecGraph* const execGraphp,
     addStrStmt("vlSymsp->__Vm_even_cycle = !vlSymsp->__Vm_even_cycle;\n");
 
     const uint32_t last = funcps.size() - 1;
+    std::cout << "====> last = " << last << std::endl;
     for (uint32_t i = 0; i <= last; ++i) {
         AstCFunc* const funcp = funcps.at(i);
         if (i != last) {
@@ -2815,9 +2816,17 @@ static void addThreadStartToExecGraph(AstExecGraph* const execGraphp,
             addTextStmt(", vlSelf, vlSymsp->__Vm_even_cycle);\n");
         } else {
             // The last will run on the main thread.
-            AstCCall* const callp = new AstCCall(fl, funcp);
-            callp->argTypes("vlSelf, vlSymsp->__Vm_even_cycle");
-            execGraphp->addStmtsp(callp);
+            addTextStmt("vlSymsp->__Vm_taskQueue.push([vlSelf, vlSymsp]() { ");
+            auto args = new AstCStmt(fl, "vlSelf");
+            args->addNextHere(new AstCStmt(fl, "vlSymsp->__Vm_even_cycle"));
+            execGraphp->addStmtsp(new AstCCall(fl, funcp, args));
+            // addTextStmt("(vlSelf, vlSymsp->__Vm_even_cycle); });\n");
+            addTextStmt(" });\n");
+            // addStrStmt("while (!vlSymsp->__Vm_taskQueue.empty()) {\n");
+            // addStrStmt("auto task = vlSymsp->__Vm_taskQueue.front();\n");
+            // addStrStmt("vlSymsp->__Vm_taskQueue.pop();\n");
+            // addStrStmt("task();\n}\n");
+            addStrStmt("vlSymsp->__Vm_taskQueue.run();\n");
             addStrStmt("Verilated::mtaskId(0);\n");
         }
     }
@@ -2836,6 +2845,7 @@ static void implementExecGraph(AstExecGraph* const execGraphp) {
     // Create a function to be run by each thread. Note this moves all AstMTaskBody nodes form the
     // AstExecGrap into the AstCFunc created
     const std::vector<AstCFunc*>& funcps = createThreadFunctions(schedule);
+    cout << "=====> funcps: " << funcps.size() << endl;
     UASSERT(!funcps.empty(), "Non-empty ExecGraph yields no threads?");
 
     // Start the thread functions at the point this AstExecGraph is located in the tree.

@@ -104,7 +104,7 @@ void vl_finish(const char* filename, int linenum, const char* hier) VL_MT_UNSAFE
         VL_PRINTF(  // Not VL_PRINTF_MT, already on main thread
             "- %s:%d: Second verilog $finish, exiting\n", filename, linenum);
         Verilated::runFlushCallbacks();
-        //Verilated::runExitCallbacks();
+        // Verilated::runExitCallbacks();
         std::exit(0);
     }
     Verilated::threadContextp()->gotFinish(true);
@@ -1375,7 +1375,7 @@ void VL_FCLOSE_I(IData fdi) VL_MT_SAFE {
     Verilated::threadContextp()->impp()->fdClose(fdi);
 }
 
-void _VL_SFORMAT_X(int obits, CData& destr, const char* formatp, ...) VL_MT_SAFE {
+void VL_SFORMAT_X(int obits, CData& destr, const char* formatp, ...) VL_MT_SAFE {
     static VL_THREAD_LOCAL std::string t_output;  // static only for speed
     t_output = "";
     va_list ap;
@@ -1386,7 +1386,7 @@ void _VL_SFORMAT_X(int obits, CData& destr, const char* formatp, ...) VL_MT_SAFE
     _vl_string_to_vint(obits, &destr, t_output.length(), t_output.c_str());
 }
 
-void _VL_SFORMAT_X(int obits, SData& destr, const char* formatp, ...) VL_MT_SAFE {
+void VL_SFORMAT_X(int obits, SData& destr, const char* formatp, ...) VL_MT_SAFE {
     static VL_THREAD_LOCAL std::string t_output;  // static only for speed
     t_output = "";
     va_list ap;
@@ -1397,7 +1397,7 @@ void _VL_SFORMAT_X(int obits, SData& destr, const char* formatp, ...) VL_MT_SAFE
     _vl_string_to_vint(obits, &destr, t_output.length(), t_output.c_str());
 }
 
-void _VL_SFORMAT_X(int obits, IData& destr, const char* formatp, ...) VL_MT_SAFE {
+void VL_SFORMAT_X(int obits, IData& destr, const char* formatp, ...) VL_MT_SAFE {
     static VL_THREAD_LOCAL std::string t_output;  // static only for speed
     t_output = "";
     va_list ap;
@@ -1408,7 +1408,7 @@ void _VL_SFORMAT_X(int obits, IData& destr, const char* formatp, ...) VL_MT_SAFE
     _vl_string_to_vint(obits, &destr, t_output.length(), t_output.c_str());
 }
 
-void _VL_SFORMAT_X(int obits, QData& destr, const char* formatp, ...) VL_MT_SAFE {
+void VL_SFORMAT_X(int obits, QData& destr, const char* formatp, ...) VL_MT_SAFE {
     static VL_THREAD_LOCAL std::string t_output;  // static only for speed
     t_output = "";
     va_list ap;
@@ -1419,7 +1419,7 @@ void _VL_SFORMAT_X(int obits, QData& destr, const char* formatp, ...) VL_MT_SAFE
     _vl_string_to_vint(obits, &destr, t_output.length(), t_output.c_str());
 }
 
-void _VL_SFORMAT_X(int obits, void* destp, const char* formatp, ...) VL_MT_SAFE {
+void VL_SFORMAT_X(int obits, void* destp, const char* formatp, ...) VL_MT_SAFE {
     static VL_THREAD_LOCAL std::string t_output;  // static only for speed
     t_output = "";
     va_list ap;
@@ -1439,7 +1439,7 @@ void VL_SFORMAT_X(int obits_ignored, std::string& output, const char* formatp, .
     va_end(ap);
 }
 
-std::string _VL_SFORMATF_NX(const char* formatp, ...) VL_MT_SAFE {
+std::string VL_SFORMATF_NX(const char* formatp, ...) VL_MT_SAFE {
     static VL_THREAD_LOCAL std::string t_output;  // static only for speed
     t_output = "";
     va_list ap;
@@ -1450,7 +1450,7 @@ std::string _VL_SFORMATF_NX(const char* formatp, ...) VL_MT_SAFE {
     return t_output;
 }
 
-void _VL_WRITEF(const char* formatp, ...) VL_MT_SAFE {
+void VL_WRITEF(const char* formatp, ...) VL_MT_SAFE {
     static VL_THREAD_LOCAL std::string t_output;  // static only for speed
     t_output = "";
     va_list ap;
@@ -1461,7 +1461,7 @@ void _VL_WRITEF(const char* formatp, ...) VL_MT_SAFE {
     VL_PRINTF_MT("%s", t_output.c_str());
 }
 
-void _VL_FWRITEF(IData fpi, const char* formatp, ...) VL_MT_SAFE {
+void VL_FWRITEF(IData fpi, const char* formatp, ...) VL_MT_SAFE {
     // While threadsafe, each thread can only access different file handles
     static VL_THREAD_LOCAL std::string t_output;  // static only for speed
     t_output = "";
@@ -1474,7 +1474,7 @@ void _VL_FWRITEF(IData fpi, const char* formatp, ...) VL_MT_SAFE {
     Verilated::threadContextp()->impp()->fdWrite(fpi, t_output);
 }
 
-IData _VL_FSCANF_IX(IData fpi, const char* formatp, ...) VL_MT_SAFE {
+IData VL_FSCANF_IX(IData fpi, const char* formatp, ...) VL_MT_SAFE {
     // While threadsafe, each thread can only access different file handles
     FILE* const fp = VL_CVT_I_FP(fpi);
     if (VL_UNLIKELY(!fp)) return 0;
@@ -1486,7 +1486,7 @@ IData _VL_FSCANF_IX(IData fpi, const char* formatp, ...) VL_MT_SAFE {
     return got;
 }
 
-IData _VL_SSCANF_IIX(int lbits, IData ld, const char* formatp, ...) VL_MT_SAFE {
+IData VL_SSCANF_IIX(int lbits, IData ld, const char* formatp, ...) VL_MT_SAFE {
     VlWide<VL_WQ_WORDS_E> fnw;
     VL_SET_WI(fnw, ld);
 
@@ -1496,7 +1496,7 @@ IData _VL_SSCANF_IIX(int lbits, IData ld, const char* formatp, ...) VL_MT_SAFE {
     va_end(ap);
     return got;
 }
-IData _VL_SSCANF_IQX(int lbits, QData ld, const char* formatp, ...) VL_MT_SAFE {
+IData VL_SSCANF_IQX(int lbits, QData ld, const char* formatp, ...) VL_MT_SAFE {
     VlWide<VL_WQ_WORDS_E> fnw;
     VL_SET_WQ(fnw, ld);
 
@@ -1506,14 +1506,14 @@ IData _VL_SSCANF_IQX(int lbits, QData ld, const char* formatp, ...) VL_MT_SAFE {
     va_end(ap);
     return got;
 }
-IData _VL_SSCANF_IWX(int lbits, const WDataInP lwp, const char* formatp, ...) VL_MT_SAFE {
+IData VL_SSCANF_IWX(int lbits, const WDataInP lwp, const char* formatp, ...) VL_MT_SAFE {
     va_list ap;
     va_start(ap, formatp);
     const IData got = _vl_vsscanf(nullptr, lbits, lwp, "", formatp, ap);
     va_end(ap);
     return got;
 }
-IData _VL_SSCANF_INX(int, const std::string& ld, const char* formatp, ...) VL_MT_SAFE {
+IData VL_SSCANF_INX(int, const std::string& ld, const char* formatp, ...) VL_MT_SAFE {
     va_list ap;
     va_start(ap, formatp);
     const IData got = _vl_vsscanf(nullptr, ld.length() * 8, nullptr, ld, formatp, ap);
@@ -1705,12 +1705,12 @@ const char* vl_mc_scan_plusargs(const char* prefixp) VL_MT_SAFE {
 //===========================================================================
 // Heavy string functions
 
-std::string VL_TO_STRING(CData lhs) { return _VL_SFORMATF_NX("'h%0x", 8, lhs); }
-std::string VL_TO_STRING(SData lhs) { return _VL_SFORMATF_NX("'h%0x", 16, lhs); }
-std::string VL_TO_STRING(IData lhs) { return _VL_SFORMATF_NX("'h%0x", 32, lhs); }
-std::string VL_TO_STRING(QData lhs) { return _VL_SFORMATF_NX("'h%0x", 64, lhs); }
+std::string VL_TO_STRING(CData lhs) { return VL_SFORMATF_NX("'h%0x", 8, lhs); }
+std::string VL_TO_STRING(SData lhs) { return VL_SFORMATF_NX("'h%0x", 16, lhs); }
+std::string VL_TO_STRING(IData lhs) { return VL_SFORMATF_NX("'h%0x", 32, lhs); }
+std::string VL_TO_STRING(QData lhs) { return VL_SFORMATF_NX("'h%0x", 64, lhs); }
 std::string VL_TO_STRING_W(int words, const WDataInP obj) {
-    return _VL_SFORMATF_NX("'h%0x", words * VL_EDATASIZE, obj);
+    return VL_SFORMATF_NX("'h%0x", words * VL_EDATASIZE, obj);
 }
 
 std::string VL_TOLOWER_NN(const std::string& ld) VL_MT_SAFE {
@@ -2262,11 +2262,10 @@ VerilatedContext::VerilatedContext()
     std::fill(m_fdps.begin(), m_fdps.end(), static_cast<FILE*>(nullptr));
     m_fdFreeMct.resize(30);
     for (std::size_t i = 0, id = 1; i < m_fdFreeMct.size(); ++i, ++id) m_fdFreeMct[i] = id;
-    dynamic = new VerilatedDynamicContext(this);
 }
 
 // Must declare here not in interface, as otherwise forward declarations not known
-VerilatedContext::~VerilatedContext() { delete dynamic; }
+VerilatedContext::~VerilatedContext() {}
 
 VerilatedContext::Serialized::Serialized() {
     m_timeunit = VL_TIME_UNIT;  // Initial value until overriden by _Vconfigure

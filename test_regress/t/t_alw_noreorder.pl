@@ -22,9 +22,6 @@ file_grep($Self->{stats}, qr/Optimizations, Split always\s+(\d+)/i, 0);
 my @files = glob_all("$Self->{obj_dir}/$Self->{VM_PREFIX}___024root*.cpp");
 file_grep_any(\@files, qr/dly__t__DOT__v1/i);
 file_grep_any(\@files, qr/dly__t__DOT__v2/i);
-# XXX REBASE ???
-# file_grep("$Self->{obj_dir}/$Self->{VM_PREFIX}.cpp", qr/schedule.*t__DOT__v1/i);
-# file_grep("$Self->{obj_dir}/$Self->{VM_PREFIX}.cpp", qr/schedule.*t__DOT__v2/i);
 
 execute(
     check_finished=>1,

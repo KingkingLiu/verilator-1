@@ -442,6 +442,10 @@ void EmitCSyms::emitSymHdr() {
     }
     puts("bool __Vm_didInit = false;\n");
 
+    puts("TimedQueue __Vm_timedQueue;\n");
+    puts("std::unordered_map<void*, Task> __Vm_waitingEvents;\n");
+    // puts("std::queue<Task> __Vm_taskQueue;\n");
+    puts("std::vector<Task> __Vm_taskQueue;\n");
     if (v3Global.opt.mtasks()) {
         puts("VlThreadPool* const __Vm_threadPoolp;\n");
         puts("bool __Vm_even_cycle = false;\n");
@@ -576,7 +580,7 @@ void EmitCSyms::emitSymImpPreamble() {
     for (const auto& pair : m_scopeFuncs) {
         const AstCFunc* const funcp = pair.second.m_cfuncp;
         if (!funcp->dpiExportImpl()) continue;
-        emitCFuncDecl(funcp, pair.second.m_modp, cFuncArgs(funcp));
+        emitCFuncDecl(funcp, pair.second.m_modp);
         needsNewLine = true;
     }
     if (needsNewLine) puts("\n");

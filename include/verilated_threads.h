@@ -198,7 +198,7 @@ private:
     // Why a vector? We expect the pending list to be very short, typically
     // 0 or 1 or 2, so popping from the front shouldn't be
     // expensive. Revisit if we ever have longer queues...
-    std::vector<ExecRec> m_ready VL_GUARDED_BY(m_mutex);
+    std::vector<Task> m_ready VL_GUARDED_BY(m_mutex);
     // Store the size atomically, so we can spin wait
     std::atomic<size_t> m_ready_size;
 
@@ -211,13 +211,20 @@ private:
 
     VL_UNCOPYABLE(VlWorkerThread);
 
+    TimedQueue m_queue;
+
 public:
+    /// Push to activate given event at given time
+    void schedule(vluint64_t time, Task task) VL_MT_SAFE { m_queue.push(time, task); }
+    /// Activate and pop all events earlier than given time
+    void activate(vluint64_t time) VL_MT_SAFE { m_queue.activate(time, m_ready); }
+
     // CONSTRUCTORS
     explicit VlWorkerThread(VlThreadPool* poolp, VerilatedContext* contextp, bool profiling);
     ~VlWorkerThread();
 
     // METHODS
-    inline void dequeWork(ExecRec* workp) VL_MT_SAFE_EXCLUDES(m_mutex) {
+    inline void dequeWork(Task* workp) VL_MT_SAFE_EXCLUDES(m_mutex) {
         // Spin for a while, waiting for new data
         for (int i = 0; i < VL_LOCK_SPINS; ++i) {
             if (VL_LIKELY(m_ready_size.load(std::memory_order_relaxed))) {  //
@@ -237,17 +244,19 @@ public:
         m_ready.erase(m_ready.begin());
         m_ready_size.fetch_sub(1, std::memory_order_relaxed);
     }
-    inline void wakeUp() { addTask(nullptr, nullptr, false); }
-    inline void addTask(VlExecFnp fnp, VlSelfP selfp, bool evenCycle)
-        VL_MT_SAFE_EXCLUDES(m_mutex) {
+    inline void wakeUp() { addTask({}); }
+    inline void addTask(std::function<void()> task) VL_MT_SAFE_EXCLUDES(m_mutex) {
         bool notify;
         {
             const VerilatedLockGuard lock{m_mutex};
-            m_ready.emplace_back(fnp, selfp, evenCycle);
+            m_ready.emplace_back(task);
             m_ready_size.fetch_add(1, std::memory_order_relaxed);
             notify = m_waiting;
         }
         if (notify) m_cv.notify_one();
+    }
+    inline void addTask(VlExecFnp fnp, VlSelfP selfp, bool evenCycle) {
+        addTask([fnp, selfp, evenCycle]() { fnp(selfp, evenCycle); });
     }
     void workerLoop();
     static void startWorker(VlWorkerThread* workerp);

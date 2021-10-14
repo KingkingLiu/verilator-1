@@ -65,18 +65,17 @@ VlWorkerThread::~VlWorkerThread() {
 void VlWorkerThread::workerLoop() {
     if (VL_UNLIKELY(m_profiling)) m_poolp->setupProfilingClientThread();
 
-    ExecRec work;
-    work.m_fnp = nullptr;
+    Task work;
 
     while (true) {
-        if (VL_LIKELY(!work.m_fnp)) dequeWork(&work);
+        if (VL_LIKELY(!work)) dequeWork(&work);
 
         // Do this here, not above, to avoid a race with the destructor.
         if (VL_UNLIKELY(m_exiting.load(std::memory_order_acquire))) break;
 
-        if (VL_LIKELY(work.m_fnp)) {
-            work.m_fnp(work.m_selfp, work.m_evenCycle);
-            work.m_fnp = nullptr;
+        if (VL_LIKELY(work)) {
+            work();
+            work = {};
         }
     }
 

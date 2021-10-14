@@ -86,7 +86,7 @@ string EmitCBaseVisitor::cFuncArgs(const AstCFunc* nodep) {
                 } else if (nodep->funcPublic()) {
                     args += portp->cPubArgType(true, false);
                 } else {
-                    args += "/*cFuncArgs*/" + portp->vlArgType(true, false, true, "", false, true);
+                    args += portp->vlArgType(true, false, true, "", false);
                 }
             }
         }
@@ -115,7 +115,7 @@ void EmitCBaseVisitor::emitCFuncHeader(const AstCFunc* funcp, const AstNodeModul
 }
 
 void EmitCBaseVisitor::emitCFuncDecl(const AstCFunc* funcp, const AstNodeModule* modp,
-                                     const std::string& args, bool cLinkage) {
+                                     bool cLinkage) {
     ensureNewLine();
     if (!funcp->ifdef().empty()) puts("#ifdef " + funcp->ifdef() + "\n");
     if (cLinkage) puts("extern \"C\" ");
@@ -124,31 +124,9 @@ void EmitCBaseVisitor::emitCFuncDecl(const AstCFunc* funcp, const AstNodeModule*
         UASSERT_OBJ(funcp->isProperMethod(), funcp, "Virtual function is not a proper method");
         puts("virtual ");
     }
-    emitCFuncHeader(funcp, modp, args, /* withScope: */ false);
+    emitCFuncHeader(funcp, modp, cFuncArgs(funcp), /* withScope: */ false);
     puts(";\n");
     if (!funcp->ifdef().empty()) puts("#endif  // " + funcp->ifdef() + "\n");
-}
-
-void EmitCBaseVisitor::emitPublicCFuncDecl(AstNodeModule* modp, const AstCFunc* funcp) {
-    // Emits a public version for the CFunc if needed
-    // (if there are any output arguments)
-    string args = funcp->argTypes();
-    bool needed = false;
-    // Might be a user function with argument list.
-    for (auto* stmtp = funcp->argsp(); stmtp; stmtp = stmtp->nextp()) {
-        if (auto* portp = VN_CAST_CONST(stmtp, Var)) {
-            if (portp->isIO() && !portp->isFuncReturn()) {
-                if (args != "") args += ", ";
-                if (portp->direction() == VDirection::OUTPUT) {
-                    needed = true;
-                    args += "/*emitPublicCFuncDecl*/" + portp->vlArgType(true, false, true);
-                } else {
-                    args += portp->cPubArgType(true, false);
-                }
-            }
-        }
-    }
-    if (needed) { emitCFuncDecl(funcp, modp, args); }
 }
 
 void EmitCBaseVisitor::emitVarDecl(const AstVar* nodep, bool asRef) {
@@ -236,7 +214,7 @@ void EmitCBaseVisitor::emitVarDecl(const AstVar* nodep, bool asRef) {
                                   && name.substr(name.size() - suffix.size()) == suffix;
             if (beStatic) puts("static VL_THREAD_LOCAL ");
         }
-        puts(nodep->vlArgType(true, false, false, "", asRef, true));
+        puts(nodep->vlArgType(true, false, false, "", asRef));
         puts(";\n");
     }
 }

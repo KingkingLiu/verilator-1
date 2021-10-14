@@ -49,6 +49,8 @@ public:
         of.puts("\n### Switches...\n");
         of.puts("# C11 constructs required?  0/1 (always on now)\n");
         of.puts("VM_C11 = 1\n");
+        of.puts("# C++20 constructs required?  0/1\n");
+        of.puts("VM_C20 = 1\n");
         of.puts("# Coverage output mode?  0/1 (from --coverage)\n");
         of.puts("VM_COVERAGE = ");
         of.puts(v3Global.opt.coverage() ? "1" : "0");
@@ -102,8 +104,6 @@ public:
                     // have them.
                 } else if (support == 2 && !slow) {
                     putMakeClassEntry(of, "verilated.cpp");
-                    putMakeClassEntry(
-                        of, "verilated_dynamic_scheduler.cpp");  // XXX disable using switch
                     if (v3Global.dpi()) putMakeClassEntry(of, "verilated_dpi.cpp");
                     if (v3Global.opt.vpi()) putMakeClassEntry(of, "verilated_vpi.cpp");
                     if (v3Global.opt.savable()) putMakeClassEntry(of, "verilated_save.cpp");

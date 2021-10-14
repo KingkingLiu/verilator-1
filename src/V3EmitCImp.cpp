@@ -142,6 +142,10 @@ class EmitCGatherDependencies final : AstNVisitor {
         addSymsDependency();
         iterateChildrenConst(nodep);
     }
+    virtual void visit(AstDelay* nodep) override {
+        addSymsDependency();
+        iterateChildrenConst(nodep);
+    }
     virtual void visit(AstNode* nodep) override { iterateChildrenConst(nodep); }
 
     // CONSTRUCTOR
@@ -216,7 +220,7 @@ class EmitCImp final : EmitCFunc {
             if (const AstVar* const varp = VN_CAST_CONST(nodep, Var)) {
                 if (varp->isStatic()) {
                     puts("/*emitStaticVarDefns*/"
-                         + varp->vlArgType(true, false, false, modName, false, true));
+                         + varp->vlArgType(true, false, false, modName, false));
                     puts(";\n");
                 }
             }

@@ -202,7 +202,8 @@ private:
         m_lastIfp = nullptr;
     }
     AstCFunc* makeTopFunction(const string& name, bool slow = false) {
-        AstCFunc* const funcp = new AstCFunc{m_topScopep->fileline(), name, m_topScopep->scopep()};
+        AstCFunc* const funcp
+            = new AstCFunc{m_topScopep->fileline(), name, m_topScopep->scopep(), "CoroutineTask"};
         funcp->dontCombine(true);
         funcp->isStatic(false);
         funcp->isLoose(true);
@@ -410,11 +411,6 @@ private:
                 } else {
                     clearLastSen();
                     m_lastSenp = nodep->sensesp();
-
-                    auto* syncp = new AstCStmt(
-                        nodep->fileline(),
-                        "vlSymsp->_vm_contextp__->dynamic->thread_pool.wait_for_idle();\n");
-                    addToEvalLoop(syncp);
 
                     // Make a new if statement
                     m_lastIfp = makeActiveIf(m_lastSenp);

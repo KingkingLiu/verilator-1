@@ -232,7 +232,7 @@ class EmitCHeader final : public EmitCConstInit {
 
         for (const AstCFunc* const funcp : funcsp) {
             if (inClassBody) ofp()->putsPrivate(funcp->declPrivate());
-            emitCFuncDecl(funcp, modp, cFuncArgs(funcp));
+            emitCFuncDecl(funcp, modp);
         }
     }
     void emitAll(const AstNodeModule* modp) {

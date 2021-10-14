@@ -2094,7 +2094,7 @@ public:
     string dpiTmpVarType(const string& varName) const;
     // Return Verilator internal type for argument: CData, SData, IData, WData
     string vlArgType(bool named, bool forReturn, bool forFunc, const string& namespc = "",
-                     bool asRef = false, bool monitored = false) const;
+                     bool asRef = false) const;
     string vlEnumType() const;  // Return VerilatorVarType: VLVT_UINT32, etc
     string vlEnumDir() const;  // Return VerilatorVarDir: VLVD_INOUT, etc
     string vlPropDecl(const string& propName) const;  // Return VerilatorVarProps declaration
@@ -3725,15 +3725,20 @@ public:
 class AstDelay final : public AstNodeStmt {
     // Delay statement
 public:
-    AstDelay(FileLine* fl, AstNode* lhsp)
+    std::string capture;
+
+    AstDelay(FileLine* fl, AstNode* lhsp, AstNode* stmtsp = nullptr)
         : ASTGEN_SUPER_Delay(fl) {
         setOp1p(lhsp);
+        setNOp2p(stmtsp);
     }
     ASTNODE_NODE_FUNCS(Delay)
     virtual bool same(const AstNode* samep) const override { return true; }
     //
     AstNode* lhsp() const { return op1p(); }  // op2 = Statements to evaluate
     void lhsp(AstNode* nodep) { setOp1p(nodep); }
+    AstNode* stmtsp() const { return op2p(); }
+    void stmtsp(AstNode* nodep) { addNOp2p(nodep); }
 };
 
 class AstGenCase final : public AstNodeCase {
@@ -5230,7 +5235,7 @@ public:
     AstTimingControl(FileLine* fl, AstSenTree* sensesp, AstNode* stmtsp)
         : ASTGEN_SUPER_TimingControl(fl) {
         setNOp1p(sensesp);
-        setNOp2p(stmtsp);
+        addNOp2p(stmtsp);
     }
     ASTNODE_NODE_FUNCS(TimingControl)
     virtual string verilogKwd() const override { return "@(%l) %r"; }
@@ -5241,6 +5246,7 @@ public:
     virtual int instrCount() const override { return 0; }
     AstSenTree* sensesp() const { return VN_CAST(op1p(), SenTree); }
     AstNode* stmtsp() const { return op2p(); }
+    void stmtsp(AstNode* nodep) { addNOp2p(nodep); }
 };
 
 class AstTimeFormat final : public AstNodeStmt {

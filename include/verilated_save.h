@@ -320,21 +320,4 @@ VerilatedDeserialize& operator>>(VerilatedDeserialize& os, VlAssocArray<T_Key, T
     return os;
 }
 
-template <typename T>
-inline VerilatedSerialize& operator<<(VerilatedSerialize& os, const MonitoredValue<T>& rhs) {
-    return os << rhs.value();
-}
-template <typename T>
-inline VerilatedDeserialize& operator>>(VerilatedDeserialize& os, MonitoredValue<T>& rhs) {
-    return os >> *rhs.data();
-}
-template <typename T>
-inline VerilatedSerialize& operator<<(VerilatedSerialize& os, const MonitoredReference<T> rhs) {
-    return os << rhs.value();
-}
-template <typename T>
-inline VerilatedDeserialize& operator>>(VerilatedDeserialize& os, MonitoredReference<T> rhs) {
-    return os >> *rhs.data();
-}
-
 #endif  // Guard

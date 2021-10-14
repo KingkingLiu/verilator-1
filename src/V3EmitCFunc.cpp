@@ -451,7 +451,8 @@ void EmitCFunc::emitCCallArgs(const AstNodeCCall* nodep, const string& selfPoint
         iterate(subnodep);
         comma = true;
     }
-    if (VN_IS(nodep->backp(), NodeMath) || VN_IS(nodep->backp(), CReturn)) {
+    if (VN_IS(nodep->backp(), NodeMath) || VN_IS(nodep->backp(), CReturn)
+        || nodep->funcp()->rtnTypeVoid() == "CoroutineTask") {
         // We should have a separate CCall for math and statement usage, but...
         puts(")");
     } else {

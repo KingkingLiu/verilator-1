@@ -59,10 +59,6 @@
 # include <thread>
 #endif
 
-// Needed for dynamic scheduler
-#include <mutex>
-class VerilatedThread;
-
 // Allow user to specify their own include file
 #ifdef VL_VERILATED_INCLUDE
 // cppcheck-suppress preprocessorErrorDirective
@@ -239,7 +235,6 @@ public:
     // METHODS
     // Check that the current thread ID is the same as the construction thread ID
     void check() VL_MT_UNSAFE_ONE {
-        return; // XXX VPI requires one thread
         if (VL_UNCOVERABLE(m_threadid != VL_THREAD_ID())) {
             if (m_threadid == 0) {
                 m_threadid = VL_THREAD_ID();
@@ -305,8 +300,6 @@ public:
 /// VerilatedContexts maybe created by the user wrapper code and passed
 /// when a model is created.  If this is not done, then Verilator will use
 /// the Verilated::defaultContextp()'s global context.
-
-struct VerilatedDynamicContext;
 
 class VerilatedContext VL_NOT_FINAL {
     friend class VerilatedContextImp;
@@ -537,8 +530,6 @@ public:  // But for internal use only
     // Internal: Serialization setup
     static constexpr size_t serialized1Size() VL_PURE { return sizeof(m_s); }
     void* serialized1Ptr() VL_MT_UNSAFE { return &m_s; }
-
-    VerilatedDynamicContext* dynamic;
 };
 
 //===========================================================================
@@ -866,6 +857,7 @@ public:
     // Internal: Called at end of eval loop
     static void endOfEval(VerilatedEvalMsgQueue* evalMsgQp) VL_MT_SAFE;
 #endif
+
 private:
 #ifdef VL_THREADED
     static void endOfThreadMTaskGuts(VerilatedEvalMsgQueue* evalMsgQp) VL_MT_SAFE;

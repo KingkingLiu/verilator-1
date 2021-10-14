@@ -104,9 +104,7 @@ public:
     string cFuncArgs(const AstCFunc* nodep);
     void emitCFuncHeader(const AstCFunc* funcp, const AstNodeModule* modp, const std::string& args,
                          bool withScope);
-    void emitCFuncDecl(const AstCFunc* funcp, const AstNodeModule* modp, const std::string& args,
-                       bool cLinkage = false);
-    void emitPublicCFuncDecl(AstNodeModule* modp, const AstCFunc* funcp);
+    void emitCFuncDecl(const AstCFunc* funcp, const AstNodeModule* modp, bool cLinkage = false);
     void emitVarDecl(const AstVar* nodep, bool asRef = false);
     void emitModCUse(const AstNodeModule* modp, VUseType useType);
     void emitTextSection(const AstNodeModule* modp, AstType type);

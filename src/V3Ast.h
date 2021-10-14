@@ -2455,12 +2455,12 @@ public:
     const char* charIQWN() const {
         return (isString() ? "N" : isWide() ? "W" : isQuad() ? "Q" : "I");
     }
-    string cType(const string& name, bool forFunc, bool isRef, bool monitored = true) const;
+    string cType(const string& name, bool forFunc, bool isRef) const;
     bool isLiteralType() const;  // Does this represent a C++ LiteralType? (can be constexpr)
 
 private:
     class CTypeRecursed;
-    CTypeRecursed cTypeRecurse(bool compound, bool monitored = true) const;
+    CTypeRecursed cTypeRecurse(bool compound) const;
 };
 
 class AstNodeUOrStructDType VL_NOT_FINAL : public AstNodeDType {
