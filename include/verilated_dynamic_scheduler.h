@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <thread>
 #include <functional>
+#include <list>
 #include <utility>
 #include <queue>
 #include <coroutine>
@@ -58,7 +59,12 @@ struct TimedQueue {
         }
     }
 
-    int nextTimeSlot() { return queue.top().first; }
+    int nextTimeSlot() {
+        if (!empty())
+            return queue.top().first;
+        else
+            return VL_TIME_Q();
+    }
 
     bool empty() { return queue.empty(); }
 };
@@ -70,7 +76,7 @@ struct EventMap {
     struct Hash {
         size_t operator()(const EventSet& set) const {
             size_t result = 0;
-            for (auto event : set) result ^= (size_t)event;
+            for (auto event : set) result ^= std::hash<Event>()(event);
             return result;
         }
     };
@@ -177,20 +183,20 @@ struct CoroutineTask {
 // We need this as forks can outlive the locals from the stackframe they were spawned in
 struct CoroutinePool {
     std::vector<CoroutineTask> coro_tasks;
-    std::vector<std::function<CoroutineTask()>> lambda_coros;
+    std::list<std::function<CoroutineTask()>>
+        coros;  // Needs to be a list to prevent moving lambda objects
 
     void run(std::function<CoroutineTask()> lambda_coro) {
-        lambda_coros.push_back(lambda_coro);  // Store the captured vars
-        coro_tasks.emplace_back(lambda_coros.back()());
+        coros.push_back(lambda_coro);  // Store the captured vars
+        coro_tasks.push_back(coros.back()());
     }
 };
 
-// static void fork(std::function<CoroutineTask ()> lambda_coro) {
-static void fork(CoroutineTask&& task) {
-    static CoroutinePool coro_pool;
-    // coro_pool.run(lambda_coro);
-    coro_pool.coro_tasks.push_back(std::move(task));
-}
+extern CoroutinePool coro_pool;
+
+static void fork(CoroutineTask&& task) { coro_pool.coro_tasks.push_back(std::move(task)); }
+
+static void fork(std::function<CoroutineTask()> lambda_coro) { coro_pool.run(lambda_coro); }
 
 inline auto CoroutineTaskPromise::await_transform(CoroutineTask&& coro_task) {
     struct Awaitable {

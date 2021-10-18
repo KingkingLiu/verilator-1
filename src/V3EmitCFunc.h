@@ -890,7 +890,7 @@ public:
                 if (i == 0) puts("{\n");
                 puts("decltype(");
                 visit(itemp);
-                puts(") __Vtc__tmp" + cvtToStr(i) + ";");
+                puts(") __Vtc__tmp" + cvtToStr(i) + ";\n");
                 i++;
             }
         }
@@ -962,45 +962,33 @@ public:
         // Skip forks with no statements
         if (nodep->stmtsp() == nullptr) return;
 
-        if (nodep->joinType().join()) {
+        if (!nodep->joinType().joinNone()) {
             size_t thread_count = 0;
-            for (auto* stmtp = nodep->stmtsp(); stmtp; stmtp = stmtp->nextp()) thread_count++;
-            puts("{\nVerilatedThread::Join join(*vlThread, ");
-            puts(cvtToStr(thread_count));
-            puts(");\n");
-        } else if (nodep->joinType().joinAny()) {
-            puts("{\nauto join = std::make_shared<VerilatedThread::Join>(*vlThread, 1);\n");
+            if (nodep->joinType().joinAny())
+                thread_count = 1;
+            else
+                for (auto* stmtp = nodep->stmtsp(); stmtp; stmtp = stmtp->nextp()) thread_count++;
+            puts("{\nauto join = std::make_shared<int>(");
+            puts(cvtToStr(thread_count) + ");\n");
         }
 
         for (auto* stmtp = nodep->stmtsp(); stmtp; stmtp = stmtp->nextp()) {
-            // puts("vlSymsp->_vm_contextp__->dynamic->thread_pool.run_once([");
-
-            if (nodep->joinType().join())
-                puts("vlSymsp, vlSelf, &join");
-            else if (nodep->joinType().joinAny())
-                puts("vlSymsp, vlSelf, join");
-            else if (nodep->joinType().joinNone())
-                puts("=");
-
-            puts("](VerilatedThread* vlThread) mutable {\n");
+            puts("fork([=]() mutable -> CoroutineTask {\n");
             if (auto* beginp = VN_CAST(stmtp, Begin))
                 iterateAndNextNull(beginp->stmtsp());
             else
-                iterateAndNextNull(stmtp);
+                visit(stmtp);
 
-            if (nodep->joinType().join())
-                puts("join.joined();\n");
-            else if (nodep->joinType().joinAny())
-                puts("join->joined();\n");
+            if (!nodep->joinType().joinNone())
+                puts("--(*join);\nvlSymsp->__Vm_eventMap.activate(join.get(), "
+                     "vlSymsp->__Vm_taskQueue);\n");
 
-            puts("});\n");
+            puts("co_return;\n});\n");
         }
 
-        if (nodep->joinType().join())
-            puts("join.await();\n");
-        else if (nodep->joinType().joinAny())
-            puts("join->await();\n");
-        if (!nodep->joinType().joinNone()) puts("\n}\n");
+        if (!nodep->joinType().joinNone())
+            puts("while (*join > 0) co_await std::pair<EventMap&, "
+                 "EventSet>(vlSymsp->__Vm_eventMap, {join.get()});\n}\n");
     }
     virtual void visit(AstSenTree* nodep) override {
         for (auto* itemp = nodep->sensesp(); itemp; itemp = VN_CAST(itemp->nextp(), SenItem)) {

@@ -2975,3 +2975,4 @@ void VerilatedAssertOneThread::fatal_different() VL_MT_SAFE {
 #endif
 
 //===========================================================================
+CoroutinePool coro_pool;
