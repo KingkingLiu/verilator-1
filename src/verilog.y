@@ -3161,13 +3161,13 @@ statement_item<nodep>:		// IEEE: statement_item
 	|	yDISABLE yFORK ';'			{ $$ = new AstDisableFork($1); }
 	//			// IEEE: event_trigger
 	|	yP_MINUSGT idDotted/*hierarchical_identifier-event*/ ';'
-			{ // AssignDly because we don't have stratified queue, and need to
-			  // read events, clear next event, THEN apply this set
-			  $$ = new AstEventTrigger($1, $2); }
+			{ $$ = new AstAssign($1, $2, new AstConst($1, AstConst::BitTrue()));
+			  $$->addNextHere(new AstEventTrigger($1, $2->cloneTree(false))); }
 	//UNSUP	yP_MINUSGTGT delay_or_event_controlE hierarchical_identifier/*event*/ ';'	{ UNSUP }
 	//			// IEEE remove below
 	|	yP_MINUSGTGT delayE idDotted/*hierarchical_identifier-event*/ ';'
-			{ $$ = new AstEventTrigger($1, $3); }
+			{ $$ = new AstAssign($1, $3, new AstConst($1, AstConst::BitTrue()));
+			  $$->addNext(new AstEventTrigger($1, $3->cloneTree(false))); }
 	//
 	//			// IEEE: loop_statement
 	|	yFOREVER stmtBlock			{ $$ = new AstWhile($1,new AstConst($1, AstConst::BitTrue()), $2); }

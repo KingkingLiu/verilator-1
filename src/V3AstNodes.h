@@ -2264,8 +2264,6 @@ public:
     const MTaskIdSet& mtaskIds() const { return m_mtaskIds; }
     void pinNum(int id) { m_pinNum = id; }
     int pinNum() const { return m_pinNum; }
-    void triggeredVarRefp(AstVarRef* varrefp);
-    AstVarRef* triggeredVarRefp();
 };
 
 class AstDefParam final : public AstNode {
@@ -4640,7 +4638,7 @@ class AstEventTrigger final : public AstNodeStmt {
 public:
     explicit AstEventTrigger(FileLine* fl, AstNode* trigger = NULL)
         : ASTGEN_SUPER_EventTrigger(fl) {
-        setNOp1p(trigger);
+        setOp1p(trigger);
     }
     ASTNODE_NODE_FUNCS(EventTrigger)
     AstNode* trigger() const { return op1p(); }

@@ -16,6 +16,7 @@
 #include <queue>
 #include <coroutine>
 #include <unordered_map>
+#include <unordered_set>
 #include <functional>
 
 class VerilatedNBACtrl final {
@@ -64,27 +65,32 @@ struct TimedQueue {
 
 using Event = void*;
 
+using EventSet = std::unordered_set<Event>;
 struct EventMap {
-    std::unordered_map<Event, Task> events;
-
-    void insert(Event event, Task task) {
-        auto it = events.find(event);
-        if (it != events.end()) {
-            auto f = it->second;
-            task = [f, task]() {
-                f();
-                task();
-            };
+    struct Hash {
+        size_t operator()(const EventSet& set) const {
+            size_t result = 0;
+            for (auto event : set) result ^= (size_t)event;
+            return result;
         }
-        events.insert(std::make_pair(event, task));
+    };
+    std::unordered_multimap<EventSet, Task, Hash> eventSetsToTasks;
+    std::unordered_multimap<Event, EventSet> eventsToEventSets;
+
+    void insert(const EventSet& events, Task task) {
+        for (auto event : events) { eventsToEventSets.insert(std::make_pair(event, events)); }
+        eventSetsToTasks.insert(std::make_pair(events, task));
+    }
+
+    void activate(const EventSet& events, std::vector<Task>& tasks) {
+        auto range = eventSetsToTasks.equal_range(events);
+        for (auto it = range.first; it != range.second; ++it) { tasks.push_back(it->second); }
+        eventSetsToTasks.erase(range.first, range.second);
     }
 
     void activate(Event event, std::vector<Task>& tasks) {
-        auto it = events.find(event);
-        if (it != events.end()) {
-            tasks.push_back(it->second);
-            events.erase(it);
-        }
+        auto range = eventsToEventSets.equal_range(event);
+        for (auto it = range.first; it != range.second; ++it) { activate(it->second, tasks); }
     }
 };
 
@@ -129,14 +135,14 @@ struct CoroutineTaskPromise {
         return Awaitable{t.first, t.second};
     }
 
-    auto await_transform(std::pair<EventMap&, Event> e) {
+    auto await_transform(std::pair<EventMap&, EventSet> e) {
         struct Awaitable {
             EventMap& map;
-            Event event;
+            EventSet events;
 
             bool await_ready() { return false; }
             void await_suspend(std::coroutine_handle<CoroutineTaskPromise> coro) {
-                map.insert(event, [coro]() { coro.resume(); });
+                map.insert(events, [coro]() { coro.resume(); });
             }
             void await_resume() {}
         };

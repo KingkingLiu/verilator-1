@@ -443,8 +443,7 @@ void EmitCSyms::emitSymHdr() {
     puts("bool __Vm_didInit = false;\n");
 
     puts("TimedQueue __Vm_timedQueue;\n");
-    puts("std::unordered_map<void*, Task> __Vm_waitingEvents;\n");
-    // puts("std::queue<Task> __Vm_taskQueue;\n");
+    puts("EventMap __Vm_eventMap;\n");
     puts("std::vector<Task> __Vm_taskQueue;\n");
     if (v3Global.opt.mtasks()) {
         puts("VlThreadPool* const __Vm_threadPoolp;\n");

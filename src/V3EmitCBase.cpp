@@ -91,7 +91,6 @@ string EmitCBaseVisitor::cFuncArgs(const AstCFunc* nodep) {
             }
         }
     }
-    if (nodep->proc()) args += ", VerilatedThread* vlThread";
     return args;
 }
 

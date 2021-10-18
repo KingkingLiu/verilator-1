@@ -159,7 +159,6 @@ private:
     }
 
     virtual void visit(AstVarRef* nodep) override {
-        if (nodep->name().find("__Vtriggered") != std::string::npos) return;
         UASSERT_OBJ(m_cfuncp, nodep, "AstVarRef not under function");
 
         AstVarScope* const varScopep = nodep->varScopep();

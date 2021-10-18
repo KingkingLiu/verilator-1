@@ -372,7 +372,6 @@ static void process() {
         // This creates lots of duplicate ACTIVES so ActiveTop needs to be after this step
         V3Delayed::delayedAll(v3Global.rootp());
 #endif
-        V3DynamicScheduler::dynSched(v3Global.rootp());
 
         // Make Active's on the top level.
         // Differs from V3Active, because identical clocks may be pushed
@@ -384,6 +383,8 @@ static void process() {
 
         // Order the code; form SBLOCKs and BLOCKCALLs
         V3Order::orderAll(v3Global.rootp());
+
+        V3DynamicScheduler::dynSched(v3Global.rootp());
 
         // Change generated clocks to look at delayed signals
         V3GenClk::genClkAll(v3Global.rootp());

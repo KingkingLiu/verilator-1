@@ -324,23 +324,6 @@ class EmitCModel final : public EmitCFunc {
         if (v3Global.opt.trace()) puts("vlSymsp->__Vm_activity = true;\n");
 
         puts("do {\n");
-        // Reset events and their __Vtriggered vars
-        // TODO: find a better way to do this
-        for (auto* nodep = modp->stmtsp(); nodep; nodep = nodep->nextp()) {
-            if (auto* varp = VN_CAST(nodep, Var)) {
-                if (nodep->dtypep() && nodep->dtypep()->basicp()
-                    && nodep->dtypep()->basicp()->isEventValue()) {
-                    puts("vlSymsp->TOP.");
-                    puts(nodep->nameProtect());
-                    puts(".assign_no_notify(0);\n");
-                    if (auto* varrefp = varp->triggeredVarRefp()) {
-                        puts("vlSymsp->TOP.");
-                        puts(varrefp->varp()->nameProtect());
-                        puts(".assign_no_notify(0);\n");
-                    }
-                }
-            }
-        }
         puts("do {\n");
         puts("vlSymsp->TOP.");
         puts(protect("__eval_change_counter"));

@@ -880,67 +880,63 @@ public:
 
     virtual void visit(AstTimingControl* nodep) override {
         puts("/* [@ statement] */\n");
-        puts("vlSymsp->__Vm_waitingEvents.insert(std::make_pair(&");
-        iterateAndNextNull(nodep->sensesp());
-        puts(", [");
-        puts("vlSymsp, vlSelf]() {\n");
-        iterateAndNextNull(nodep->stmtsp());
-        puts("\n}, vlSelf, vlSymsp->__Vm_even_cycle)));\n");
-        return;
         int i = 0;
         for (auto* itemp = nodep->sensesp()->sensesp(); itemp;
              itemp = VN_CAST(itemp->nextp(), SenItem)) {
-            visit(itemp->dtypep());
-            puts(" __Vtc__tmp" + cvtToStr(i) + " = ");
-            visit(itemp);
-            puts(";\n");
-            i++;
-        }
-        for (auto* itemp = nodep->sensesp()->sensesp(); itemp;
-             itemp = VN_CAST(itemp->nextp(), SenItem)) {
-            if (itemp->varrefp()->varp()->dtypep()->basicp()->isEventValue()) {
+            // if (!itemp->varrefp()->varp()->dtypep()->basicp()->isEventValue()) {
+            if (itemp->edgeType() == VEdgeType::ET_POSEDGE
+                || itemp->edgeType() == VEdgeType::ET_NEGEDGE
+                || itemp->edgeType() == VEdgeType::ET_ANYEDGE) {
+                if (i == 0) puts("{\n");
+                puts("decltype(");
                 visit(itemp);
-                puts(".assign_no_notify(0);\n");
+                puts(") __Vtc__tmp" + cvtToStr(i) + ";");
+                i++;
             }
         }
-        puts("vlThread->wait_until([");
-        while (i > 0) {
-            i--;
-            puts("&__Vtc__tmp" + cvtToStr(i));
-            if (i > 0) puts(", ");
-        }
-        puts("](auto&& v) -> bool {\nbool __Vtc__res = ");
-        for (auto* itemp = nodep->sensesp()->sensesp(); itemp;
-             itemp = VN_CAST(itemp->nextp(), SenItem)) {
-            if (i > 0) puts("\n|| ");
-            if (itemp->edgeType() == VEdgeType::ET_POSEDGE) {
-                puts("(");
-                puts("!__Vtc__tmp" + cvtToStr(i) + " && ");
-                puts("std::get<" + cvtToStr(i) + ">(v))");
-            } else if (itemp->edgeType() == VEdgeType::ET_NEGEDGE) {
-                puts("(__Vtc__tmp" + cvtToStr(i) + " && ");
-                puts("!std::get<" + cvtToStr(i) + ">(v))");
-            } else if (itemp->varrefp()->varp()->dtypep()->basicp()->isEventValue()) {
-                puts("std::get<" + cvtToStr(i) + ">(v)");
-            } else {
-                puts("__Vtc__tmp" + cvtToStr(i));
-                puts(" != std::get<" + cvtToStr(i) + ">(v)");
+        if (i > 0) {
+            i = 0;
+            puts("do {\n");
+            for (auto* itemp = nodep->sensesp()->sensesp(); itemp;
+                 itemp = VN_CAST(itemp->nextp(), SenItem)) {
+                if (itemp->edgeType() == VEdgeType::ET_POSEDGE
+                    || itemp->edgeType() == VEdgeType::ET_NEGEDGE
+                    || itemp->edgeType() == VEdgeType::ET_ANYEDGE) {
+                    puts("__Vtc__tmp" + cvtToStr(i) + " = ");
+                    visit(itemp);
+                    puts(";\n");
+                    i++;
+                }
             }
-            i++;
         }
-        puts(";\nif (!__Vtc__res) {\n");
-        while (i > 0) {
-            i--;
-            puts("__Vtc__tmp" + cvtToStr(i));
-            puts(" = std::get<" + cvtToStr(i) + ">(v);\n");
+        puts("co_await std::pair<EventMap&, EventSet>(vlSymsp->__Vm_eventMap, {");
+        iterateAndNextNull(nodep->sensesp());
+        puts("});\n");
+        if (i > 0) {
+            i = 0;
+            puts("} while (!(");
+            for (auto* itemp = nodep->sensesp()->sensesp(); itemp;
+                 itemp = VN_CAST(itemp->nextp(), SenItem)) {
+                if (itemp->varrefp()->varp()->dtypep()->basicp()->isEventValue()) {
+                    visit(itemp);
+                } else {
+                    if (itemp->edgeType() == VEdgeType::ET_POSEDGE) {
+                        puts("(!__Vtc__tmp" + cvtToStr(i) + " && ");
+                        visit(itemp);
+                    } else if (itemp->edgeType() == VEdgeType::ET_NEGEDGE) {
+                        puts("(__Vtc__tmp" + cvtToStr(i) + " && !");
+                        visit(itemp);
+                    } else if (itemp->edgeType() == VEdgeType::ET_ANYEDGE) {
+                        puts("(__Vtc__tmp" + cvtToStr(i) + " != ");
+                        visit(itemp);
+                    }
+                    puts(")");
+                    i++;
+                }
+                if (itemp->nextp()) puts("\n|| ");
+            }
+            puts("));\n}\n");
         }
-        puts("}\nreturn __Vtc__res;\n}");
-        for (auto* itemp = nodep->sensesp()->sensesp(); itemp;
-             itemp = VN_CAST(itemp->nextp(), SenItem)) {
-            puts(", ");
-            visit(itemp);
-        }
-        puts(");\n}\n");
         // XXX should we handle this too??
         // iterateAndNextNull(nodep->stmtsp());
     }
@@ -950,16 +946,17 @@ public:
             puts("/* No variables in wait condition. Skipping */");
             return;
         }
-        puts("vlThread->wait_until(");
-        puts("[](auto&& values) -> bool {\nreturn ");
+        puts("while (!(");
         iterateAndNextNull(nodep->condp());
-        puts(";\n}");
+        puts(")) {\n");
+        puts("co_await std::pair<EventMap&, EventSet>(vlSymsp->__Vm_eventMap, {");
         for (auto* varrefp = nodep->varrefps(); varrefp;
              varrefp = VN_CAST(varrefp->nextp(), VarRef)) {
-            puts(", ");
+            puts("&");
             visit(varrefp);
+            if (varrefp->nextp()) puts(", ");
         }
-        puts(");\n");
+        puts("});\n}\n");
     }
     virtual void visit(AstFork* nodep) override {
         // Skip forks with no statements
@@ -1007,6 +1004,7 @@ public:
     }
     virtual void visit(AstSenTree* nodep) override {
         for (auto* itemp = nodep->sensesp(); itemp; itemp = VN_CAST(itemp->nextp(), SenItem)) {
+            puts("&");
             visit(itemp);
             if (itemp->nextp()) puts(", ");
         }
@@ -1014,16 +1012,9 @@ public:
     virtual void visit(AstSenItem* nodep) override { iterateAndNextNull(nodep->sensp()); }
     virtual void visit(AstEventTrigger* nodep) override {
         puts("/* [ -> statement ] */\n");
+        puts("vlSymsp->__Vm_eventMap.activate({&");
         iterateAndNextNull(nodep->trigger());
-        puts(" = 1;\n");
-        // Also mark the __Vtriggered variable
-        // TODO: find a better way to do this
-        auto* varp = VN_CAST(VN_CAST(nodep->trigger(), VarRef)->varp(), Var);
-        if (varp->triggeredVarRefp()) {
-            puts("vlSelf->");
-            iterateAndNextNull(varp->triggeredVarRefp());
-            puts(" = 1;\n");
-        }
+        puts("}, vlSymsp->__Vm_taskQueue);\n");
     }
     virtual void visit(AstWhile* nodep) override {
         iterateAndNextNull(nodep->precondsp());

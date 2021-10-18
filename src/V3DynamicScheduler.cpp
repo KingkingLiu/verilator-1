@@ -230,7 +230,7 @@ private:
     }
     virtual void visit(AstAssignDly* nodep) override {
         if (nodep->user1SetOnce()) return;
-        if (m_cfuncp) {
+        if (m_cfuncp && m_cfuncp->funcPublic()) {
             nodep->v3warn(E_UNSUPPORTED,
                           "Unsupported: Delayed assignment inside public function/task");
         }
@@ -256,51 +256,77 @@ public:
 
 class DynamicSchedulerWaitVisitor final : public AstNVisitor {
 private:
+    // NODE STATE
+    // AstAssignDly::user2()      -> bool.  Set true if variable is waited on
+    AstUser2InUse m_inuser2;
+
     // STATE
-    std::unordered_map<AstVar*, size_t> m_indices;
     std::map<AstVar*, AstVarRef*> m_varrefps;
+    bool m_inEventControl = false;
+    bool m_inWait = false;
 
     // METHODS
     VL_DEBUG_FUNC;  // Declare debug()
 
-    enum { SKIP, NOTE, REPLACE } m_mode = SKIP;
-
+    enum { MARK_WAITED_ON, ADD_TRIGGERS } mode;
     // VISITORS
+    virtual void visit(AstTimingControl* nodep) override {
+        VL_RESTORER(m_inEventControl);
+        m_inEventControl = true;
+        iterateChildren(nodep);
+    }
     virtual void visit(AstWait* nodep) override {
-        VL_RESTORER(m_mode);
-        {
-            m_mode = NOTE;
-            iterateAndNextNull(nodep->condp());
-            m_mode = REPLACE;
-            iterateAndNextNull(nodep->condp());
-            AstVarRef* varrefps = nullptr;
-            for (auto p : m_varrefps) {
-                auto* varrefp = p.second;
-                if (varrefps)
-                    varrefps->addNext(varrefp);
-                else
-                    varrefps = varrefp;
-            }
-            nodep->varrefps(varrefps);
-            m_indices.clear();
+        VL_RESTORER(m_inWait);
+        m_inWait = true;
+        if (mode == MARK_WAITED_ON) {
             m_varrefps.clear();
+            iterateAndNextNull(nodep->condp());
+            AstNode* varrefps = nullptr;
+            for (auto p : m_varrefps) varrefps = AstNode::addNext(varrefps, p.second);
+            nodep->varrefps(VN_CAST(varrefps, VarRef));
         }
     }
     virtual void visit(AstVarRef* nodep) override {
-        if (m_mode == NOTE) {
-            if (m_varrefps.find(nodep->varp()) == m_varrefps.end()) {
+        if (mode == MARK_WAITED_ON) {
+            if (m_inWait || m_inEventControl)
+                nodep->varp()->user2u(!nodep->varp()->dtypep()->basicp()->isEventValue());
+            if (m_inWait && m_varrefps.find(nodep->varp()) == m_varrefps.end())
                 m_varrefps.insert(std::make_pair(
                     nodep->varp(),
                     new AstVarRef(nodep->fileline(), nodep->varScopep(), nodep->access())));
-                m_indices.insert(std::make_pair(nodep->varp(), m_indices.size()));
+        }
+    }
+    virtual void visit(AstNodeAssign* nodep) override {
+        if (mode == ADD_TRIGGERS) {
+            if (auto* varrefp = VN_CAST(nodep->lhsp(), VarRef)) {
+                if (varrefp->varp()->user2u().toInt())
+                    nodep->addNextHere(
+                        new AstEventTrigger(nodep->fileline(), varrefp->cloneTree(false)));
             }
-        } else if (m_mode == REPLACE) {
-            auto* newp
-                = new AstCMath(nodep->fileline(),
-                               "std::get<" + cvtToStr(m_indices[nodep->varp()]) + ">(values)", 0);
-            newp->dtypep(nodep->dtypep());
-            nodep->replaceWith(newp);
-            VL_DO_DANGLING(nodep->deleteTree(), nodep);
+        }
+    }
+    virtual void visit(AstActive* nodep) override {
+        if (mode == ADD_TRIGGERS) {
+            AstNode* senItemsp = nullptr;
+            AstNode* varrefps = nullptr;
+            for (auto* senItemp = nodep->sensesp()->sensesp(); senItemp;
+                 senItemp = VN_CAST(senItemp->nextp(), SenItem)) {
+                if (senItemp->varrefp() && senItemp->varrefp()->varp()->user2u().toInt()) {
+                    senItemsp = AstNode::addNext(senItemsp, senItemp->cloneTree(false));
+                    varrefps = AstNode::addNext(varrefps, senItemp->varrefp());
+                }
+            }
+            if (varrefps) {
+                nodep->stmtsp()->addHereThisAsNext(
+                    new AstEventTrigger(nodep->fileline(), varrefps->cloneTree(false)));
+            }
+            // if (senItemsp) {
+            //    auto* senTreep = new AstSenTree(nodep->fileline(), VN_CAST(senItemsp, SenItem));
+            //    nodep->stmtsp()->addHereThisAsNext(new AstEventTrigger(nodep->fileline(),
+            //    senTreep));
+            //}
+        } else {
+            iterateChildren(nodep);
         }
     }
 
@@ -309,7 +335,12 @@ private:
 
 public:
     // CONSTRUCTORS
-    explicit DynamicSchedulerWaitVisitor(AstNetlist* nodep) { iterate(nodep); }
+    explicit DynamicSchedulerWaitVisitor(AstNetlist* nodep) {
+        mode = MARK_WAITED_ON;
+        iterate(nodep);
+        mode = ADD_TRIGGERS;
+        iterate(nodep);
+    }
     virtual ~DynamicSchedulerWaitVisitor() override {}
 };
 

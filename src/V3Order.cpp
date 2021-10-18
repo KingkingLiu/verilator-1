@@ -1807,10 +1807,6 @@ AstActive* OrderVisitor::processMoveOneLogic(const OrderLogicVertex* lvertexp,
                 UINFO(4, " Ordering deleting pre-settled " << nodep << endl);
                 VL_DO_DANGLING(pushDeletep(nodep), nodep);
             } else {
-                if (newFuncpr->stmtsp())
-                    newFuncpr->addStmtsp(
-                        new AstCStmt(nodep->fileline(),
-                                     "if (vlSymsp->_vm_contextp__->gotFinish()) co_return;\n"));
                 newFuncpr->addStmtsp(nodep);
                 if (v3Global.opt.outputSplitCFuncs()) {
                     // Add in the number of nodes we're adding

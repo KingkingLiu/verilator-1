@@ -3044,27 +3044,13 @@ private:
             nodep->dtypeFrom(adtypep->subDTypep());  // Best guess
         }
     }
-    AstVar* getCreateTriggeredVar(AstNode* nodep) {
-        auto* varp = VN_CAST(nodep, VarRef)->varp();
-        if (varp->triggeredVarRefp()) return varp->triggeredVarRefp()->varp();
-        string triggeredVarName = nodep->name() + string("__Vtriggered");
-        auto* triggeredVarFileline = nodep->fileline();
-        while (!VN_CAST(nodep, NodeModule)) nodep = nodep->backp();
-        auto* modp = VN_CAST(nodep, NodeModule);
-        auto* newvarp = new AstVar(triggeredVarFileline, AstVarType::MODULETEMP, triggeredVarName,
-                                   VFlagLogicPacked(), 1);
-        varp->triggeredVarRefp(new AstVarRef(triggeredVarFileline, newvarp, VAccess::READWRITE));
-        modp->addStmtp(newvarp);
-        return newvarp;
-    }
     void methodCallEvent(AstMethodCall* nodep, AstBasicDType*) {
         // Method call on event
         if (nodep->name() == "triggered") {
-            // Replace with reference to new __Vtriggered variable
+            // We represent events as numbers, so can just return number
             methodOkArguments(nodep, 0, 0);
-            auto* newvarp = getCreateTriggeredVar(nodep->fromp());
-            auto* varrefp = new AstVarRef(nodep->fileline(), newvarp, VAccess::READ);
-            nodep->replaceWith(varrefp);
+            AstNode* newp = nodep->fromp()->unlinkFrBack();
+            nodep->replaceWith(newp);
             VL_DO_DANGLING(pushDeletep(nodep), nodep);
         } else {
             nodep->v3error("Unknown built-in event method " << nodep->prettyNameQ());
