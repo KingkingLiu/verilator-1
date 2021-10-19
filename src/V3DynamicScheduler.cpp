@@ -317,14 +317,12 @@ private:
                 }
             }
             if (varrefps) {
-                nodep->stmtsp()->addHereThisAsNext(
-                    new AstEventTrigger(nodep->fileline(), varrefps->cloneTree(false)));
+                auto triggerp = new AstEventTrigger(nodep->fileline(), varrefps->cloneTree(false));
+                if (nodep->stmtsp())
+                    nodep->stmtsp()->addHereThisAsNext(triggerp);
+                else
+                    nodep->addStmtsp(triggerp);
             }
-            // if (senItemsp) {
-            //    auto* senTreep = new AstSenTree(nodep->fileline(), VN_CAST(senItemsp, SenItem));
-            //    nodep->stmtsp()->addHereThisAsNext(new AstEventTrigger(nodep->fileline(),
-            //    senTreep));
-            //}
         } else {
             iterateChildren(nodep);
         }

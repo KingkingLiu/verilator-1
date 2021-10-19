@@ -402,6 +402,7 @@ private:
         } else {
             UINFO(4, "  ACTIVE  " << nodep << endl);
             AstNode* stmtsp = nodep->stmtsp()->unlinkFrBackWithNext();
+            AstNode* resetStmtsp = nullptr;
             if (nodep->hasClocked()) {
                 // Remember the latest sensitivity so we can compare it next time
                 UASSERT_OBJ(!nodep->hasInitial(), nodep,
@@ -434,12 +435,13 @@ private:
                                 new AstVarRef(nodep->fileline(), senItemp->varrefp()->varScopep(),
                                               VAccess::WRITE),
                                 new AstConst(nodep->fileline(), 0));
-                            m_lastIfp->addIfsp(assignp);
+                            resetStmtsp = AstNode::addNext(resetStmtsp, assignp);
                         }
                     }
                 }
                 // Move statements to if
                 m_lastIfp->addIfsp(stmtsp);
+                if (resetStmtsp) m_lastIfp->addNext(resetStmtsp);
             } else if (nodep->hasInitial()) {
                 // Don't need to: clearLastSen();, as we're adding it to different cfunc
                 // Move statements to function
