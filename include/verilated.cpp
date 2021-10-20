@@ -104,7 +104,7 @@ void vl_finish(const char* filename, int linenum, const char* hier) VL_MT_UNSAFE
         VL_PRINTF(  // Not VL_PRINTF_MT, already on main thread
             "- %s:%d: Second verilog $finish, exiting\n", filename, linenum);
         Verilated::runFlushCallbacks();
-        // Verilated::runExitCallbacks();
+        Verilated::runExitCallbacks();
         std::exit(0);
     }
     Verilated::threadContextp()->gotFinish(true);
@@ -2973,6 +2973,3 @@ void VerilatedAssertOneThread::fatal_different() VL_MT_SAFE {
                 " a different thread then the expected constructing thread");
 }
 #endif
-
-//===========================================================================
-CoroutinePool coro_pool;

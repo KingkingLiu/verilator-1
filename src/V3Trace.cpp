@@ -426,8 +426,6 @@ private:
                                                  new AstConst(fl, AstConst::BitTrue()));
         if (AstCCall* const callp = VN_CAST(insertp, CCall)) {
             callp->addNextHere(setterp);
-        } else if (AstCTrigger* const triggerp = VN_CAST(insertp, CTrigger)) {
-            triggerp->addNextHere(setterp);
         } else if (AstCFunc* const funcp = VN_CAST(insertp, CFunc)) {
             funcp->addStmtsp(setterp);
         } else {
@@ -816,7 +814,7 @@ private:
         m_topScopep = scopep;
         iterateChildren(nodep);
     }
-    virtual void visit(AstNodeCCallOrCTrigger* nodep) override {
+    virtual void visit(AstCCall* nodep) override {
         UINFO(8, "   CCALL " << nodep << endl);
         if (!m_finding && !nodep->user2()) {
             // See if there are other calls in same statement list;
@@ -824,7 +822,7 @@ private:
             TraceActivityVertex* const activityVtxp
                 = getActivityVertexp(nodep, nodep->funcp()->slow());
             for (AstNode* nextp = nodep; nextp; nextp = nextp->nextp()) {
-                if (auto* const ccallp = VN_CAST(nextp, NodeCCallOrCTrigger)) {
+                if (auto* const ccallp = VN_CAST(nextp, NodeCCall)) {
                     ccallp->user2(true);  // Processed
                     UINFO(8, "     SubCCALL " << ccallp << endl);
                     V3GraphVertex* const ccallFuncVtxp = getCFuncVertexp(ccallp->funcp());

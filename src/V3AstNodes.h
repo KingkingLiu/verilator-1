@@ -8958,9 +8958,8 @@ public:
     void dpiImportWrapper(bool flag) { m_dpiImportWrapper = flag; }
     bool dpiContext() const { return m_dpiContext; }
     void dpiContext(bool flag) { m_dpiContext = flag; }
-    bool proc() const { return m_proc; }
-    void proc(bool flag) { m_proc = flag; }
-    //
+    bool isCoroutine() const { return !isConstructor() && rtnTypeVoid() == "CoroutineTask"; }
+
     // If adding node accessors, see below emptyBody
     AstNode* argsp() const { return op1p(); }
     void addArgsp(AstNode* nodep) { addOp1p(nodep); }
@@ -8977,38 +8976,20 @@ public:
     }
 };
 
-class AstNodeCCallOrCTrigger VL_NOT_FINAL : public AstNodeCCall {
-    // Either AstCCall or AstCTrigger
-
-    string m_selfPointer;  // Output code object pointer (e.g.: 'this')
-
-public:
-    AstNodeCCallOrCTrigger(AstType t, FileLine* fl, AstCFunc* funcp, AstNode* argsp = nullptr)
-        : AstNodeCCall(t, fl, funcp, argsp) {}
-
-    string selfPointer() const { return m_selfPointer; }
-    void selfPointer(const string& value) { m_selfPointer = value; }
-    string selfPointerProtect(bool useSelfForThis) const;
-};
-
-class AstCCall final : public AstNodeCCallOrCTrigger {
+class AstCCall final : public AstNodeCCall {
     // C++ function call
     // Parents:  Anything above a statement
     // Children: Args to the function
+    string m_selfPointer;  // Output code object pointer (e.g.: 'this')
+
 public:
     AstCCall(FileLine* fl, AstCFunc* funcp, AstNode* argsp = nullptr)
         : ASTGEN_SUPER_CCall(fl, funcp, argsp) {}
     ASTNODE_NODE_FUNCS(CCall)
-};
 
-class AstCTrigger final : public AstNodeCCallOrCTrigger {
-    // C++ thread start
-    // Parents:  Anything above a statement
-    // Children: Args to the function
-public:
-    AstCTrigger(FileLine* fl, AstCFunc* funcp, AstNode* argsp = nullptr)
-        : ASTGEN_SUPER_CTrigger(fl, funcp, argsp) {}
-    ASTNODE_NODE_FUNCS(CTrigger)
+    string selfPointer() const { return m_selfPointer; }
+    void selfPointer(const string& value) { m_selfPointer = value; }
+    string selfPointerProtect(bool useSelfForThis) const;
 };
 
 class AstCMethodCall final : public AstNodeCCall {
@@ -9043,6 +9024,18 @@ public:
     }
     virtual bool hasDType() const override { return true; }
     ASTNODE_NODE_FUNCS(CNew)
+};
+
+class AstCCoroutineStart final : public AstNodeStmt {
+public:
+    AstCCoroutineStart(FileLine* fl, AstNodeCCall* callp = nullptr)
+        : ASTGEN_SUPER_CCoroutineStart(fl) {
+        setNOp1p(callp);
+    }
+    ASTNODE_NODE_FUNCS(CCoroutineStart)
+
+    void callp(AstNodeCCall* nodep) { setOp1p(nodep); }
+    AstNodeCCall* callp() { return VN_CAST(op1p(), NodeCCall); }
 };
 
 class AstCReturn final : public AstNodeStmt {

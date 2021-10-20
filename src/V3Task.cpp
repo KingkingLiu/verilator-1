@@ -1192,9 +1192,10 @@ private:
         string suffix;  // So, make them unique
         if (!nodep->taskPublic() && !nodep->classMethod()) suffix = "_" + m_scopep->nameDotless();
         const string name = ((nodep->name() == "new") ? "new" : prefix + nodep->name() + suffix);
-        AstCFunc* cfuncp = new AstCFunc(
-            nodep->fileline(), name, m_scopep,
-            ((nodep->taskPublic() && rtnvarp) ? rtnvarp->cPubArgType(true, true) : ""));
+        AstCFunc* cfuncp
+            = new AstCFunc(nodep->fileline(), name, m_scopep,
+                           (nodep->taskPublic() ? (rtnvarp ? rtnvarp->cPubArgType(true, true) : "")
+                                                : "CoroutineTask"));
         // It's ok to combine imports because this is just a wrapper;
         // duplicate wrappers can get merged.
         cfuncp->dontCombine(!nodep->dpiImport());

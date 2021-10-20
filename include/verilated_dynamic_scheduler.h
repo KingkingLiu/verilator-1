@@ -180,24 +180,6 @@ struct CoroutineTask {
     std::coroutine_handle<promise_type> handle;
 };
 
-// We need this as forks can outlive the locals from the stackframe they were spawned in
-struct CoroutinePool {
-    std::vector<CoroutineTask> coro_tasks;
-    std::list<std::function<CoroutineTask()>>
-        coros;  // Needs to be a list to prevent moving lambda objects
-
-    void run(std::function<CoroutineTask()> lambda_coro) {
-        coros.push_back(lambda_coro);  // Store the captured vars
-        coro_tasks.push_back(coros.back()());
-    }
-};
-
-extern CoroutinePool coro_pool;
-
-static void fork(CoroutineTask&& task) { coro_pool.coro_tasks.push_back(std::move(task)); }
-
-static void fork(std::function<CoroutineTask()> lambda_coro) { coro_pool.run(lambda_coro); }
-
 inline auto CoroutineTaskPromise::await_transform(CoroutineTask&& coro_task) {
     struct Awaitable {
         std::coroutine_handle<CoroutineTaskPromise> handle;
@@ -206,7 +188,7 @@ inline auto CoroutineTaskPromise::await_transform(CoroutineTask&& coro_task) {
         void await_suspend(std::coroutine_handle<> coro) { handle.promise().continuation = coro; }
         auto await_resume() {}
     };
-    return Awaitable{coro_task.handle};
+    return Awaitable{std::exchange(coro_task.handle, nullptr)};
 }
 
 inline CoroutineTask CoroutineTaskPromise::get_return_object() {

@@ -190,12 +190,12 @@ public:
 
     // VISITORS
     using EmitCConstInit::visit;
-    bool inCoro = false;
+    bool m_inCoroutine = false;
     virtual void visit(AstCFunc* nodep) override {
         VL_RESTORER(m_useSelfForThis);
         VL_RESTORER(m_cfuncp);
-        VL_RESTORER(inCoro);
-        if (nodep->rtnTypeVoid() == "CoroutineTask") inCoro = true;
+        VL_RESTORER(m_inCoroutine);
+        if (nodep->isCoroutine()) m_inCoroutine = true;
         m_cfuncp = nodep;
 
         m_blkChangeDetVec.clear();
@@ -218,7 +218,7 @@ public:
 
         emitCFuncBody(nodep);
 
-        if (nodep->rtnTypeVoid() == "CoroutineTask") puts("co_return;\n");
+        if (m_inCoroutine) puts("co_return;\n");
         puts("}\n");
         if (nodep->ifdef() != "") puts("#endif  // " + nodep->ifdef() + "\n");
     }
@@ -429,11 +429,11 @@ public:
     virtual void visit(AstCCall* nodep) override {
         const AstCFunc* const funcp = nodep->funcp();
         const AstNodeModule* const funcModp = EmitCParentModule::get(funcp);
-        if (funcp->rtnTypeVoid() == "CoroutineTask") {
-            if (inCoro)
+        if (funcp->isCoroutine()) {
+            if (m_inCoroutine)
                 puts("co_await ");
             else
-                puts("fork(");
+                puts("auto " + nodep->funcp()->nameProtect() + "__coro = ");
         }
         if (funcp->dpiImportPrototype()) {
             // Calling DPI import
@@ -457,18 +457,29 @@ public:
             puts(funcp->nameProtect());
         }
         emitCCallArgs(nodep, nodep->selfPointerProtect(m_useSelfForThis));
-        if (funcp->rtnTypeVoid() == "CoroutineTask") {
-            if (!inCoro) puts(")");
-            puts(";\n");
-        }
+        if (funcp->isCoroutine() && !m_inCoroutine)
+            puts("new CoroutineTask(std::move(" + nodep->funcp()->nameProtect()
+                 + "__coro));");  // XXX keep coroutine from being destroyed; NEED to fix it
     }
     virtual void visit(AstCMethodCall* nodep) override {
         const AstCFunc* const funcp = nodep->funcp();
         UASSERT_OBJ(!funcp->isLoose(), nodep, "Loose method called via AstCMethodCall");
+        if (funcp->isCoroutine()) {
+            if (m_inCoroutine)
+                puts("co_await ");
+            else {
+                puts("auto " + nodep->fromp()->nameProtect() + "__" + nodep->funcp()->nameProtect()
+                     + "__coro = ");
+            }
+        }
         iterate(nodep->fromp());
         putbs("->");
         puts(funcp->nameProtect());
         emitCCallArgs(nodep, "");
+        if (funcp->isCoroutine() && !m_inCoroutine)
+            puts("new CoroutineTask(std::move(" + nodep->fromp()->nameProtect() + "__"
+                 + nodep->funcp()->nameProtect()
+                 + "__coro));\n");  // XXX keep coroutine from being destroyed; NEED to fix it
     }
     virtual void visit(AstCNew* nodep) override {
         puts("std::make_shared<" + prefixNameProtect(nodep->dtypep()) + ">(");
@@ -962,33 +973,41 @@ public:
         // Skip forks with no statements
         if (nodep->stmtsp() == nullptr) return;
 
+        puts(
+            "/* [fork] */ {\nauto __Vfork_funcs = "
+            "std::make_shared<std::vector<std::function<CoroutineTask()>>>();\nauto __Vfork_tasks "
+            "= std::make_shared<std::vector<CoroutineTask>>();\n");
         if (!nodep->joinType().joinNone()) {
             size_t thread_count = 0;
             if (nodep->joinType().joinAny())
                 thread_count = 1;
             else
                 for (auto* stmtp = nodep->stmtsp(); stmtp; stmtp = stmtp->nextp()) thread_count++;
-            puts("{\nauto join = std::make_shared<int>(");
+            puts("auto __Vfork_join = std::make_shared<int>(");
             puts(cvtToStr(thread_count) + ");\n");
         }
 
         for (auto* stmtp = nodep->stmtsp(); stmtp; stmtp = stmtp->nextp()) {
-            puts("fork([=]() mutable -> CoroutineTask {\n");
+            puts("__Vfork_funcs->push_back([=]() -> CoroutineTask {\n");
             if (auto* beginp = VN_CAST(stmtp, Begin))
                 iterateAndNextNull(beginp->stmtsp());
             else
                 visit(stmtp);
 
             if (!nodep->joinType().joinNone())
-                puts("--(*join);\nvlSymsp->__Vm_eventMap.activate(join.get(), "
+                puts("--(*__Vfork_join);\nvlSymsp->__Vm_eventMap.activate(__Vfork_join.get(), "
                      "vlSymsp->__Vm_taskQueue);\n");
 
-            puts("co_return;\n});\n");
+            // Call get() on shared_ptrs in order to capture them (explicit capture mixed with '='
+            // causes warning)
+            puts("__Vfork_funcs.get();\n__Vfork_tasks.get();\nco_return;\n});\n");
         }
+        puts("for (auto& func : *__Vfork_funcs) __Vfork_tasks->push_back(func());\n");
 
         if (!nodep->joinType().joinNone())
-            puts("while (*join > 0) co_await std::pair<EventMap&, "
-                 "EventSet>(vlSymsp->__Vm_eventMap, {join.get()});\n}\n");
+            puts("while (*__Vfork_join > 0) co_await std::pair<EventMap&, "
+                 "EventSet>(vlSymsp->__Vm_eventMap, {__Vfork_join.get()});\n");
+        puts("}\n");
     }
     virtual void visit(AstSenTree* nodep) override {
         for (auto* itemp = nodep->sensesp(); itemp; itemp = VN_CAST(itemp->nextp(), SenItem)) {

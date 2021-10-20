@@ -1786,8 +1786,6 @@ AstActive* OrderVisitor::processMoveOneLogic(const OrderLogicVertex* lvertexp,
                 // Create top call to it
                 AstNodeCCall* newCallp;
                 newCallp = new AstCCall(nodep->fileline(), newFuncpr);
-                /*newFuncpr->proc(true);
-                newCallp = new AstCTrigger(nodep->fileline(), newFuncpr);*/
                 // Where will we be adding the call?
                 AstActive* const newActivep = new AstActive(nodep->fileline(), name, domainp);
                 newActivep->addStmtsp(newCallp);

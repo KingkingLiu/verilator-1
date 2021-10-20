@@ -122,7 +122,7 @@ const char* AstNodeCCall::broken() const {
 }
 bool AstNodeCCall::isPure() const { return funcp()->pure(); }
 
-string AstNodeCCallOrCTrigger::selfPointerProtect(bool useSelfForThis) const {
+string AstCCall::selfPointerProtect(bool useSelfForThis) const {
     const string& sp
         = useSelfForThis ? VString::replaceWord(selfPointer(), "this", "vlSelf") : selfPointer();
     return VIdProtect::protectWordsIf(sp, protect());
