@@ -988,7 +988,7 @@ public:
         }
 
         for (auto* stmtp = nodep->stmtsp(); stmtp; stmtp = stmtp->nextp()) {
-            puts("__Vfork_funcs->push_back([=]() -> CoroutineTask {\n");
+            puts("__Vfork_funcs->push_back([=]() mutable -> CoroutineTask {\n");
             if (auto* beginp = VN_CAST(stmtp, Begin))
                 iterateAndNextNull(beginp->stmtsp());
             else
