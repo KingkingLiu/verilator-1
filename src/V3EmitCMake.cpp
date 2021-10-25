@@ -159,9 +159,6 @@ class CMakeEmitter final {
         }
 
         global.emplace_back("${VERILATOR_ROOT}/include/verilated.cpp");
-        global.emplace_back(
-            "${VERILATOR_ROOT}/include/verilated_dynamic_scheduler.cpp");  // XXX disable using
-                                                                           // switch
         if (v3Global.dpi()) {  //
             global.emplace_back("${VERILATOR_ROOT}/include/verilated_dpi.cpp");
         }
