@@ -331,13 +331,11 @@ class EmitCModel final : public EmitCFunc {
         puts("VL_DEBUG_IF(VL_DBG_MSGF(\"+ ");
         puts(initial ? "Initial" : "Clock");
         puts(" loop\\n\"););\n");
+        puts("vlSymsp->__Vm_taskQueue.push_back([vlSymsp = vlSymsp] () {\n");
         if (initial)
             puts(topModNameProtected + "__" + protect("_eval_settle") + "(&(vlSymsp->TOP));\n");
-        // puts(topModNameProtected + "__" + protect("_eval") + "(&(vlSymsp->TOP));\n");
-        puts("vlSymsp->__Vm_taskQueue.push_back([vlSymsp = vlSymsp] () { ");
-        puts(topModNameProtected + "__" + protect("_eval"));
-        puts("(&(vlSymsp->TOP)); });\n");
-        // puts("vlSymsp->__Vm_taskQueue.run();\n");
+        puts(topModNameProtected + "__" + protect("_eval") + "(&(vlSymsp->TOP));\n");
+        puts("});\n");
         puts("while (!vlSymsp->__Vm_taskQueue.empty()) {\n");
         puts("auto task = vlSymsp->__Vm_taskQueue.front();\n");
         puts("vlSymsp->__Vm_taskQueue.erase(vlSymsp->__Vm_taskQueue.begin());\n");

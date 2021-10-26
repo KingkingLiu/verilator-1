@@ -184,7 +184,7 @@ inline auto CoroutineTaskPromise::await_transform(CoroutineTask&& coro_task) {
     struct Awaitable {
         std::coroutine_handle<CoroutineTaskPromise> handle;
 
-        bool await_ready() { return static_cast<bool>(handle); }
+        bool await_ready() { return handle.done(); }
         void await_suspend(std::coroutine_handle<> coro) { handle.promise().continuation = coro; }
         auto await_resume() {}
     };
