@@ -202,8 +202,7 @@ private:
         m_lastIfp = nullptr;
     }
     AstCFunc* makeTopFunction(const string& name, bool slow = false) {
-        AstCFunc* const funcp
-            = new AstCFunc{m_topScopep->fileline(), name, m_topScopep->scopep(), "CoroutineTask"};
+        AstCFunc* const funcp = new AstCFunc{m_topScopep->fileline(), name, m_topScopep->scopep()};
         funcp->dontCombine(true);
         funcp->isStatic(false);
         funcp->isLoose(true);
@@ -412,7 +411,6 @@ private:
                 } else {
                     clearLastSen();
                     m_lastSenp = nodep->sensesp();
-
                     // Make a new if statement
                     m_lastIfp = makeActiveIf(m_lastSenp);
                     addToEvalLoop(m_lastIfp);

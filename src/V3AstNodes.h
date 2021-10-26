@@ -2089,7 +2089,6 @@ public:
     string scType() const;  // Return SysC type: bool, uint32_t, uint64_t, sc_bv
     // Return C /*public*/ type for argument: bool, uint32_t, uint64_t, etc.
     string cPubArgType(bool named, bool forReturn) const;
-    string cPubArgTypeNoRef() const;
     string dpiArgType(bool named, bool forReturn) const;  // Return DPI-C type for argument
     string dpiTmpVarType(const string& varName) const;
     // Return Verilator internal type for argument: CData, SData, IData, WData
@@ -2403,7 +2402,6 @@ public:
 };
 
 class AstVarRef final : public AstNodeVarRef {
-private:
     // A reference to a variable (lvalue or rvalue)
 public:
     AstVarRef(FileLine* fl, const string& name, const VAccess& access)
@@ -3723,20 +3721,15 @@ public:
 class AstDelay final : public AstNodeStmt {
     // Delay statement
 public:
-    std::string capture;
-
-    AstDelay(FileLine* fl, AstNode* lhsp, AstNode* stmtsp = nullptr)
+    AstDelay(FileLine* fl, AstNode* lhsp)
         : ASTGEN_SUPER_Delay(fl) {
         setOp1p(lhsp);
-        setNOp2p(stmtsp);
     }
     ASTNODE_NODE_FUNCS(Delay)
     virtual bool same(const AstNode* samep) const override { return true; }
     //
     AstNode* lhsp() const { return op1p(); }  // op2 = Statements to evaluate
     void lhsp(AstNode* nodep) { setOp1p(nodep); }
-    AstNode* stmtsp() const { return op2p(); }
-    void stmtsp(AstNode* nodep) { addNOp2p(nodep); }
 };
 
 class AstGenCase final : public AstNodeCase {
@@ -4761,24 +4754,6 @@ public:
     AstJumpLabel* labelp() const { return m_labelp; }
 };
 
-class AstTimedEvent final : public AstNodeStmt {
-    // Schedule event for later time
-    // Parents:  {statement list}
-    // Children: {Math, VarRef lvalue}
-public:
-    AstTimedEvent(FileLine* fl, AstNode* timep, AstNodeVarRef* varrefp)
-        : ASTGEN_SUPER_TimedEvent(fl) {
-        addOp1p(timep);
-        addOp2p(varrefp);
-    }
-    ASTNODE_NODE_FUNCS(TimedEvent)
-    virtual int instrCount() const { return 100; }
-    virtual V3Hash sameHash() const { return V3Hash(); }
-    virtual bool same(const AstNode* samep) const { return true; }
-    AstNode* timep() const { return op1p(); }  // op1 = Time to activate
-    AstNode* varrefp() const { return op2p(); }  // op2 = Variable to activate
-};
-
 class AstChangeXor final : public AstNodeBiComAsv {
     // A comparison to determine change detection, common & must be fast.
     // Returns 32-bit or 64-bit value where 0 indicates no change.
@@ -5233,7 +5208,7 @@ public:
     AstTimingControl(FileLine* fl, AstSenTree* sensesp, AstNode* stmtsp)
         : ASTGEN_SUPER_TimingControl(fl) {
         setNOp1p(sensesp);
-        addNOp2p(stmtsp);
+        setNOp2p(stmtsp);
     }
     ASTNODE_NODE_FUNCS(TimingControl)
     virtual string verilogKwd() const override { return "@(%l) %r"; }
@@ -5244,7 +5219,6 @@ public:
     virtual int instrCount() const override { return 0; }
     AstSenTree* sensesp() const { return VN_CAST(op1p(), SenTree); }
     AstNode* stmtsp() const { return op2p(); }
-    void stmtsp(AstNode* nodep) { addNOp2p(nodep); }
 };
 
 class AstTimeFormat final : public AstNodeStmt {
@@ -6736,7 +6710,7 @@ public:
         out.opOr(lhs, rhs);
     }
     virtual string emitVerilog() override { return "%k(%l %f| %r)"; }
-    virtual string emitC() override { return "VL_OR_%lq(%rW, %P, %li, %ri)"; }
+    virtual string emitC() override { return "VL_OR_%lq(%lW, %P, %li, %ri)"; }
     virtual string emitSimpleOperator() override { return "|"; }
     virtual bool cleanOut() const override { V3ERROR_NA_RETURN(false); }
     virtual bool cleanLhs() const override { return false; }
@@ -8160,10 +8134,8 @@ public:
     }
     virtual string emitVerilog() override { return "%f$fgets(%l,%r)"; }
     virtual string emitC() override {
-        return strgp()->dtypep()->basicp()->isString()
-                   ? "VL_FGETS_NI(%li, %ri)"
-                   : (strgp()->isWide() ? "VL_FGETS_%nqX%rq(%lw, %P, %li, %ri)"
-                                        : "VL_FGETS_%nqX%rq(%lw, %P, &(%li), %ri)");
+        return strgp()->dtypep()->basicp()->isString() ? "VL_FGETS_NI(%li, %ri)"
+                                                       : "VL_FGETS_%nqX%rq(%lw, %P, &(%li), %ri)";
     }
     virtual bool cleanOut() const override { return false; }
     virtual bool cleanLhs() const override { return true; }
@@ -8832,7 +8804,6 @@ private:
     bool m_declPrivate : 1;  // Declare it private
     bool m_formCallTree : 1;  // Make a global function to call entire tree of functions
     bool m_slow : 1;  // Slow routine, called once or just at init time
-    bool m_oneshot : 1;  // Called once or just at init time
     bool m_funcPublic : 1;  // From user public task/function
     bool m_isConstructor : 1;  // Is C class constructor
     bool m_isDestructor : 1;  // Is C class destructor
@@ -8848,8 +8819,6 @@ private:
     bool m_dpiImportPrototype : 1;  // This is the DPI import prototype (i.e.: provided by user)
     bool m_dpiImportWrapper : 1;  // Wrapper for invoking DPI import prototype from generated code
     bool m_dpiContext : 1;  // Declared as 'context' DPI import/export function
-    bool m_proc : 1;
-
 public:
     AstCFunc(FileLine* fl, const string& name, AstScope* scopep, const string& rtnType = "")
         : ASTGEN_SUPER_CFunc(fl) {
@@ -8863,7 +8832,6 @@ public:
         m_declPrivate = false;
         m_formCallTree = false;
         m_slow = false;
-        m_oneshot = false;
         m_funcPublic = false;
         m_isConstructor = false;
         m_isDestructor = false;
@@ -8878,7 +8846,6 @@ public:
         m_dpiImportPrototype = false;
         m_dpiImportWrapper = false;
         m_dpiContext = false;
-        m_proc = false;
     }
     ASTNODE_NODE_FUNCS(CFunc)
     virtual string name() const override { return m_name; }
@@ -8921,8 +8888,6 @@ public:
     void formCallTree(bool flag) { m_formCallTree = flag; }
     bool slow() const { return m_slow; }
     void slow(bool flag) { m_slow = flag; }
-    bool oneshot() const { return m_oneshot; }
-    void oneshot(bool flag) { m_oneshot = flag; }
     bool funcPublic() const { return m_funcPublic; }
     void funcPublic(bool flag) { m_funcPublic = flag; }
     void argTypes(const string& str) { m_argTypes = str; }
@@ -8959,7 +8924,7 @@ public:
     bool dpiContext() const { return m_dpiContext; }
     void dpiContext(bool flag) { m_dpiContext = flag; }
     bool isCoroutine() const { return !isConstructor() && rtnTypeVoid() == "CoroutineTask"; }
-
+    //
     // If adding node accessors, see below emptyBody
     AstNode* argsp() const { return op1p(); }
     void addArgsp(AstNode* nodep) { addOp1p(nodep); }
@@ -8980,6 +8945,7 @@ class AstCCall final : public AstNodeCCall {
     // C++ function call
     // Parents:  Anything above a statement
     // Children: Args to the function
+
     string m_selfPointer;  // Output code object pointer (e.g.: 'this')
 
 public:
@@ -9024,18 +8990,6 @@ public:
     }
     virtual bool hasDType() const override { return true; }
     ASTNODE_NODE_FUNCS(CNew)
-};
-
-class AstCCoroutineStart final : public AstNodeStmt {
-public:
-    AstCCoroutineStart(FileLine* fl, AstNodeCCall* callp = nullptr)
-        : ASTGEN_SUPER_CCoroutineStart(fl) {
-        setNOp1p(callp);
-    }
-    ASTNODE_NODE_FUNCS(CCoroutineStart)
-
-    void callp(AstNodeCCall* nodep) { setOp1p(nodep); }
-    AstNodeCCall* callp() { return VN_CAST(op1p(), NodeCCall); }
 };
 
 class AstCReturn final : public AstNodeStmt {

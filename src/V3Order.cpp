@@ -658,7 +658,6 @@ private:
     bool m_inPre = false;  // Underneath AstAssignPre
     bool m_inPost = false;  // Underneath AstAssignPost
     bool m_inPostponed = false;  // Underneath AstAssignPostponed
-    bool m_inTimedEvent = false;  // Underneath TimedEvent
     OrderLogicVertex* m_activeSenVxp = nullptr;  // Sensitivity vertex
     // STATE... for inside process
     AstCFunc* m_pomNewFuncp = nullptr;  // Current function being created
@@ -686,9 +685,9 @@ private:
             // VV*****  We reset user4p()
             AstNode::user4ClearTree();
             UASSERT_OBJ(m_activep && m_activep->sensesp(), nodep, "nullptr");
-            AstSenTree* domainp = m_activep->sensesp();
+            AstSenTree* startDomainp = m_activep->sensesp();
             OrderLogicVertex* logicVxOldp = m_logicVxp;
-            m_logicVxp = new OrderLogicVertex(&m_graph, m_scopep, domainp, nodep);
+            m_logicVxp = new OrderLogicVertex(&m_graph, m_scopep, startDomainp, nodep);
             if (m_activeSenVxp) {
                 // If in a clocked activation, add a link from the sensitivity to this block
                 // Add edge logic_sensitive_vertex->logic_vertex
@@ -1011,10 +1010,7 @@ private:
         }
     }
     virtual void visit(AstNodeVarRef* nodep) override {
-        if (m_inTimedEvent && nodep->access()) {
-            // Ignore var being set under AstTimedEvent, it is being set in the
-            // "future" not in this time cycle
-        } else if (m_scopep) {
+        if (m_scopep) {
             AstVarScope* varscp = nodep->varScopep();
             UASSERT_OBJ(varscp, nodep, "Var didn't get varscoped in V3Scope.cpp");
             if (m_inSenTree) {
@@ -1024,8 +1020,6 @@ private:
                 OrderVarVertex* varVxp = newVarUserVertex(varscp, WV_STD);
                 varVxp->isClock(true);
                 new OrderEdge(&m_graph, varVxp, m_activeSenVxp, WEIGHT_MEDIUM);
-                m_activeSenVxp->allow_cycles(true);
-                varVxp->allow_cycles(true);
             } else {
                 UASSERT_OBJ(m_logicVxp, nodep, "Var ref not under a logic block");
                 // What new directions is this used
@@ -1094,7 +1088,6 @@ private:
                             // ALWAYS do it:
                             //    There maybe a wire a=b; between the two blocks
                             OrderVarVertex* postVxp = newVarUserVertex(varscp, WV_POST);
-                            postVxp->allow_cycles(true);
                             new OrderEdge(&m_graph, postVxp, m_logicVxp, WEIGHT_POST);
                         }
                         if (con) {
@@ -1161,12 +1154,6 @@ private:
             new OrderEdge(&m_graph, m_logicVxp, m_dpiExportTriggerVxp, WEIGHT_NORMAL);
         }
         iterateChildren(nodep);
-    }
-    virtual void visit(AstTimedEvent* nodep) override {
-        iterateAndNextNull(nodep->timep());
-        m_inTimedEvent = true;
-        iterateAndNextNull(nodep->varrefp());
-        m_inTimedEvent = false;
     }
     virtual void visit(AstSenTree* nodep) override {
         // Having a node derived from the sentree isn't required for
@@ -1780,8 +1767,7 @@ AstActive* OrderVisitor::processMoveOneLogic(const OrderLogicVertex* lvertexp,
                 newFuncpr->isStatic(false);
                 newFuncpr->isLoose(true);
                 newStmtsr = 0;
-                if (domainp->hasInitial()) { newFuncpr->oneshot(true); }
-                if (domainp->hasInitial() || domainp->hasSettle()) { newFuncpr->slow(true); }
+                if (domainp->hasInitial() || domainp->hasSettle()) newFuncpr->slow(true);
                 scopep->addActivep(newFuncpr);
                 // Create top call to it
                 AstNodeCCall* newCallp;

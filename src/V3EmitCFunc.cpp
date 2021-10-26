@@ -459,25 +459,6 @@ void EmitCFunc::emitCCallArgs(const AstNodeCCall* nodep, const string& selfPoint
     }
 }
 
-void EmitCFunc::emitCCallArgsNoParens(const AstNodeCCall* nodep, const string& selfPointer) {
-    bool comma = false;
-    if (nodep->funcp()->isLoose() && !nodep->funcp()->isStatic()) {
-        UASSERT_OBJ(!selfPointer.empty(), nodep, "Call to loose method without self pointer");
-        puts(selfPointer);
-        comma = true;
-    }
-    if (!nodep->argTypes().empty()) {
-        if (comma) puts(", ");
-        puts(nodep->argTypes());
-        comma = true;
-    }
-    for (AstNode* subnodep = nodep->argsp(); subnodep; subnodep = subnodep->nextp()) {
-        if (comma) puts(", ");
-        iterate(subnodep);
-        comma = true;
-    }
-}
-
 void EmitCFunc::emitDereference(const string& pointer) {
     if (pointer[0] == '(' && pointer[1] == '&') {
         // remove "address of" followed by immediate dereference
@@ -675,19 +656,19 @@ string EmitCFunc::emitVarResetRecurse(const AstVar* varp, const string& varNameP
         // Access std::array as C array
         const string cvtarray = (adtypep->subDTypep()->isWide() ? ".data()" : "");
         return emitVarResetRecurse(varp, varNameProtected, adtypep->subDTypep(), depth + 1,
-                                   suffix + ".atDefault()");
+                                   suffix + ".atDefault()" + cvtarray);
     } else if (VN_IS(dtypep, ClassRefDType)) {
         return "";  // Constructor does it
     } else if (AstDynArrayDType* adtypep = VN_CAST(dtypep, DynArrayDType)) {
         // Access std::array as C array
         const string cvtarray = (adtypep->subDTypep()->isWide() ? ".data()" : "");
         return emitVarResetRecurse(varp, varNameProtected, adtypep->subDTypep(), depth + 1,
-                                   suffix + ".atDefault()");
+                                   suffix + ".atDefault()" + cvtarray);
     } else if (AstQueueDType* adtypep = VN_CAST(dtypep, QueueDType)) {
         // Access std::array as C array
         const string cvtarray = (adtypep->subDTypep()->isWide() ? ".data()" : "");
         return emitVarResetRecurse(varp, varNameProtected, adtypep->subDTypep(), depth + 1,
-                                   suffix + ".atDefault()");
+                                   suffix + ".atDefault()" + cvtarray);
     } else if (AstUnpackArrayDType* adtypep = VN_CAST(dtypep, UnpackArrayDType)) {
         UASSERT_OBJ(adtypep->hi() >= adtypep->lo(), varp,
                     "Should have swapped msb & lsb earlier.");

@@ -386,11 +386,9 @@ class EmitCModel final : public EmitCFunc {
 
         // Forward declarations
         puts("\n");
-        puts("CoroutineTask " + topModNameProtected + "__" + protect("_eval_initial") + selfDecl
-             + ";\n");
-        puts("CoroutineTask " + topModNameProtected + "__" + protect("_eval_settle") + selfDecl
-             + ";\n");
-        puts("CoroutineTask " + topModNameProtected + "__" + protect("_eval") + selfDecl + ";\n");
+        puts("void " + topModNameProtected + "__" + protect("_eval_initial") + selfDecl + ";\n");
+        puts("void " + topModNameProtected + "__" + protect("_eval_settle") + selfDecl + ";\n");
+        puts("void " + topModNameProtected + "__" + protect("_eval") + selfDecl + ";\n");
         if (v3Global.rootp()->changeRequest()) {
             puts("QData " + topModNameProtected + "__" + protect("_change_request") + selfDecl
                  + ";\n");
@@ -399,7 +397,7 @@ class EmitCModel final : public EmitCFunc {
         puts("void " + topModNameProtected + "__" + protect("_eval_debug_assertions") + selfDecl
              + ";\n");
         puts("#endif  // VL_DEBUG\n");
-        puts("CoroutineTask " + topModNameProtected + "__" + protect("_final") + selfDecl + ";\n");
+        puts("void " + topModNameProtected + "__" + protect("_final") + selfDecl + ";\n");
 
         // _eval_initial_loop
         puts("\nstatic void " + protect("_eval_initial_loop") + "(" + symClassVar() + ")"
@@ -420,16 +418,13 @@ class EmitCModel final : public EmitCFunc {
              + "(&(vlSymsp->TOP));\n");
         puts("#endif  // VL_DEBUG\n");
         putsDecoration("// Initialize\n");
-        puts("if (VL_UNLIKELY(!vlSymsp->__Vm_didInit)) {\n" + protect("_eval_initial_loop")
-             + "(vlSymsp);\n}\n");
+        puts("if (VL_UNLIKELY(!vlSymsp->__Vm_didInit)) " + protect("_eval_initial_loop")
+             + "(vlSymsp);\n");
         for (int i = 0; i < v3Global.opt.threads() - 1; i++) {
             puts("vlSymsp->__Vm_threadPoolp->workerp(" + cvtToStr(i)
                  + ")->activate(VL_TIME_Q());\n");
         }
         puts("vlSymsp->__Vm_timedQueue.activate(VL_TIME_Q(), vlSymsp->__Vm_taskQueue);\n");
-        // puts("while (VL_LIKELY(vlSymsp->__Vm_timedQueue.queued(VL_TIME_Q()))) {\n");
-        // puts("vlSymsp->__Vm_taskQueue.push_back(vlSymsp->__Vm_timedQueue.pop());\n");
-        // puts("}\n");
 
         if (v3Global.opt.threads() == 1) {
             uint32_t mtaskId = 0;

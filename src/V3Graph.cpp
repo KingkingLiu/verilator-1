@@ -35,8 +35,7 @@ int V3Graph::debug() { return std::max(V3Error::debugDefault(), s_debug); }
 V3GraphVertex::V3GraphVertex(V3Graph* graphp, const V3GraphVertex& old)
     : m_fanout{old.m_fanout}
     , m_color{old.m_color}
-    , m_rank{old.m_rank}
-    , m_cycles_allowed{old.m_cycles_allowed} {
+    , m_rank{old.m_rank} {
     m_userp = nullptr;
     verticesPushBack(graphp);
 }
@@ -44,8 +43,7 @@ V3GraphVertex::V3GraphVertex(V3Graph* graphp, const V3GraphVertex& old)
 V3GraphVertex::V3GraphVertex(V3Graph* graphp)
     : m_fanout{0}
     , m_color{0}
-    , m_rank{0}
-    , m_cycles_allowed{false} {
+    , m_rank{0} {
     m_userp = nullptr;
     verticesPushBack(graphp);
 }

@@ -822,7 +822,7 @@ private:
             TraceActivityVertex* const activityVtxp
                 = getActivityVertexp(nodep, nodep->funcp()->slow());
             for (AstNode* nextp = nodep; nextp; nextp = nextp->nextp()) {
-                if (auto* const ccallp = VN_CAST(nextp, NodeCCall)) {
+                if (AstCCall* const ccallp = VN_CAST(nextp, CCall)) {
                     ccallp->user2(true);  // Processed
                     UINFO(8, "     SubCCALL " << ccallp << endl);
                     V3GraphVertex* const ccallFuncVtxp = getCFuncVertexp(ccallp->funcp());

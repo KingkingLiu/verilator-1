@@ -343,27 +343,6 @@ public:
 };
 
 //######################################################################
-
-class DynamicSchedulerCallVisitor final : public AstNVisitor {
-private:
-    virtual void visit(AstNodeCCall* nodep) override {
-        if (nodep->funcp()->isCoroutine()) {
-            auto* coroStartp = new AstCCoroutineStart(nodep->fileline());
-            nodep->replaceWith(coroStartp);
-            coroStartp->callp(nodep);
-        }
-    }
-
-    //--------------------
-    virtual void visit(AstNode* nodep) override { iterateChildren(nodep); }
-
-public:
-    // CONSTRUCTORS
-    explicit DynamicSchedulerCallVisitor(AstNetlist* nodep) { iterate(nodep); }
-    virtual ~DynamicSchedulerCallVisitor() override {}
-};
-
-//######################################################################
 // Delayed class functions
 
 void V3DynamicScheduler::dynSched(AstNetlist* nodep) {

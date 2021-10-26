@@ -2806,7 +2806,6 @@ static void addThreadStartToExecGraph(AstExecGraph* const execGraphp,
     addStrStmt("vlSymsp->__Vm_even_cycle = !vlSymsp->__Vm_even_cycle;\n");
 
     const uint32_t last = funcps.size() - 1;
-    std::cout << "====> last = " << last << std::endl;
     for (uint32_t i = 0; i <= last; ++i) {
         AstCFunc* const funcp = funcps.at(i);
         if (i != last) {
@@ -2845,7 +2844,6 @@ static void implementExecGraph(AstExecGraph* const execGraphp) {
     // Create a function to be run by each thread. Note this moves all AstMTaskBody nodes form the
     // AstExecGrap into the AstCFunc created
     const std::vector<AstCFunc*>& funcps = createThreadFunctions(schedule);
-    cout << "=====> funcps: " << funcps.size() << endl;
     UASSERT(!funcps.empty(), "Non-empty ExecGraph yields no threads?");
 
     // Start the thread functions at the point this AstExecGraph is located in the tree.

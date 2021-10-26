@@ -223,8 +223,7 @@ class EmitCImp final : EmitCFunc {
         for (const AstNode* nodep = modp->stmtsp(); nodep; nodep = nodep->nextp()) {
             if (const AstVar* const varp = VN_CAST_CONST(nodep, Var)) {
                 if (varp->isStatic()) {
-                    puts("/*emitStaticVarDefns*/"
-                         + varp->vlArgType(true, false, false, modName, false));
+                    puts(varp->vlArgType(true, false, false, modName));
                     puts(";\n");
                 }
             }

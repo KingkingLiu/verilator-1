@@ -483,26 +483,6 @@ string AstVar::cPubArgType(bool named, bool forReturn) const {
     return arg;
 }
 
-string AstVar::cPubArgTypeNoRef() const {
-    string arg;
-    if (widthMin() == 1) {
-        arg += "bool";
-    } else if (widthMin() <= VL_IDATASIZE) {
-        arg += "uint32_t";
-    } else if (widthMin() <= VL_QUADSIZE) {
-        arg += "vluint64_t";
-    } else {
-        arg += "uint32_t";  // []'s added later
-    }
-    if (isWide()) {
-        arg += " (" + name() + "_tmp";
-        arg += ")[" + cvtToStr(widthWords()) + "]";
-    } else {
-        arg += " " + name() + "_tmp";
-    }
-    return arg;
-}
-
 class dpiTypesToStringConverter VL_NOT_FINAL {
 public:
     virtual string openArray(const AstVar*) const { return "const svOpenArrayHandle"; }
@@ -690,31 +670,24 @@ AstNodeDType::CTypeRecursed AstNodeDType::cTypeRecurse(bool compound) const {
     if (const auto* adtypep = VN_CAST_CONST(dtypep, AssocArrayDType)) {
         const CTypeRecursed key = adtypep->keyDTypep()->cTypeRecurse(true);
         const CTypeRecursed val = adtypep->subDTypep()->cTypeRecurse(true);
-        info.m_type = "VlAssocArray<";
-        info.m_type += key.m_type;
-        info.m_type += ", ";
-        info.m_type += val.m_type;
-        info.m_type += '>';
+        info.m_type = "VlAssocArray<" + key.m_type + ", " + val.m_type + ">";
     } else if (const auto* adtypep = VN_CAST_CONST(dtypep, DynArrayDType)) {
         const CTypeRecursed sub = adtypep->subDTypep()->cTypeRecurse(true);
-        info.m_type = "VlQueue<";
-        info.m_type += sub.m_type;
-        info.m_type += '>';
+        info.m_type = "VlQueue<" + sub.m_type + ">";
     } else if (const auto* adtypep = VN_CAST_CONST(dtypep, QueueDType)) {
         const CTypeRecursed sub = adtypep->subDTypep()->cTypeRecurse(true);
-        info.m_type = "VlQueue<";
-        info.m_type += sub.m_type;
+        info.m_type = "VlQueue<" + sub.m_type;
         // + 1 below as VlQueue uses 0 to mean unlimited, 1 to mean size() max is 1
         if (adtypep->boundp()) info.m_type += ", " + cvtToStr(adtypep->boundConst() + 1);
-        info.m_type += '>';
+        info.m_type += ">";
     } else if (const auto* adtypep = VN_CAST_CONST(dtypep, ClassRefDType)) {
         info.m_type = "VlClassRef<" + EmitCBaseVisitor::prefixNameProtect(adtypep) + ">";
     } else if (const auto* adtypep = VN_CAST_CONST(dtypep, UnpackArrayDType)) {
         if (adtypep->isCompound()) compound = true;
         const CTypeRecursed sub = adtypep->subDTypep()->cTypeRecurse(compound);
-        auto dims = cvtToStr(adtypep->declRange().elements());
         info.m_type = "VlUnpacked<" + sub.m_type;
-        info.m_type += ", " + dims + '>';
+        info.m_type += ", " + cvtToStr(adtypep->declRange().elements());
+        info.m_type += ">";
     } else if (const AstBasicDType* bdtypep = dtypep->basicp()) {
         // We don't print msb()/lsb() as multidim packed would require recursion,
         // and may confuse users as C++ data is stored always with bit 0 used

@@ -329,10 +329,10 @@ static void process() {
         V3Active::activeAll(v3Global.rootp());
 
         // Split single ALWAYS blocks into multiple blocks for better ordering chances
-#if 0
+        // XXX make sure this works with dynamic scheduler
         if (v3Global.opt.oSplit()) V3Split::splitAlwaysAll(v3Global.rootp());
         V3SplitAs::splitAsAll(v3Global.rootp());
-#endif
+
         // Create tracing sample points, before we start eliminating signals
         if (v3Global.opt.trace()) V3TraceDecl::traceDeclAll(v3Global.rootp());
 
@@ -361,17 +361,13 @@ static void process() {
         }
 
         // Reorder assignments in pipelined blocks
-#if 0
+        // XXX make sure this works with dynamic scheduler
         if (v3Global.opt.oReorder()) V3Split::splitReorderAll(v3Global.rootp());
-#endif
 
-        // XXX leaving this here to remember to restore it later with a switch
-        // for the static scheduler
-#if 0
         // Create delayed assignments
         // This creates lots of duplicate ACTIVES so ActiveTop needs to be after this step
-        V3Delayed::delayedAll(v3Global.rootp());
-#endif
+        // XXX disable this with a switch
+        //V3Delayed::delayedAll(v3Global.rootp());
 
         // Make Active's on the top level.
         // Differs from V3Active, because identical clocks may be pushed
@@ -435,6 +431,7 @@ static void process() {
         V3Descope::descopeAll(v3Global.rootp());
 
         // Icache packing; combine common code in each module's functions into subroutines
+        // XXX disable this with a switch
         // if (v3Global.opt.oCombine()) V3Combine::combineAll(v3Global.rootp());
     }
 
@@ -605,6 +602,7 @@ static void verilate(const string& argString) {
 
     // Read first filename
     v3Global.readFiles();
+
     // Link, etc, if needed
     if (!v3Global.opt.preprocOnly()) {  //
         process();

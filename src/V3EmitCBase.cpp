@@ -86,7 +86,7 @@ string EmitCBaseVisitor::cFuncArgs(const AstCFunc* nodep) {
                 } else if (nodep->funcPublic()) {
                     args += portp->cPubArgType(true, false);
                 } else {
-                    args += portp->vlArgType(true, false, true, "", false);
+                    args += portp->vlArgType(true, false, true);
                 }
             }
         }
@@ -95,7 +95,7 @@ string EmitCBaseVisitor::cFuncArgs(const AstCFunc* nodep) {
 }
 
 void EmitCBaseVisitor::emitCFuncHeader(const AstCFunc* funcp, const AstNodeModule* modp,
-                                       const std::string& args, bool withScope) {
+                                       bool withScope) {
     if (funcp->slow()) puts("VL_ATTR_COLD ");
     if (!funcp->isConstructor() && !funcp->isDestructor()) {
         puts(funcp->rtnTypeVoid());
@@ -109,7 +109,7 @@ void EmitCBaseVisitor::emitCFuncHeader(const AstCFunc* funcp, const AstNodeModul
         }
     }
     puts(funcNameProtect(funcp, modp));
-    puts("(" + args + ")");
+    puts("(" + cFuncArgs(funcp) + ")");
     if (funcp->isConst().trueKnown() && funcp->isProperMethod()) puts(" const");
 }
 
@@ -123,7 +123,7 @@ void EmitCBaseVisitor::emitCFuncDecl(const AstCFunc* funcp, const AstNodeModule*
         UASSERT_OBJ(funcp->isProperMethod(), funcp, "Virtual function is not a proper method");
         puts("virtual ");
     }
-    emitCFuncHeader(funcp, modp, cFuncArgs(funcp), /* withScope: */ false);
+    emitCFuncHeader(funcp, modp, /* withScope: */ false);
     puts(";\n");
     if (!funcp->ifdef().empty()) puts("#endif  // " + funcp->ifdef() + "\n");
 }

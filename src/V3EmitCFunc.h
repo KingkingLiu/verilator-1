@@ -169,7 +169,6 @@ public:
     void emitOpName(AstNode* nodep, const string& format, AstNode* lhsp, AstNode* rhsp,
                     AstNode* thsp);
     void emitCCallArgs(const AstNodeCCall* nodep, const string& selfPointer);
-    void emitCCallArgsNoParens(const AstNodeCCall* nodep, const string& selfPointer);
     void emitDereference(const string& pointer);
     void emitCvtPackStr(AstNode* nodep);
     void emitCvtWideArray(AstNode* nodep, AstNode* fromp);
@@ -206,7 +205,7 @@ public:
         m_lazyDecls.emit(nodep);
         if (nodep->ifdef() != "") puts("#ifdef " + nodep->ifdef() + "\n");
         if (nodep->isInline()) puts("VL_INLINE_OPT ");
-        emitCFuncHeader(nodep, m_modp, cFuncArgs(nodep), /* withScope: */ true);
+        emitCFuncHeader(nodep, m_modp, /* withScope: */ true);
 
         // TODO perhaps better to have a new AstCCtorInit so we can pass arguments
         // rather than requiring a string here
@@ -216,14 +215,6 @@ public:
         }
         puts(" {\n");
 
-        emitCFuncBody(nodep);
-
-        if (m_inCoroutine) puts("co_return;\n");
-        puts("}\n");
-        if (nodep->ifdef() != "") puts("#endif  // " + nodep->ifdef() + "\n");
-    }
-
-    void emitCFuncBody(AstCFunc* nodep) {
         if (nodep->isLoose()) {
             m_lazyDecls.declared(nodep);  // Defined here, so no longer needs declaration
             if (!nodep->isStatic()) {  // Standard prologue
@@ -264,31 +255,11 @@ public:
         }
 
         if (!m_blkChangeDetVec.empty()) puts("return __req;\n");
-    }
 
-    void emitCFuncSignature(AstCFunc* nodep, const std::string& args) {
-        puts("\n");
-        if (nodep->ifdef() != "") puts("#ifdef " + nodep->ifdef() + "\n");
+        if (m_inCoroutine) puts("co_return;\n");
 
-        if (nodep->isInline()) puts("VL_INLINE_OPT ");
-        if (!nodep->isConstructor() && !nodep->isDestructor()) {
-            puts(nodep->rtnTypeVoid());
-            puts(" ");
-        }
-
-        if (nodep->isMethod()) puts(prefixNameProtect(m_modp) + "::");
-        puts(funcNameProtect(nodep, m_modp));
-
-        puts('(' + args + ')');
-
-        if (nodep->isConst().trueKnown()) puts(" const");
-
-        // TODO perhaps better to have a new AstCCtorInit so we can pass arguments
-        // rather than requiring a string here
-        if (!nodep->ctorInits().empty()) {
-            puts(": ");
-            puts(nodep->ctorInits());
-        }
+        puts("}\n");
+        if (nodep->ifdef() != "") puts("#endif  // " + nodep->ifdef() + "\n");
     }
 
     virtual void visit(AstVar* nodep) override {
@@ -397,7 +368,7 @@ public:
                     }
                 }
             }
-            puts("] () mutable { ");  // XXX can we get rid of this 'mutable'?
+            puts("] () mutable { ");
             visitGenericAssign(nodep);
             puts("; }");
         }
@@ -459,7 +430,7 @@ public:
         emitCCallArgs(nodep, nodep->selfPointerProtect(m_useSelfForThis));
         if (funcp->isCoroutine() && !m_inCoroutine)
             puts("new CoroutineTask(std::move(" + nodep->funcp()->nameProtect()
-                 + "__coro));");  // XXX keep coroutine from being destroyed; NEED to fix it
+                 + "__coro));\n");  // XXX keep coroutine from being destroyed; NEED to fix it
     }
     virtual void visit(AstCMethodCall* nodep) override {
         const AstCFunc* const funcp = nodep->funcp();
@@ -880,13 +851,9 @@ public:
         puts("__Vlabel" + cvtToStr(nodep->blockp()->labelNum()) + ": ;\n");
     }
     virtual void visit(AstDelay* nodep) override {
-        // Make the waiting for the event local to reuse variable nates
-        // puts("vlSymsp->__Vm_threadPoolp->workerp(Verilated::mtaskId())->schedule(VL_TIME_Q() +
-        // ");
         puts("co_await std::pair<TimedQueue&, int>(vlSymsp->__Vm_timedQueue, VL_TIME_Q() + ");
         iterateAndNextNull(nodep->lhsp());
         puts(");\n");
-        // puts("if (vlThread->should_exit()) return;\n");
     }
 
     virtual void visit(AstTimingControl* nodep) override {
