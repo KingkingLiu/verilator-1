@@ -588,7 +588,8 @@ private:
                 }
             }
         }
-        if (false && nodep->edgeType() == VEdgeType::ET_ANYEDGE) {
+        if ((!nodep->varrefp() || nodep->varrefp()->dtypep()->isWide())
+            && nodep->edgeType() == VEdgeType::ET_ANYEDGE) {
             m_itemCombo = true;
             // Delete the sensitivity
             // We'll add it as a generic COMBO SenItem in a moment.
