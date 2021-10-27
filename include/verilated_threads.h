@@ -258,6 +258,9 @@ public:
     inline void addTask(VlExecFnp fnp, VlSelfP selfp, bool evenCycle) {
         addTask([fnp, selfp, evenCycle]() { fnp(selfp, evenCycle); });
     }
+    inline void addTask(CoroutineTask (*fnp)(void*, bool), VlSelfP selfp, bool evenCycle) {
+        addTask([fnp, selfp, evenCycle]() { fnp(selfp, evenCycle); });
+    }
     void workerLoop();
     static void startWorker(VlWorkerThread* workerp);
 };
