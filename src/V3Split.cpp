@@ -632,7 +632,8 @@ class IfColorVisitor final : public AstNVisitor {
 public:
     // Visit through *nodep and map each AstNodeIf within to the set of
     // colors it will participate in. Also find the whole set of colors.
-    explicit IfColorVisitor(AstAlways* nodep) { iterate(nodep); }
+    explicit IfColorVisitor(AstAlways* nodep) {
+        iterate(nodep); }
     virtual ~IfColorVisitor() override = default;
 
     // METHODS

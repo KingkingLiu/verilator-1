@@ -126,6 +126,13 @@ private:
         }
     }
 
+    AstAssignDly* m_assignDly = nullptr;
+    virtual void visit(AstAssignDly* nodep) override {
+        VL_RESTORER(m_assignDly);
+        m_assignDly = nodep;
+        iterateChildren(nodep);
+    }
+
     virtual void visit(AstNodeAssign* nodep) override {
         // Analyze RHS first so "a = a + 1" is detected as a read before write
         iterate(nodep->rhsp());
@@ -162,6 +169,9 @@ private:
         UASSERT_OBJ(m_cfuncp, nodep, "AstVarRef not under function");
 
         AstVarScope* const varScopep = nodep->varScopep();
+
+        if (m_assignDly) varScopep->user1(1);
+
         // Remember this function accesses this VarScope (we always need this as we might optimize
         // this VarScope into a local, even if it's not assigned. See 'isOptimizable')
         m_accessors(varScopep).emplace(m_cfuncp);

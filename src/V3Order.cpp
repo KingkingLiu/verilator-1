@@ -1731,15 +1731,9 @@ AstActive* OrderVisitor::processMoveOneLogic(const OrderLogicVertex* lvertexp,
     UASSERT(modp, "nullptr");
     if (VN_IS(nodep, SenTree)) {
         // Just ignore sensitivities, we'll deal with them when we move statements that need them
-    } else if (VN_IS(nodep, AssignPre) || VN_IS(nodep, AssignPost)) {
-        // Ignore assign pre and assign post for now
     } else {  // Normal logic
         // Move the logic into a CFunc
         nodep->unlinkFrBack();
-
-        newFuncpr
-            = nullptr;  // Otherwise initial blocks are all joined together and not independent
-                        // XXX there should be a better way
 
         // Process procedures per statement (unless profCFuncs), so we can split CFuncs within
         // procedures. Everything else is handled in one go
@@ -1749,6 +1743,8 @@ AstActive* OrderVisitor::processMoveOneLogic(const OrderLogicVertex* lvertexp,
             pushDeletep(procp);
         }
 
+        newFuncpr = nullptr; // Split separate processes
+
         while (nodep) {
             // Make or borrow a CFunc to contain the new statements
             if (v3Global.opt.profCFuncs()
@@ -1756,9 +1752,6 @@ AstActive* OrderVisitor::processMoveOneLogic(const OrderLogicVertex* lvertexp,
                     && v3Global.opt.outputSplitCFuncs() < newStmtsr)) {
                 // Put every statement into a unique function to ease profiling or reduce function
                 // size
-                if (!domainp
-                         ->hasInitial())  // Otherwise initial blocks get split on every statement
-                                          // XXX there should be a better way
                     newFuncpr = nullptr;
             }
             if (!newFuncpr && domainp != m_deleteDomainp) {
@@ -1770,11 +1763,10 @@ AstActive* OrderVisitor::processMoveOneLogic(const OrderLogicVertex* lvertexp,
                 if (domainp->hasInitial() || domainp->hasSettle()) newFuncpr->slow(true);
                 scopep->addActivep(newFuncpr);
                 // Create top call to it
-                AstNodeCCall* newCallp;
-                newCallp = new AstCCall(nodep->fileline(), newFuncpr);
+                AstCCall* const callp = new AstCCall(nodep->fileline(), newFuncpr);
                 // Where will we be adding the call?
                 AstActive* const newActivep = new AstActive(nodep->fileline(), name, domainp);
-                newActivep->addStmtsp(newCallp);
+                newActivep->addStmtsp(callp);
                 if (!activep) {
                     activep = newActivep;
                 } else {

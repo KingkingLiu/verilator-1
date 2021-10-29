@@ -27,6 +27,7 @@
 
 class V3DynamicScheduler final {
 public:
+    static void process(AstNetlist* nodep);
     static void dynSched(AstNetlist* nodep);
 };
 

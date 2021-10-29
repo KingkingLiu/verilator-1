@@ -404,7 +404,7 @@ public:
             if (m_inCoroutine)
                 puts("co_await ");
             else
-                puts("auto " + nodep->funcp()->nameProtect() + "__coro = ");
+                puts("{\nauto " + nodep->funcp()->nameProtect() + "__coro = ");
         }
         if (funcp->dpiImportPrototype()) {
             // Calling DPI import
@@ -430,7 +430,7 @@ public:
         emitCCallArgs(nodep, nodep->selfPointerProtect(m_useSelfForThis));
         if (funcp->isCoroutine() && !m_inCoroutine)
             puts("new CoroutineTask(std::move(" + nodep->funcp()->nameProtect()
-                 + "__coro));\n");  // XXX keep coroutine from being destroyed; NEED to fix it
+                 + "__coro));\n}\n");  // XXX keep coroutine from being destroyed; NEED to fix it
     }
     virtual void visit(AstCMethodCall* nodep) override {
         const AstCFunc* const funcp = nodep->funcp();
@@ -439,7 +439,7 @@ public:
             if (m_inCoroutine)
                 puts("co_await ");
             else {
-                puts("auto " + nodep->fromp()->nameProtect() + "__" + nodep->funcp()->nameProtect()
+                puts("{\nauto " + nodep->fromp()->nameProtect() + "__" + nodep->funcp()->nameProtect()
                      + "__coro = ");
             }
         }
@@ -450,7 +450,7 @@ public:
         if (funcp->isCoroutine() && !m_inCoroutine)
             puts("new CoroutineTask(std::move(" + nodep->fromp()->nameProtect() + "__"
                  + nodep->funcp()->nameProtect()
-                 + "__coro));\n");  // XXX keep coroutine from being destroyed; NEED to fix it
+                 + "__coro));\n}\n");  // XXX keep coroutine from being destroyed; NEED to fix it
     }
     virtual void visit(AstCNew* nodep) override {
         puts("std::make_shared<" + prefixNameProtect(nodep->dtypep()) + ">(");
@@ -935,6 +935,9 @@ public:
             if (varrefp->nextp()) puts(", ");
         }
         puts("});\n}\n");
+    }
+    virtual void visit(AstBegin* nodep) override {
+        iterateAndNextNull(nodep->stmtsp());
     }
     virtual void visit(AstFork* nodep) override {
         // Skip forks with no statements

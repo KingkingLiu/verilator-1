@@ -328,8 +328,10 @@ static void process() {
         // (May convert some ALWAYS to combo blocks, so should be before V3Gate step.)
         V3Active::activeAll(v3Global.rootp());
 
+        // Mark processes with delays/waits as dynamic to avoid splitting them
+        V3DynamicScheduler::process(v3Global.rootp());
+
         // Split single ALWAYS blocks into multiple blocks for better ordering chances
-        // XXX make sure this works with dynamic scheduler
         if (v3Global.opt.oSplit()) V3Split::splitAlwaysAll(v3Global.rootp());
         V3SplitAs::splitAsAll(v3Global.rootp());
 
@@ -361,7 +363,6 @@ static void process() {
         }
 
         // Reorder assignments in pipelined blocks
-        // XXX make sure this works with dynamic scheduler
         if (v3Global.opt.oReorder()) V3Split::splitReorderAll(v3Global.rootp());
 
         // Create delayed assignments
@@ -431,8 +432,7 @@ static void process() {
         V3Descope::descopeAll(v3Global.rootp());
 
         // Icache packing; combine common code in each module's functions into subroutines
-        // XXX disable this with a switch
-        // if (v3Global.opt.oCombine()) V3Combine::combineAll(v3Global.rootp());
+        if (v3Global.opt.oCombine()) V3Combine::combineAll(v3Global.rootp());
     }
 
     V3Error::abortIfErrors();

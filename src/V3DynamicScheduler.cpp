@@ -26,6 +26,67 @@
 
 //######################################################################
 
+class DynamicSchedulerProcessVisitor final : public AstNVisitor {
+private:
+    // NODE STATE
+    // AstNodeProcedure::user1()      -> bool.  Set true if shouldn't be split up
+    AstUser1InUse m_inuser1;
+
+    // STATE
+    AstNodeProcedure* m_process = nullptr;
+
+    // METHODS
+    VL_DEBUG_FUNC;  // Declare debug()
+
+    // VISITORS
+    virtual void visit(AstNodeProcedure* nodep) override {
+        VL_RESTORER(m_process);
+        {
+            m_process = nodep;
+            iterateChildren(nodep);
+            if (nodep->user1()) {
+                // Prevent splitting by wrapping body in an AstBegin
+                auto* bodysp = nodep->bodysp()->unlinkFrBackWithNext();
+                nodep->addStmtp(new AstBegin{nodep->fileline(), "", bodysp});
+            }
+        }
+    }
+    virtual void visit(AstDelay* nodep) override {
+        if (m_process) m_process->user1u(true);
+    }
+    virtual void visit(AstTimingControl* nodep) override {
+        if (m_process) m_process->user1u(true);
+    }
+    virtual void visit(AstWait* nodep) override {
+        if (m_process) m_process->user1u(true);
+    }
+    virtual void visit(AstFork* nodep) override {
+        if (m_process) m_process->user1u(!nodep->joinType().joinNone());
+    }
+    virtual void visit(AstTaskRef* nodep) override {
+        // XXX detect only tasks with delays etc
+        if (m_process) m_process->user1u(true);
+    }
+    virtual void visit(AstCMethodCall* nodep) override {
+        // XXX detect only tasks with delays etc
+        if (m_process) m_process->user1u(true);
+    }
+    virtual void visit(AstMethodCall* nodep) override {
+        // XXX detect only tasks with delays etc
+        if (m_process) m_process->user1u(true);
+    }
+
+    //--------------------
+    virtual void visit(AstNode* nodep) override { iterateChildren(nodep); }
+
+public:
+    // CONSTRUCTORS
+    explicit DynamicSchedulerProcessVisitor(AstNetlist* nodep) { iterate(nodep); }
+    virtual ~DynamicSchedulerProcessVisitor() override {}
+};
+
+//######################################################################
+
 class DynamicSchedulerAssignDlyVisitor final : public AstNVisitor {
 private:
     // NODE STATE
@@ -345,9 +406,15 @@ public:
 //######################################################################
 // Delayed class functions
 
+void V3DynamicScheduler::process(AstNetlist* nodep) {
+    { DynamicSchedulerProcessVisitor visitor(nodep); }
+    V3Global::dumpCheckGlobalTree("dynsch_process", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 3);
+}
+
 void V3DynamicScheduler::dynSched(AstNetlist* nodep) {
     UINFO(2, __FUNCTION__ << ": " << endl);
     { DynamicSchedulerAssignDlyVisitor visitor(nodep); }
-    { DynamicSchedulerWaitVisitor visitor(nodep); }  // Destruct before checking
-    V3Global::dumpCheckGlobalTree("dynsched", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 3);
+    V3Global::dumpCheckGlobalTree("dynsch_assign", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 3);
+    { DynamicSchedulerWaitVisitor visitor(nodep); }
+    V3Global::dumpCheckGlobalTree("dynsch_wait", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 3);
 }
