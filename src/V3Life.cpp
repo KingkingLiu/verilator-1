@@ -138,16 +138,6 @@ public:
     ~LifeBlock() = default;
     // METHODS
     void checkRemoveAssign(const LifeMap::iterator& it) {
-        return;  // XXX disable it for now;
-                 // in some cases it would remove necessary assignments,
-                 // e.g. in this one the zeroing would be removed, so we
-                 // wouldn't be able to detect the clock posedge:
-                 //   initial begin
-                 //       forever begin
-                 //           #1 clk = 1'b0;
-                 //           #1 clk = 1'b1;
-                 //       end
-                 //   end
         AstVar* varp = it->first->varp();
         LifeVarEntry* entp = &(it->second);
         if (!varp->isSigPublic()) {
@@ -190,7 +180,6 @@ public:
     }
     void varUsageReplace(AstVarScope* nodep, AstVarRef* varrefp) {
         // Variable rvalue.  If it references a constant, we can simply replace it
-        return;  // XXX Life does not see changes caused by other processes
         const auto it = m_map.find(nodep);
         if (it != m_map.end()) {
             if (AstConst* constp = it->second.constNodep()) {
@@ -297,7 +286,8 @@ private:
     VL_DEBUG_FUNC;  // Declare debug()
 
     // VISITORS
-    virtual void visit(AstWait* nodep) override {}
+    virtual void visit(AstEventTrigger* nodep) override {}
+    virtual void visit(AstBegin* nodep) override {}
     virtual void visit(AstVarRef* nodep) override {
         // Consumption/generation of a variable,
         // it's used so can't elim assignment before this use.

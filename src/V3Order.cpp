@@ -1743,6 +1743,7 @@ AstActive* OrderVisitor::processMoveOneLogic(const OrderLogicVertex* lvertexp,
             pushDeletep(procp);
         }
 
+        // XXX disable this with a switch
         newFuncpr = nullptr; // Split separate processes
 
         while (nodep) {

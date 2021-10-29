@@ -297,6 +297,9 @@ static void process() {
         V3Task::taskAll(v3Global.rootp());
     }
 
+    // Wrap statements in processes into blocks so they won't get split
+    V3DynamicScheduler::process(v3Global.rootp());
+
     if (!v3Global.opt.xmlOnly()) {
         // Add __PVT's
         // After V3Task so task internal variables will get renamed
@@ -327,9 +330,6 @@ static void process() {
         // Move assignments/sensitives into a SBLOCK for each unique sensitivity list
         // (May convert some ALWAYS to combo blocks, so should be before V3Gate step.)
         V3Active::activeAll(v3Global.rootp());
-
-        // Mark processes with delays/waits as dynamic to avoid splitting them
-        V3DynamicScheduler::process(v3Global.rootp());
 
         // Split single ALWAYS blocks into multiple blocks for better ordering chances
         if (v3Global.opt.oSplit()) V3Split::splitAlwaysAll(v3Global.rootp());
