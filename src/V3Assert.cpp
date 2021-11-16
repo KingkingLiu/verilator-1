@@ -386,8 +386,16 @@ private:
                                         newMonitorNumVarRefp(nodep, VAccess::READ)}},
                 stmtsp, nullptr};
             ifp->branchPred(VBranchPred::BP_UNLIKELY);
-            AstNode* newp = new AstAlwaysPostponed{fl, ifp};
-            m_modp->addStmtp(newp);
+            auto* sensesp = new AstSenTree{fl, nullptr};
+            for (auto* exprp = nodep->fmtp()->exprsp(); exprp; exprp = exprp->nextp()) {
+                if (auto* varrefp = VN_CAST(exprp, VarRef)) {
+                    sensesp->addSensesp(
+                        new AstSenItem{fl, VEdgeType::ET_ANYEDGE,
+                                       new AstVarRef{fl, varrefp->varp(), VAccess::READ}});
+                }
+            }
+            AstNode* alwaysp = new AstAlways{fl, VAlwaysKwd::ALWAYS, sensesp, ifp};
+            m_modp->addStmtp(alwaysp);
         } else if (nodep->displayType() == AstDisplayType::DT_STROBE) {
             nodep->displayType(AstDisplayType::DT_DISPLAY);
             // Need one-shot
@@ -402,11 +410,13 @@ private:
             nodep->replaceWith(newsetp);
             // Add "always_comb if (__Vstrobe) begin $display(...); __Vstrobe = '0; end"
             AstNode* stmtsp = nodep;
-            AstIf* ifp = new AstIf{fl, new AstVarRef{fl, varp, VAccess::READ}, stmtsp, nullptr};
-            ifp->branchPred(VBranchPred::BP_UNLIKELY);
-            AstNode* newp = new AstAlwaysPostponed{fl, ifp};
             stmtsp->addNext(new AstAssign{fl, new AstVarRef{fl, varp, VAccess::WRITE},
                                           new AstConst{fl, AstConst::BitFalse{}}});
+            AstIf* ifp = new AstIf{fl, new AstVarRef{fl, varp, VAccess::READ}, stmtsp, nullptr};
+            ifp->branchPred(VBranchPred::BP_UNLIKELY);
+            AstNode* newp = new AstAlways{
+                fl, VAlwaysKwd::ALWAYS,
+                new AstSenTree{fl, new AstSenItem{fl, AstSenItem::Postponed()}}, ifp};
             m_modp->addStmtp(newp);
         }
     }

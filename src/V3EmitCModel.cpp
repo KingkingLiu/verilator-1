@@ -341,9 +341,9 @@ class EmitCModel final : public EmitCFunc {
         puts("vlSymsp->__Vm_taskQueue.erase(vlSymsp->__Vm_taskQueue.begin());\n");
         puts("task();\n}\n");
         puts("vlSymsp->TOP.verilated_nba_ctrl.assign();\n");
-        puts("} while (!vlSymsp->_vm_contextp__->gotFinish() && vlSymsp->TOP.");
-        puts(protect("__eval_change_counter"));
-        puts(" != 0);\n");
+        puts("} while (vlSymsp->TOP." + protect("__eval_change_counter") + " != 0 || ");
+        puts(topModNameProtected + "__" + protect("_check_sensp") + "(&(vlSymsp->TOP)));\n");
+        puts(topModNameProtected + "__" + protect("_eval_postponed") + "(&(vlSymsp->TOP));\n");
         if (v3Global.rootp()->changeRequest()) {
             puts("if (VL_UNLIKELY(++__VclockLoop > " + cvtToStr(v3Global.opt.convergeLimit())
                  + ")) {\n");
@@ -368,7 +368,7 @@ class EmitCModel final : public EmitCFunc {
                  + "(&(vlSymsp->TOP));\n");
             puts("}\n");
         }
-        puts("} while ("
+        puts("} while (!vlSymsp->_vm_contextp__->gotFinish() && "
              + (v3Global.rootp()->changeRequest() ? std::string{"VL_UNLIKELY(__Vchange)"}
                                                   : std::string{"0"})
              + ");\n");
@@ -386,7 +386,10 @@ class EmitCModel final : public EmitCFunc {
         puts("\n");
         puts("void " + topModNameProtected + "__" + protect("_eval_initial") + selfDecl + ";\n");
         puts("void " + topModNameProtected + "__" + protect("_eval_settle") + selfDecl + ";\n");
+        puts("void " + topModNameProtected + "__" + protect("_eval_postponed") + selfDecl + ";\n");
         puts("void " + topModNameProtected + "__" + protect("_eval") + selfDecl + ";\n");
+        puts("bool " + topModNameProtected + "__" + protect("_check_sensp") + "(const "
+             + topModNameProtected + "* vlSelf)" + ";\n");
         if (v3Global.rootp()->changeRequest()) {
             puts("QData " + topModNameProtected + "__" + protect("_change_request") + selfDecl
                  + ";\n");

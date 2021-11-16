@@ -83,6 +83,9 @@ private:
     AstCFunc* m_initFuncp = nullptr;  // Top initial function we are creating
     AstCFunc* m_finalFuncp = nullptr;  // Top final function we are creating
     AstCFunc* m_settleFuncp = nullptr;  // Top settlement function we are creating
+    AstCFunc* m_postponedFuncp = nullptr;
+    AstCFunc* m_delayedFuncp = nullptr;
+    AstCFunc* m_checkSensFuncp = nullptr;
     AstSenTree* m_lastSenp = nullptr;  // Last sensitivity match, so we can detect duplicates.
     AstIf* m_lastIfp = nullptr;  // Last sensitivity if active to add more under
     AstMTaskBody* m_mtaskBodyp = nullptr;  // Current mtask body
@@ -197,6 +200,15 @@ private:
         AstIf* newifp = new AstIf(sensesp->fileline(), senEqnp, nullptr, nullptr);
         return newifp;
     }
+    void makeSensCheck(AstSenTree* sensesp) {
+        AstNode* senEqnp = createSenseEquation(sensesp->sensesp());
+        if (m_checkSensFuncp->stmtsp()) {
+            auto nodep = m_checkSensFuncp->stmtsp()->unlinkFrBack();
+            m_checkSensFuncp->addStmtsp(new AstLogOr{sensesp->fileline(), senEqnp, nodep});
+        } else {
+            m_checkSensFuncp->addStmtsp(senEqnp);
+        }
+    }
     void clearLastSen() {
         m_lastSenp = nullptr;
         m_lastIfp = nullptr;
@@ -209,6 +221,18 @@ private:
         funcp->entryPoint(true);
         funcp->slow(slow);
         funcp->isConst(false);
+        funcp->declPrivate(true);
+        m_topScopep->scopep()->addActivep(funcp);
+        return funcp;
+    }
+    AstCFunc* makeCheckSensFunction() {
+        AstCFunc* const funcp
+            = new AstCFunc{m_topScopep->fileline(), "_check_sensp", m_topScopep->scopep(), "bool"};
+        funcp->dontCombine(true);
+        funcp->isStatic(false);
+        funcp->isLoose(true);
+        funcp->entryPoint(true);
+        funcp->isConst(true);
         funcp->declPrivate(true);
         m_topScopep->scopep()->addActivep(funcp);
         return funcp;
@@ -262,7 +286,10 @@ private:
         m_evalFuncp = makeTopFunction("_eval");
         m_initFuncp = makeTopFunction("_eval_initial", /* slow: */ true);
         m_settleFuncp = makeTopFunction("_eval_settle", /* slow: */ true);
+        m_delayedFuncp = makeTopFunction("_eval_delayed");
+        m_postponedFuncp = makeTopFunction("_eval_postponed");
         m_finalFuncp = makeTopFunction("_final", /* slow: */ true);
+        m_checkSensFuncp = makeCheckSensFunction();
 
         // Create counter for the _eval loop
         AstVar* cntVarp = new AstVar(nodep->fileline(), AstVarType::MODULETEMP,
@@ -293,6 +320,14 @@ private:
         // Done, clear so we can detect errors
         UINFO(4, " TOPSCOPEDONE " << nodep << endl);
         clearLastSen();
+
+        AstNode* checkSensExprp = nullptr;
+        if (m_checkSensFuncp->stmtsp())
+            checkSensExprp = m_checkSensFuncp->stmtsp()->unlinkFrBack();
+        else
+            checkSensExprp = new AstConst{m_checkSensFuncp->fileline(), 0};
+        m_checkSensFuncp->addStmtsp(new AstCReturn{m_checkSensFuncp->fileline(), checkSensExprp});
+
         m_topScopep = nullptr;
         m_scopep = nullptr;
     }
@@ -362,6 +397,12 @@ private:
     void addToInitial(AstNode* stmtsp) {
         m_initFuncp->addStmtsp(stmtsp);  // add to top level function
     }
+    void addToDelayed(AstNode* stmtsp) {
+        m_delayedFuncp->addStmtsp(stmtsp);  // add to top level function
+    }
+    void addToPostponed(AstNode* stmtsp) {
+        m_postponedFuncp->addStmtsp(stmtsp);  // add to top level function
+    }
     virtual void visit(AstTimingControl* nodep) override {
         // Do not iterate to keep sentree in place
     }
@@ -386,6 +427,7 @@ private:
                     m_lastSenp = nodep->sensesp();
                     // Make a new if statement
                     m_lastIfp = makeActiveIf(m_lastSenp);
+                    makeSensCheck(m_lastSenp);
                     m_mtaskBodyp->addStmtsp(m_lastIfp);
                 }
                 // Move statements to if
@@ -413,6 +455,7 @@ private:
                     m_lastSenp = nodep->sensesp();
                     // Make a new if statement
                     m_lastIfp = makeActiveIf(m_lastSenp);
+                    makeSensCheck(m_lastSenp);
                     addToEvalLoop(m_lastIfp);
 
                     AstNode* incp = new AstAdd(
@@ -448,6 +491,10 @@ private:
                 // Don't need to: clearLastSen();, as we're adding it to different cfunc
                 // Move statements to function
                 addToSettleLoop(stmtsp);
+            } else if (nodep->hasDelayed()) {
+                addToDelayed(stmtsp);
+            } else if (nodep->hasPostponed()) {
+                addToPostponed(stmtsp);
             } else {
                 // Combo
                 clearLastSen();

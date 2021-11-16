@@ -439,8 +439,8 @@ public:
             if (m_inCoroutine)
                 puts("co_await ");
             else {
-                puts("{\nauto " + nodep->fromp()->nameProtect() + "__" + nodep->funcp()->nameProtect()
-                     + "__coro = ");
+                puts("{\nauto " + nodep->fromp()->nameProtect() + "__"
+                     + nodep->funcp()->nameProtect() + "__coro = ");
             }
         }
         iterate(nodep->fromp());
@@ -936,9 +936,7 @@ public:
         }
         puts("});\n}\n");
     }
-    virtual void visit(AstBegin* nodep) override {
-        iterateAndNextNull(nodep->stmtsp());
-    }
+    virtual void visit(AstBegin* nodep) override { iterateAndNextNull(nodep->stmtsp()); }
     virtual void visit(AstFork* nodep) override {
         // Skip forks with no statements
         if (nodep->stmtsp() == nullptr) return;

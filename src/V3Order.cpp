@@ -741,13 +741,16 @@ private:
                      AstNode* forWhatp) {
         modp->user3Inc();
         const int funcnum = modp->user3();
-        string name = (domainp->hasCombo()
-                           ? "_combo"
-                           : (domainp->hasInitial()
-                                  ? "_initial"
-                                  : (domainp->hasSettle()
-                                         ? "_settle"
-                                         : (domainp->isMulti() ? "_multiclk" : "_sequent"))));
+        string name
+            = (domainp->hasCombo()
+                   ? "_combo"
+                   : (domainp->hasInitial()
+                          ? "_initial"
+                          : (domainp->hasSettle()
+                                 ? "_settle"
+                                 : (domainp->hasPostponed()
+                                        ? "_postponed"
+                                        : (domainp->isMulti() ? "_multiclk" : "_sequent")))));
         name = name + "__" + scopep->nameDotless() + "__" + cvtToStr(funcnum);
         if (v3Global.opt.profCFuncs()) {
             name += "__PROF__" + forWhatp->fileline()->profileFuncname();
@@ -1180,7 +1183,11 @@ private:
         m_inPostponed = true;
         iterateNewStmt(nodep);
     }
-    virtual void visit(AstAlways* nodep) override { iterateNewStmt(nodep); }
+    virtual void visit(AstAlways* nodep) override {
+        VL_RESTORER(m_inPostponed);
+        if (nodep->sensesp() && nodep->sensesp()->hasPostponed()) m_inPostponed = true;
+        iterateNewStmt(nodep);
+    }
     virtual void visit(AstAlwaysPublic* nodep) override { iterateNewStmt(nodep); }
     virtual void visit(AstAssignAlias* nodep) override { iterateNewStmt(nodep); }
     virtual void visit(AstAssignW* nodep) override {
@@ -1744,7 +1751,7 @@ AstActive* OrderVisitor::processMoveOneLogic(const OrderLogicVertex* lvertexp,
         }
 
         // XXX disable this with a switch
-        newFuncpr = nullptr; // Split separate processes
+        newFuncpr = nullptr;  // Split separate processes
 
         while (nodep) {
             // Make or borrow a CFunc to contain the new statements
@@ -1753,7 +1760,7 @@ AstActive* OrderVisitor::processMoveOneLogic(const OrderLogicVertex* lvertexp,
                     && v3Global.opt.outputSplitCFuncs() < newStmtsr)) {
                 // Put every statement into a unique function to ease profiling or reduce function
                 // size
-                    newFuncpr = nullptr;
+                newFuncpr = nullptr;
             }
             if (!newFuncpr && domainp != m_deleteDomainp) {
                 const string name = cfuncName(modp, domainp, scopep, nodep);

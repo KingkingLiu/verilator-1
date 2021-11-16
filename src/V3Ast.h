@@ -257,6 +257,8 @@ public:
         ET_COMBO,  // Sensitive to all combo inputs to this block
         ET_INITIAL,  // User initial statements
         ET_SETTLE,  // Like combo but for initial wire resolutions after initial statement
+        ET_DELAYED,
+        ET_POSTPONED,
         ET_NEVER  // Never occurs (optimized away)
     };
     enum en m_e;
@@ -279,14 +281,14 @@ public:
     }
     const char* ascii() const {
         static const char* const names[]
-            = {"%E-edge", "ANY",   "BOTH",    "POS",    "NEG",  "HIGH",
-               "LOW",     "COMBO", "INITIAL", "SETTLE", "NEVER"};
+            = {"%E-edge", "ANY",     "BOTH",   "POS",     "NEG",       "HIGH", "LOW",
+               "COMBO",   "INITIAL", "SETTLE", "DELAYED", "POSTPONED", "NEVER"};
         return names[m_e];
     }
     const char* verilogKwd() const {
         static const char* const names[]
-            = {"%E-edge", "[any]", "edge",      "posedge",  "negedge", "[high]",
-               "[low]",   "*",     "[initial]", "[settle]", "[never]"};
+            = {"%E-edge", "[any]",     "edge",     "posedge",   "negedge",     "[high]", "[low]",
+               "*",       "[initial]", "[settle]", "[delayed]", "[postponed]", "[never]"};
         return names[m_e];
     }
     // Return true iff this and the other have mutually exclusive transitions
