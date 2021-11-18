@@ -394,7 +394,7 @@ static void process() {
         // _eval is called only once.
         if (v3Global.opt.oLife()) {
             V3Const::constifyAll(v3Global.rootp());
-            V3Life::lifeAll(v3Global.rootp());
+            //V3Life::lifeAll(v3Global.rootp()); XXX this causes segfault in SweRV together with addToCombo() in V3Clock
         }
         if (v3Global.opt.oLifePost()) V3LifePost::lifepostAll(v3Global.rootp());
 

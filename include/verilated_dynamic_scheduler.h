@@ -104,6 +104,7 @@ struct CoroutineTask;
 
 struct CoroutineTaskPromise {
     std::coroutine_handle<> continuation;
+    bool done = false;
 
     CoroutineTask get_return_object();
 
@@ -111,18 +112,10 @@ struct CoroutineTaskPromise {
 
     void unhandled_exception() { std::terminate(); }
 
-    auto final_suspend() noexcept {
-        struct Awaitable {
-            std::coroutine_handle<> continuation;
-
-            bool await_ready() noexcept { return false; }
-            std::coroutine_handle<>
-            await_suspend(std::coroutine_handle<CoroutineTaskPromise> coro) noexcept {
-                return continuation ? continuation : std::noop_coroutine();
-            }
-            void await_resume() noexcept {}
-        };
-        return Awaitable{continuation};
+    std::suspend_never final_suspend() noexcept {
+        done = true;
+        if (continuation) continuation.resume();
+        return {};
     }
 
     void return_void() const {}
@@ -155,7 +148,7 @@ struct CoroutineTaskPromise {
         return Awaitable{e.first, e.second};
     }
 
-    auto await_transform(CoroutineTask&& coro_task);
+    auto await_transform(const CoroutineTask& coro_task);
 };
 
 struct CoroutineTask {
@@ -163,32 +156,21 @@ struct CoroutineTask {
 
     CoroutineTask(std::coroutine_handle<promise_type> coro)
         : handle(coro) {}
-
-    CoroutineTask(CoroutineTask&& other)
-        : handle(std::exchange(other.handle, nullptr)) {}
-
-    CoroutineTask& operator=(CoroutineTask&& other) {
-        if (handle) handle.destroy();
-        handle = std::exchange(other.handle, nullptr);
-        return *this;
-    }
-
-    ~CoroutineTask() {
-        if (handle) handle.destroy();
-    }
+    CoroutineTask(const CoroutineTask& other)
+        : handle(other.handle) {}
 
     std::coroutine_handle<promise_type> handle;
 };
 
-inline auto CoroutineTaskPromise::await_transform(CoroutineTask&& coro_task) {
+inline auto CoroutineTaskPromise::await_transform(const CoroutineTask& coro_task) {
     struct Awaitable {
         std::coroutine_handle<CoroutineTaskPromise> handle;
 
-        bool await_ready() { return handle.done(); }
+        bool await_ready() { return !handle || handle.promise().done; }
         void await_suspend(std::coroutine_handle<> coro) { handle.promise().continuation = coro; }
         auto await_resume() {}
     };
-    return Awaitable{std::exchange(coro_task.handle, nullptr)};
+    return Awaitable{coro_task.handle};
 }
 
 inline CoroutineTask CoroutineTaskPromise::get_return_object() {

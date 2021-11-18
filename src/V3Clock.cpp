@@ -80,6 +80,7 @@ private:
     AstTopScope* m_topScopep = nullptr;  // Current top scope
     AstScope* m_scopep = nullptr;  // Current scope
     AstCFunc* m_evalFuncp = nullptr;  // Top eval function we are creating
+    AstCFunc* m_comboFuncp = nullptr;  // Top combo function we are creating
     AstCFunc* m_initFuncp = nullptr;  // Top initial function we are creating
     AstCFunc* m_finalFuncp = nullptr;  // Top final function we are creating
     AstCFunc* m_settleFuncp = nullptr;  // Top settlement function we are creating
@@ -89,7 +90,6 @@ private:
     AstSenTree* m_lastSenp = nullptr;  // Last sensitivity match, so we can detect duplicates.
     AstIf* m_lastIfp = nullptr;  // Last sensitivity if active to add more under
     AstMTaskBody* m_mtaskBodyp = nullptr;  // Current mtask body
-    AstVarScope* m_evalCounterVarScopep = nullptr;
 
     // METHODS
     VL_DEBUG_FUNC;  // Declare debug()
@@ -284,22 +284,13 @@ private:
         AstNode::user1ClearTree();
         // Make top functions
         m_evalFuncp = makeTopFunction("_eval");
+        m_comboFuncp = makeTopFunction("_eval_combo");
         m_initFuncp = makeTopFunction("_eval_initial", /* slow: */ true);
         m_settleFuncp = makeTopFunction("_eval_settle", /* slow: */ true);
         m_delayedFuncp = makeTopFunction("_eval_delayed");
         m_postponedFuncp = makeTopFunction("_eval_postponed");
         m_finalFuncp = makeTopFunction("_final", /* slow: */ true);
         m_checkSensFuncp = makeCheckSensFunction();
-
-        // Create counter for the _eval loop
-        AstVar* cntVarp = new AstVar(nodep->fileline(), AstVarType::MODULETEMP,
-                                     "__eval_change_counter", VFlagLogicPacked(), 32);
-        m_evalCounterVarScopep = new AstVarScope(m_scopep->fileline(), m_scopep, cntVarp);
-        cntVarp->sigPublic(true);  // public sig so it's never optimized out
-
-        m_scopep->addVarp(m_evalCounterVarScopep);
-
-        m_modp->addStmtp(cntVarp);
 
         // Process the activates
         iterateChildren(nodep);
@@ -391,6 +382,10 @@ private:
     void addToEvalLoop(AstNode* stmtsp) {
         m_evalFuncp->addStmtsp(stmtsp);  // add to top level function
     }
+    void addToCombo(AstNode* stmtsp) {
+        m_comboFuncp->addStmtsp(stmtsp);  // add to top level function
+        m_evalFuncp->addStmtsp(stmtsp->cloneTree(true));  // add to top level function
+    }
     void addToSettleLoop(AstNode* stmtsp) {
         m_settleFuncp->addStmtsp(stmtsp);  // add to top level function
     }
@@ -457,28 +452,6 @@ private:
                     m_lastIfp = makeActiveIf(m_lastSenp);
                     makeSensCheck(m_lastSenp);
                     addToEvalLoop(m_lastIfp);
-
-                    AstNode* incp = new AstAdd(
-                        nodep->fileline(),
-                        new AstVarRef(nodep->fileline(), m_evalCounterVarScopep, VAccess::WRITE),
-                        new AstConst(nodep->fileline(), 1));
-                    AstAssign* assignp = new AstAssign(
-                        nodep->fileline(),
-                        new AstVarRef(nodep->fileline(), m_evalCounterVarScopep, VAccess::WRITE),
-                        incp);
-                    m_lastIfp->addIfsp(assignp);
-                    for (auto* senItemp = nodep->sensesp()->sensesp(); senItemp;
-                         senItemp = VN_CAST(nodep->nextp(), SenItem)) {
-                        if (senItemp->edgeType() == VEdgeType::ET_HIGHEDGE
-                            && senItemp->varrefp()->dtypep()->basicp()->isEventValue()) {
-                            auto* assignp = new AstAssign(
-                                nodep->fileline(),
-                                new AstVarRef(nodep->fileline(), senItemp->varrefp()->varScopep(),
-                                              VAccess::WRITE),
-                                new AstConst(nodep->fileline(), 0));
-                            resetStmtsp = AstNode::addNext(resetStmtsp, assignp);
-                        }
-                    }
                 }
                 // Move statements to if
                 m_lastIfp->addIfsp(stmtsp);
@@ -499,7 +472,7 @@ private:
                 // Combo
                 clearLastSen();
                 // Move statements to function
-                addToEvalLoop(stmtsp);
+                addToCombo(stmtsp);
             }
             VL_DO_DANGLING(nodep->unlinkFrBack()->deleteTree(), nodep);
         }

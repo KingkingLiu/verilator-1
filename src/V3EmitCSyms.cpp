@@ -445,6 +445,10 @@ void EmitCSyms::emitSymHdr() {
     puts("TimedQueue __Vm_timedQueue;\n");
     puts("EventMap __Vm_eventMap;\n");
     puts("std::vector<Task> __Vm_taskQueue;\n");
+    puts("void doScheduled() {\n");
+    puts("for (size_t i = 0; i < __Vm_taskQueue.size(); i++) {\n");
+    puts("__Vm_taskQueue[i]();\n");
+    puts("\n}\n__Vm_taskQueue.clear();\n}\n");
     if (v3Global.opt.mtasks()) {
         puts("VlThreadPool* const __Vm_threadPoolp;\n");
         puts("bool __Vm_even_cycle = false;\n");

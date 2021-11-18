@@ -400,12 +400,7 @@ public:
     virtual void visit(AstCCall* nodep) override {
         const AstCFunc* const funcp = nodep->funcp();
         const AstNodeModule* const funcModp = EmitCParentModule::get(funcp);
-        if (funcp->isCoroutine()) {
-            if (m_inCoroutine)
-                puts("co_await ");
-            else
-                puts("{\nauto " + nodep->funcp()->nameProtect() + "__coro = ");
-        }
+        if (funcp->isCoroutine() && m_inCoroutine) puts("co_await ");
         if (funcp->dpiImportPrototype()) {
             // Calling DPI import
             puts(funcp->name());
@@ -428,29 +423,15 @@ public:
             puts(funcp->nameProtect());
         }
         emitCCallArgs(nodep, nodep->selfPointerProtect(m_useSelfForThis));
-        if (funcp->isCoroutine() && !m_inCoroutine)
-            puts("new CoroutineTask(std::move(" + nodep->funcp()->nameProtect()
-                 + "__coro));\n}\n");  // XXX keep coroutine from being destroyed; NEED to fix it
     }
     virtual void visit(AstCMethodCall* nodep) override {
         const AstCFunc* const funcp = nodep->funcp();
         UASSERT_OBJ(!funcp->isLoose(), nodep, "Loose method called via AstCMethodCall");
-        if (funcp->isCoroutine()) {
-            if (m_inCoroutine)
-                puts("co_await ");
-            else {
-                puts("{\nauto " + nodep->fromp()->nameProtect() + "__"
-                     + nodep->funcp()->nameProtect() + "__coro = ");
-            }
-        }
+        if (funcp->isCoroutine() && m_inCoroutine) puts("co_await ");
         iterate(nodep->fromp());
         putbs("->");
         puts(funcp->nameProtect());
         emitCCallArgs(nodep, "");
-        if (funcp->isCoroutine() && !m_inCoroutine)
-            puts("new CoroutineTask(std::move(" + nodep->fromp()->nameProtect() + "__"
-                 + nodep->funcp()->nameProtect()
-                 + "__coro));\n}\n");  // XXX keep coroutine from being destroyed; NEED to fix it
     }
     virtual void visit(AstCNew* nodep) override {
         puts("std::make_shared<" + prefixNameProtect(nodep->dtypep()) + ">(");

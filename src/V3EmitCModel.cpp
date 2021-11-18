@@ -324,25 +324,21 @@ class EmitCModel final : public EmitCFunc {
         if (v3Global.opt.trace()) puts("vlSymsp->__Vm_activity = true;\n");
 
         puts("do {\n");
-        puts("do {\n");
-        puts("vlSymsp->TOP.");
-        puts(protect("__eval_change_counter"));
-        puts(" = 0;\n");
+        if (!initial) puts("do {\n");
         puts("VL_DEBUG_IF(VL_DBG_MSGF(\"+ ");
         puts(initial ? "Initial" : "Clock");
         puts(" loop\\n\"););\n");
-        puts("vlSymsp->__Vm_taskQueue.push_back([vlSymsp = vlSymsp] () {\n");
+        puts("vlSymsp->doScheduled();\n");
         if (initial)
             puts(topModNameProtected + "__" + protect("_eval_settle") + "(&(vlSymsp->TOP));\n");
         puts(topModNameProtected + "__" + protect("_eval") + "(&(vlSymsp->TOP));\n");
-        puts("});\n");
-        puts("while (!vlSymsp->__Vm_taskQueue.empty()) {\n");
-        puts("auto task = vlSymsp->__Vm_taskQueue.front();\n");
-        puts("vlSymsp->__Vm_taskQueue.erase(vlSymsp->__Vm_taskQueue.begin());\n");
-        puts("task();\n}\n");
+        puts("vlSymsp->doScheduled();\n");
         puts("vlSymsp->TOP.verilated_nba_ctrl.assign();\n");
-        puts("} while (vlSymsp->TOP." + protect("__eval_change_counter") + " != 0 || ");
-        puts(topModNameProtected + "__" + protect("_check_sensp") + "(&(vlSymsp->TOP)));\n");
+        puts(topModNameProtected + "__" + protect("_eval_combo") + "(&(vlSymsp->TOP));\n");
+        if (!initial) {
+            puts("} while (");
+            puts(topModNameProtected + "__" + protect("_check_sensp") + "(&(vlSymsp->TOP)));\n");
+        }
         puts(topModNameProtected + "__" + protect("_eval_postponed") + "(&(vlSymsp->TOP));\n");
         if (v3Global.rootp()->changeRequest()) {
             puts("if (VL_UNLIKELY(++__VclockLoop > " + cvtToStr(v3Global.opt.convergeLimit())
@@ -386,6 +382,7 @@ class EmitCModel final : public EmitCFunc {
         puts("\n");
         puts("void " + topModNameProtected + "__" + protect("_eval_initial") + selfDecl + ";\n");
         puts("void " + topModNameProtected + "__" + protect("_eval_settle") + selfDecl + ";\n");
+        puts("void " + topModNameProtected + "__" + protect("_eval_combo") + selfDecl + ";\n");
         puts("void " + topModNameProtected + "__" + protect("_eval_postponed") + selfDecl + ";\n");
         puts("void " + topModNameProtected + "__" + protect("_eval") + selfDecl + ";\n");
         puts("bool " + topModNameProtected + "__" + protect("_check_sensp") + "(const "
