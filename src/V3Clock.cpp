@@ -201,6 +201,9 @@ private:
         return newifp;
     }
     void makeSensCheck(AstSenTree* sensesp) {
+        if (sensesp->sensesp() && sensesp->sensesp()->varrefp()
+            && sensesp->sensesp()->varrefp()->dtypep()->basicp()->isEventValue())
+            return;
         AstNode* senEqnp = createSenseEquation(sensesp->sensesp());
         if (m_checkSensFuncp->stmtsp()) {
             auto nodep = m_checkSensFuncp->stmtsp()->unlinkFrBack();
@@ -383,8 +386,9 @@ private:
         m_evalFuncp->addStmtsp(stmtsp);  // add to top level function
     }
     void addToCombo(AstNode* stmtsp) {
-        m_comboFuncp->addStmtsp(stmtsp);  // add to top level function
-        m_evalFuncp->addStmtsp(stmtsp->cloneTree(true));  // add to top level function
+        m_evalFuncp->addStmtsp(stmtsp);  // add to top level function
+        // m_comboFuncp->addStmtsp(stmtsp);  // add to top level function
+        // m_evalFuncp->addStmtsp(stmtsp->cloneTree(true));  // add to top level function
     }
     void addToSettleLoop(AstNode* stmtsp) {
         m_settleFuncp->addStmtsp(stmtsp);  // add to top level function

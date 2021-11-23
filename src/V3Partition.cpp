@@ -2815,16 +2815,9 @@ static void addThreadStartToExecGraph(AstExecGraph* const execGraphp,
             addTextStmt(", vlSelf, vlSymsp->__Vm_even_cycle);\n");
         } else {
             // The last will run on the main thread.
-            addTextStmt("vlSymsp->__Vm_taskQueue.push_back([vlSelf, vlSymsp]() { ");
             auto args = new AstCStmt(fl, "vlSelf");
             args->addNextHere(new AstCStmt(fl, "vlSymsp->__Vm_even_cycle"));
             execGraphp->addStmtsp(new AstCCall(fl, funcp, args));
-            // addTextStmt("(vlSelf, vlSymsp->__Vm_even_cycle); });\n");
-            addTextStmt(" });\n");
-            addStrStmt("while (!vlSymsp->__Vm_taskQueue.empty()) {\n");
-            addStrStmt("auto task = vlSymsp->__Vm_taskQueue.front();\n");
-            addStrStmt("vlSymsp->__Vm_taskQueue.erase(vlSymsp->__Vm_taskQueue.begin());\n");
-            addStrStmt("task();\n}\n");
             addStrStmt("Verilated::mtaskId(0);\n");
         }
     }

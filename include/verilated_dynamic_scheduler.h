@@ -7,59 +7,65 @@
 
 // Dynamic scheduler-related includes
 #include <vector>
-#include <list>
 #include <map>
-#include <algorithm>
-#include <thread>
 #include <functional>
-#include <list>
 #include <utility>
 #include <queue>
-#include <coroutine>
 #include <unordered_map>
 #include <unordered_set>
 #include <functional>
 
-class VerilatedNBACtrl final {
-private:
-    std::vector<std::function<void()>> assignments;
-
-public:
-    template <typename T, typename U> void schedule(T& lhs, const U& rhs) {
-        assignments.push_back([&lhs, rhs]() mutable { lhs = rhs; });
-    }
-
-    void schedule(std::function<void()> expr) { assignments.push_back(expr); }
-
-    void assign() {
-        for (auto const& assignment : assignments) assignment();
-        assignments.clear();
-    }
-};
-
-using Task = std::function<void()>;
+#ifdef __clang__
+#ifdef _LIBCPP_VERSION
+// Using libc++, coroutine library is in std::experimental
+#include <experimental/coroutine>
+namespace std {
+using namespace experimental;  // Bring std::experimental into the std namespace
+}
+#else
+// Using stdlibc++, coroutine library is in std namespace
+#define __cpp_impl_coroutine 1  // clang doesn't define this, but it's needed in <coroutine>
+#include <coroutine>
+namespace std {
+namespace experimental
+    = ::std;  // Bring coroutine library into std::experimental, as clang expects it to be there
+}
+#endif
+#else  // Not clang
+#include <coroutine>
+#endif
 
 struct TimedQueue {
-    using TimedTask = std::pair<int, Task>;
+    using TimedCoro = std::pair<vluint64_t, std::coroutine_handle<>>;
 
     struct CustomCompare {
-        bool operator()(const TimedTask& lhs, const TimedTask& rhs) {
+        bool operator()(const TimedCoro& lhs, const TimedCoro& rhs) {
             return lhs.first > rhs.first;
         }
     };
 
-    std::priority_queue<TimedTask, std::vector<TimedTask>, CustomCompare> queue;
+    std::priority_queue<TimedCoro, std::vector<TimedCoro>, CustomCompare> queue;
 
-    void push(int time, Task fn) { queue.push(std::make_pair(time, fn)); }
+    void push(vluint64_t time, std::coroutine_handle<> coro) {
+        queue.push(std::make_pair(time, coro));
+    }
 
-    void activate(int time, std::vector<Task>& tasks) {
+    void activate(vluint64_t time, std::vector<std::coroutine_handle<>>& coros) {
         while (!queue.empty() && queue.top().first <= time) {
-            tasks.push_back(queue.top().second);
+            coros.push_back(queue.top().second);
             queue.pop();
         }
     }
 
-    int nextTimeSlot() {
+    void activate(vluint64_t time, std::vector<std::function<void()>>& tasks) {
+        while (!queue.empty() && queue.top().first <= time) {
+            auto coro = queue.top().second;
+            tasks.push_back([coro]() mutable { coro.resume(); });
+            queue.pop();
+        }
+    }
+
+    vluint64_t nextTimeSlot() {
         if (!empty())
             return queue.top().first;
         else
@@ -67,6 +73,18 @@ struct TimedQueue {
     }
 
     bool empty() { return queue.empty(); }
+
+    auto operator[](vluint64_t time) {
+        struct Awaitable {
+            TimedQueue& queue;
+            vluint64_t time;
+
+            bool await_ready() { return false; }
+            void await_suspend(std::coroutine_handle<> coro) { queue.push(time, coro); }
+            void await_resume() {}
+        };
+        return Awaitable{*this, time};
+    }
 };
 
 using Event = void*;
@@ -80,101 +98,79 @@ struct EventMap {
             return result;
         }
     };
-    std::unordered_multimap<EventSet, Task, Hash> eventSetsToTasks;
+    std::unordered_multimap<EventSet, std::coroutine_handle<>, Hash> eventSetsToCoros;
     std::unordered_multimap<Event, EventSet> eventsToEventSets;
 
-    void insert(const EventSet& events, Task task) {
+    void insert(const EventSet& events, std::coroutine_handle<> coro) {
         for (auto event : events) { eventsToEventSets.insert(std::make_pair(event, events)); }
-        eventSetsToTasks.insert(std::make_pair(events, task));
+        eventSetsToCoros.insert(std::make_pair(events, coro));
     }
 
-    void activate(const EventSet& events, std::vector<Task>& tasks) {
-        auto range = eventSetsToTasks.equal_range(events);
-        for (auto it = range.first; it != range.second; ++it) { tasks.push_back(it->second); }
-        eventSetsToTasks.erase(range.first, range.second);
+    void activate(const EventSet& events, std::vector<std::coroutine_handle<>>& coros) {
+        auto range = eventSetsToCoros.equal_range(events);
+        for (auto it = range.first; it != range.second; ++it) { coros.push_back(it->second); }
+        eventSetsToCoros.erase(range.first, range.second);
     }
 
-    void activate(Event event, std::vector<Task>& tasks) {
+    void activate(Event event, std::vector<std::coroutine_handle<>>& coros) {
         auto range = eventsToEventSets.equal_range(event);
-        for (auto it = range.first; it != range.second; ++it) { activate(it->second, tasks); }
-    }
-};
-
-struct CoroutineTask;
-
-struct CoroutineTaskPromise {
-    std::coroutine_handle<> continuation;
-    bool done = false;
-
-    CoroutineTask get_return_object();
-
-    std::suspend_never initial_suspend() { return {}; }
-
-    void unhandled_exception() { std::terminate(); }
-
-    std::suspend_never final_suspend() noexcept {
-        done = true;
-        if (continuation) continuation.resume();
-        return {};
+        for (auto it = range.first; it != range.second; ++it) { activate(it->second, coros); }
     }
 
-    void return_void() const {}
-
-    auto await_transform(std::pair<TimedQueue&, int> t) {
-        struct Awaitable {
-            TimedQueue& queue;
-            int time;
-
-            bool await_ready() { return false; }
-            void await_suspend(std::coroutine_handle<CoroutineTaskPromise> coro) {
-                queue.push(time, [coro]() { coro.resume(); });
-            }
-            void await_resume() {}
-        };
-        return Awaitable{t.first, t.second};
-    }
-
-    auto await_transform(std::pair<EventMap&, EventSet> e) {
+    auto operator[](EventSet&& events) {
         struct Awaitable {
             EventMap& map;
             EventSet events;
 
             bool await_ready() { return false; }
-            void await_suspend(std::coroutine_handle<CoroutineTaskPromise> coro) {
-                map.insert(events, [coro]() { coro.resume(); });
-            }
+            void await_suspend(std::coroutine_handle<> coro) { map.insert(events, coro); }
             void await_resume() {}
         };
-        return Awaitable{e.first, e.second};
+        return Awaitable{*this, std::move(events)};
     }
-
-    auto await_transform(const CoroutineTask& coro_task);
 };
 
 struct CoroutineTask {
-    using promise_type = CoroutineTaskPromise;
+    struct promise_type {
+        CoroutineTask get_return_object() { return {this}; }
 
-    CoroutineTask(std::coroutine_handle<promise_type> coro)
-        : handle(coro) {}
-    CoroutineTask(const CoroutineTask& other)
-        : handle(other.handle) {}
+        std::suspend_never initial_suspend() { return {}; }
 
-    std::coroutine_handle<promise_type> handle;
-};
+        std::suspend_never final_suspend() noexcept {
+            if (VL_LIKELY(task)) task->promise = nullptr;
+            if (VL_UNLIKELY(continuation)) continuation.resume();
+            return {};
+        }
 
-inline auto CoroutineTaskPromise::await_transform(const CoroutineTask& coro_task) {
-    struct Awaitable {
-        std::coroutine_handle<CoroutineTaskPromise> handle;
+        void unhandled_exception() { std::terminate(); }
 
-        bool await_ready() { return !handle || handle.promise().done; }
-        void await_suspend(std::coroutine_handle<> coro) { handle.promise().continuation = coro; }
-        auto await_resume() {}
+        void return_void() const {}
+
+        std::coroutine_handle<> continuation;
+        CoroutineTask* task = nullptr;
     };
-    return Awaitable{coro_task.handle};
-}
 
-inline CoroutineTask CoroutineTaskPromise::get_return_object() {
-    return {std::coroutine_handle<CoroutineTaskPromise>::from_promise(*this)};
-}
+    CoroutineTask(promise_type* p)
+        : promise(p) {
+        promise->task = this;
+    }
+
+    CoroutineTask(CoroutineTask&& other)
+        : promise(std::exchange(other.promise, nullptr)) {
+        if (VL_LIKELY(promise)) promise->task = this;
+    }
+
+    ~CoroutineTask() {
+        if (VL_UNLIKELY(promise)) promise->task = nullptr;
+    }
+
+    bool await_ready() const noexcept { return !promise; }
+
+    void await_suspend(std::coroutine_handle<> coro) { promise->continuation = coro; }
+
+    void await_resume() const noexcept {}
+
+    promise_type* promise;
+};
 
 #endif  // Guard

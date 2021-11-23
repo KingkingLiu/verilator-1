@@ -14,8 +14,8 @@
 //
 //*************************************************************************
 
-#ifndef _V3DYNAMIC_SCHEDULER_VARS_H_
-#define _V3DYNAMIC_SCHEDULER_VARS_H_ 1
+#ifndef _V3DYNAMIC_SCHEDULER_H_
+#define _V3DYNAMIC_SCHEDULER_H_ 1
 
 #include "config_build.h"
 #include "verilatedos.h"

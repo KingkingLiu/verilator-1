@@ -368,7 +368,7 @@ static void process() {
         // Create delayed assignments
         // This creates lots of duplicate ACTIVES so ActiveTop needs to be after this step
         // XXX disable this with a switch
-        // V3Delayed::delayedAll(v3Global.rootp());
+        V3Delayed::delayedAll(v3Global.rootp());
 
         // Make Active's on the top level.
         // Differs from V3Active, because identical clocks may be pushed
@@ -394,7 +394,8 @@ static void process() {
         // _eval is called only once.
         if (v3Global.opt.oLife()) {
             V3Const::constifyAll(v3Global.rootp());
-            //V3Life::lifeAll(v3Global.rootp()); XXX this causes segfault in SweRV together with addToCombo() in V3Clock
+            V3Life::lifeAll(v3Global.rootp());  // XXX this causes segfault in SweRV together with
+                                                // addToCombo() in V3Clock
         }
         if (v3Global.opt.oLifePost()) V3LifePost::lifepostAll(v3Global.rootp());
 

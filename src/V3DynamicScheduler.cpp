@@ -413,8 +413,6 @@ void V3DynamicScheduler::process(AstNetlist* nodep) {
 
 void V3DynamicScheduler::dynSched(AstNetlist* nodep) {
     UINFO(2, __FUNCTION__ << ": " << endl);
-    { DynamicSchedulerAssignDlyVisitor visitor(nodep); }
-    V3Global::dumpCheckGlobalTree("dynsch_assign", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 3);
     { DynamicSchedulerWaitVisitor visitor(nodep); }
     V3Global::dumpCheckGlobalTree("dynsch_wait", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 3);
 }

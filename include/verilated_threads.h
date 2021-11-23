@@ -172,6 +172,8 @@ public:
 
 class VlThreadPool;
 
+using Task = std::function<void()>;
+
 class VlWorkerThread final {
 private:
     // TYPES
@@ -215,7 +217,7 @@ private:
 
 public:
     /// Push to activate given event at given time
-    void schedule(vluint64_t time, Task task) VL_MT_SAFE { m_queue.push(time, task); }
+    // void schedule(vluint64_t time, Task task) VL_MT_SAFE { m_queue.push(time, task); }
     /// Activate and pop all events earlier than given time
     void activate(vluint64_t time) VL_MT_SAFE { m_queue.activate(time, m_ready); }
 

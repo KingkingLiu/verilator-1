@@ -502,15 +502,10 @@ private:
         // Move always to appropriate ACTIVE based on its sense list
         if (oldsensesp && oldsensesp->sensesp() && VN_IS(oldsensesp->sensesp(), SenItem)
             && VN_CAST(oldsensesp->sensesp(), SenItem)->isNever()) {
-            // TODO psagan, commenting out, since always block shouldn't be removied
             // Never executing.  Kill it.
-            // UASSERT_OBJ(!oldsensesp->sensesp()->nextp(), nodep,
-            //            "Never senitem should be alone, else the never should be eliminated.");
-            // VL_DO_DANGLING(nodep->unlinkFrBack()->deleteTree(), nodep);
-            AstActive* wantactivep = nullptr;
-            wantactivep = m_namer.getActive(nodep->fileline(), oldsensesp);
-            nodep->unlinkFrBack();
-            wantactivep->addStmtsp(nodep);
+            UASSERT_OBJ(!oldsensesp->sensesp()->nextp(), nodep,
+                        "Never senitem should be alone, else the never should be eliminated.");
+            VL_DO_DANGLING(nodep->unlinkFrBack()->deleteTree(), nodep);
             return;
         }
         if (oldsensesp && oldsensesp->sensesp() && oldsensesp->hasPostponed()) {

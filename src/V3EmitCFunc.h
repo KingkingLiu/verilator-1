@@ -374,16 +374,7 @@ public:
         }
         puts(");\n");
     }
-    virtual void visit(AstAssignDly* nodep) override {
-        visitAssignDly(nodep, nodep->delayedEval());
-    }
-    virtual void visit(AstAssignW* nodep) override {
-        // Immediatelly assign the current value
-        visitGenericAssign(nodep);
-        // And take advantage of the NBA mechanism to update continuous assignments
-        // after regular NBA has been done
-        visitAssignDly(nodep, true);
-    }
+
     virtual void visit(AstAlwaysPublic*) override {}
     virtual void visit(AstAssocSel* nodep) override {
         iterateAndNextNull(nodep->fromp());
@@ -832,9 +823,9 @@ public:
         puts("__Vlabel" + cvtToStr(nodep->blockp()->labelNum()) + ": ;\n");
     }
     virtual void visit(AstDelay* nodep) override {
-        puts("co_await std::pair<TimedQueue&, int>(vlSymsp->__Vm_timedQueue, VL_TIME_Q() + ");
+        puts("co_await vlSymsp->__Vm_timedQueue[VL_TIME_Q() + ");
         iterateAndNextNull(nodep->lhsp());
-        puts(");\n");
+        puts("];\n");
     }
 
     virtual void visit(AstTimingControl* nodep) override {
@@ -868,9 +859,9 @@ public:
                 }
             }
         }
-        puts("co_await std::pair<EventMap&, EventSet>(vlSymsp->__Vm_eventMap, {");
+        puts("co_await vlSymsp->__Vm_eventMap[{");
         iterateAndNextNull(nodep->sensesp());
-        puts("});\n");
+        puts("}];\n");
         if (i > 0) {
             i = 0;
             puts("} while (!(");
@@ -908,24 +899,22 @@ public:
         puts("while (!(");
         iterateAndNextNull(nodep->condp());
         puts(")) {\n");
-        puts("co_await std::pair<EventMap&, EventSet>(vlSymsp->__Vm_eventMap, {");
+        puts("co_await vlSymsp->__Vm_eventMap[{");
         for (auto* varrefp = nodep->varrefps(); varrefp;
              varrefp = VN_CAST(varrefp->nextp(), VarRef)) {
             puts("&");
             visit(varrefp);
             if (varrefp->nextp()) puts(", ");
         }
-        puts("});\n}\n");
+        puts("}];\n}\n");
     }
     virtual void visit(AstBegin* nodep) override { iterateAndNextNull(nodep->stmtsp()); }
     virtual void visit(AstFork* nodep) override {
         // Skip forks with no statements
         if (nodep->stmtsp() == nullptr) return;
 
-        puts(
-            "/* [fork] */ {\nauto __Vfork_funcs = "
-            "std::make_shared<std::vector<std::function<CoroutineTask()>>>();\nauto __Vfork_tasks "
-            "= std::make_shared<std::vector<CoroutineTask>>();\n");
+        puts("/* [fork] */ {\nauto __Vfork_funcs = "
+             "std::make_shared<std::vector<std::function<CoroutineTask()>>>();\n");
         if (!nodep->joinType().joinNone()) {
             size_t thread_count = 0;
             if (nodep->joinType().joinAny())
@@ -949,13 +938,13 @@ public:
 
             // Call get() on shared_ptrs in order to capture them (explicit capture mixed with '='
             // causes warning)
-            puts("__Vfork_funcs.get();\n__Vfork_tasks.get();\nco_return;\n});\n");
+            puts("__Vfork_funcs.get();\nco_return;\n});\n");
         }
-        puts("for (auto& func : *__Vfork_funcs) __Vfork_tasks->push_back(func());\n");
+        puts("for (auto& func : *__Vfork_funcs) func();\n");
 
         if (!nodep->joinType().joinNone())
-            puts("while (*__Vfork_join > 0) co_await std::pair<EventMap&, "
-                 "EventSet>(vlSymsp->__Vm_eventMap, {__Vfork_join.get()});\n");
+            puts("while (*__Vfork_join > 0) co_await "
+                 "vlSymsp->__Vm_eventMap[{__Vfork_join.get()}];\n");
         puts("}\n");
     }
     virtual void visit(AstSenTree* nodep) override {

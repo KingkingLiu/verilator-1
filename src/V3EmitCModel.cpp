@@ -333,13 +333,17 @@ class EmitCModel final : public EmitCFunc {
             puts(topModNameProtected + "__" + protect("_eval_settle") + "(&(vlSymsp->TOP));\n");
         puts(topModNameProtected + "__" + protect("_eval") + "(&(vlSymsp->TOP));\n");
         puts("vlSymsp->doScheduled();\n");
-        puts("vlSymsp->TOP.verilated_nba_ctrl.assign();\n");
-        puts(topModNameProtected + "__" + protect("_eval_combo") + "(&(vlSymsp->TOP));\n");
         if (!initial) {
             puts("} while (");
             puts(topModNameProtected + "__" + protect("_check_sensp") + "(&(vlSymsp->TOP)));\n");
         }
         puts(topModNameProtected + "__" + protect("_eval_postponed") + "(&(vlSymsp->TOP));\n");
+        for (auto* nodep = modp->stmtsp(); nodep; nodep = nodep->nextp()) {
+            if (VN_IS(nodep, Var) && nodep->dtypep()->basicp()
+                && nodep->dtypep()->basicp()->isEventValue()) {
+                puts("vlSymsp->TOP." + nodep->nameProtect() + " = 0;");
+            }
+        }
         if (v3Global.rootp()->changeRequest()) {
             puts("if (VL_UNLIKELY(++__VclockLoop > " + cvtToStr(v3Global.opt.convergeLimit())
                  + ")) {\n");

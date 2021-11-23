@@ -260,7 +260,6 @@ class EmitCHeader final : public EmitCConstInit {
         puts(" {\n");
         ofp()->resetPrivate();
         ofp()->putsPrivate(false);  // public:
-        if (modp->isTop()) puts("VerilatedNBACtrl verilated_nba_ctrl;");
 
         // Emit all class body contents
         emitCellDecls(modp);
