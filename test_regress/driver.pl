@@ -1136,7 +1136,7 @@ sub compile {
         }
 
         if (!$param{fails} && $param{make_main}) {
-            $self->_make_main($param{schedtime});
+            $self->_make_main($param{delayed_queue});
         }
 
         if ($param{verilator_make_gmake}
@@ -1742,7 +1742,7 @@ sub _try_regex {
 
 sub _make_main {
     my $self = shift;
-    my $schedtime = shift;
+    my $delayed_queue = shift;
 
     if ($self->vhdl) {
         $self->_read_inputs_vhdl();
@@ -1867,7 +1867,7 @@ sub _make_main {
     }
     print $fh "        ${set}fastclk = false;\n" if $self->{inputs}{fastclk};
     print $fh "        ${set}clk = false;\n" if $self->{inputs}{clk};
-    if (!$schedtime) {
+    if (!$delayed_queue) {
         _print_advance_time($self, $fh, 10);
     }
     print $fh "    }\n";
@@ -1877,7 +1877,7 @@ sub _make_main {
     print $fh "    while ((${time} < sim_time * MAIN_TIME_MULTIPLIER)\n";
     print $fh "           && !contextp->gotFinish()) {\n";
 
-    if ($schedtime) {
+    if ($delayed_queue) {
         print $fh "        ${set}eval();\n";
         print $fh "        contextp->time(topp->timeSlotsEarliestTime());\n";
     } else {
