@@ -685,8 +685,9 @@ private:
             // VV*****  We reset user4p()
             AstNode::user4ClearTree();
             UASSERT_OBJ(m_activep && m_activep->sensesp(), nodep, "nullptr");
+            // If inside combo logic, ignore the domain, we'll assign one based on interconnect
             AstSenTree* startDomainp = m_activep->sensesp();
-            OrderLogicVertex* logicVxOldp = m_logicVxp;
+            if (startDomainp->hasCombo()) startDomainp = nullptr;
             m_logicVxp = new OrderLogicVertex(&m_graph, m_scopep, startDomainp, nodep);
             if (m_activeSenVxp) {
                 // If in a clocked activation, add a link from the sensitivity to this block
@@ -695,7 +696,7 @@ private:
             }
             nodep->user1p(m_modp);
             iterateChildren(nodep);
-            m_logicVxp = logicVxOldp;
+            m_logicVxp = nullptr;
         }
     }
 
