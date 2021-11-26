@@ -3191,8 +3191,16 @@ statement_item<nodep>:		// IEEE: statement_item
 	//
 	|	par_block				{ $$ = $1; }
 	//			// IEEE: procedural_timing_control_statement + procedural_timing_control
-	|	delay_control stmtBlock			{ $$ = new AstDelay($1->fileline(), $1); $$->addNextNull($2); }
-	|	event_control stmtBlock			{ $$ = new AstTimingControl(FILELINE_OR_CRE($1), $1, $2); }
+	|	delay_control stmtBlock			{ AstNode* nextp = nullptr;
+                                          if ($2 && $2->nextp()) nextp = $2->nextp()->unlinkFrBackWithNext();
+                                          $$ = new AstDelay($1->fileline(), $1, $2);
+                                          $$->addNextNull(nextp);
+                                        }
+	|	event_control stmtBlock			{ AstNode* nextp = nullptr;
+                                          if ($2 && $2->nextp()) nextp = $2->nextp()->unlinkFrBackWithNext();
+                                          $$ = new AstTimingControl(FILELINE_OR_CRE($1), $1, $2);
+                                          $$->addNextNull(nextp);
+                                        }
 	//UNSUP	cycle_delay stmtBlock			{ UNSUP }
 	//
 	|	seq_block				{ $$ = $1; }

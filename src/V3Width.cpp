@@ -584,6 +584,10 @@ private:
             VL_DO_DANGLING(pushDeletep(nodep->unlinkFrBack()), nodep);
             return;
         }
+        iterateChildren(nodep);
+    }
+    virtual void visit(AstTimingControl* nodep) override {
+        iterateChildren(nodep);
     }
     virtual void visit(AstFork* nodep) override {
         if (VN_IS(m_ftaskp, Func) && !nodep->joinType().joinNone()) {

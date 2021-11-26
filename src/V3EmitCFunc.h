@@ -826,6 +826,7 @@ public:
         puts("co_await vlSymsp->__Vm_timedQueue[VL_TIME_Q() + ");
         iterateAndNextNull(nodep->lhsp());
         puts("];\n");
+        iterateAndNextNull(nodep->stmtsp());
     }
 
     virtual void visit(AstTimingControl* nodep) override {
@@ -887,8 +888,7 @@ public:
             }
             puts("));\n}\n");
         }
-        // XXX should we handle this too??
-        // iterateAndNextNull(nodep->stmtsp());
+        iterateAndNextNull(nodep->stmtsp());
     }
     virtual void visit(AstWait* nodep) override {
         puts("/* [wait statement] */\n");

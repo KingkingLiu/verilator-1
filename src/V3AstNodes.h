@@ -3736,15 +3736,17 @@ public:
 class AstDelay final : public AstNodeStmt {
     // Delay statement
 public:
-    AstDelay(FileLine* fl, AstNode* lhsp)
+    AstDelay(FileLine* fl, AstNode* lhsp, AstNode* stmtsp)
         : ASTGEN_SUPER_Delay(fl) {
         setOp1p(lhsp);
+        setNOp2p(stmtsp);
     }
     ASTNODE_NODE_FUNCS(Delay)
     virtual bool same(const AstNode* samep) const override { return true; }
     //
     AstNode* lhsp() const { return op1p(); }  // op2 = Statements to evaluate
     void lhsp(AstNode* nodep) { setOp1p(nodep); }
+    AstNode* stmtsp() const { return op2p(); }
 };
 
 class AstGenCase final : public AstNodeCase {
