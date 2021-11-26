@@ -426,7 +426,7 @@ class EmitCModel final : public EmitCFunc {
             puts("vlSymsp->__Vm_threadPoolp->workerp(" + cvtToStr(i)
                  + ")->activate(VL_TIME_Q());\n");
         }
-        puts("vlSymsp->__Vm_timedQueue.activate(VL_TIME_Q(), vlSymsp->__Vm_taskQueue);\n");
+        puts("vlSymsp->__Vm_delayedQueue.activate(VL_TIME_Q(), vlSymsp->__Vm_resumeQueue);\n");
 
         if (v3Global.opt.threads() == 1) {
             uint32_t mtaskId = 0;
@@ -506,10 +506,10 @@ class EmitCModel final : public EmitCFunc {
 
         putSectionDelimiter("Dynamic scheduler");
         puts("bool " + topClassName()
-             + "::timeSlotsEmpty() { return vlSymsp->__Vm_timedQueue.empty(); }\n");
+             + "::timeSlotsEmpty() { return vlSymsp->__Vm_delayedQueue.empty(); }\n");
         puts("vluint64_t " + topClassName()
              + "::timeSlotsEarliestTime() { return "
-               "vlSymsp->__Vm_timedQueue.nextTimeSlot(); }\n");
+               "vlSymsp->__Vm_delayedQueue.nextTimeSlot(); }\n");
 
         putSectionDelimiter("Utilities");
         // ::contextp

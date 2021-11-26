@@ -442,13 +442,13 @@ void EmitCSyms::emitSymHdr() {
     }
     puts("bool __Vm_didInit = false;\n");
 
-    puts("TimedQueue __Vm_timedQueue;\n");
-    puts("EventMap __Vm_eventMap;\n");
-    puts("std::vector<std::coroutine_handle<>> __Vm_taskQueue;\n");
+    puts("DelayedQueue __Vm_delayedQueue;\n");
+    puts("EventDispatcher __Vm_eventDispatcher;\n");
+    puts("std::vector<std::coroutine_handle<>> __Vm_resumeQueue;\n");
     puts("void doScheduled() {\n");
-    puts("for (size_t i = 0; i < __Vm_taskQueue.size(); i++) {\n");
-    puts("__Vm_taskQueue[i].resume();\n");
-    puts("\n}\n__Vm_taskQueue.clear();\n}\n");
+    puts("for (size_t i = 0; i < __Vm_resumeQueue.size(); i++) {\n");
+    puts("__Vm_resumeQueue[i].resume();\n");
+    puts("\n}\n__Vm_resumeQueue.clear();\n}\n");
     if (v3Global.opt.mtasks()) {
         puts("VlThreadPool* const __Vm_threadPoolp;\n");
         puts("bool __Vm_even_cycle = false;\n");

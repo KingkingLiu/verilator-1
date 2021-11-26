@@ -213,7 +213,7 @@ private:
 
     VL_UNCOPYABLE(VlWorkerThread);
 
-    TimedQueue m_queue;
+    DelayedQueue m_queue;
 
 public:
     /// Push to activate given event at given time

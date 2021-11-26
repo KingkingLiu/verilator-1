@@ -823,7 +823,7 @@ public:
         puts("__Vlabel" + cvtToStr(nodep->blockp()->labelNum()) + ": ;\n");
     }
     virtual void visit(AstDelay* nodep) override {
-        puts("co_await vlSymsp->__Vm_timedQueue[VL_TIME_Q() + ");
+        puts("co_await vlSymsp->__Vm_delayedQueue[VL_TIME_Q() + ");
         iterateAndNextNull(nodep->lhsp());
         puts("];\n");
         iterateAndNextNull(nodep->stmtsp());
@@ -831,60 +831,65 @@ public:
 
     virtual void visit(AstTimingControl* nodep) override {
         puts("/* [@ statement] */\n");
-        int i = 0;
+        std::vector<AstSenItem*> senEventItems;
+        std::vector<AstSenItem*> senEdgeItems;
         for (auto* itemp = nodep->sensesp()->sensesp(); itemp;
              itemp = VN_CAST(itemp->nextp(), SenItem)) {
-            // if (!itemp->varrefp()->varp()->dtypep()->basicp()->isEventValue()) {
-            if (itemp->edgeType() == VEdgeType::ET_POSEDGE
-                || itemp->edgeType() == VEdgeType::ET_NEGEDGE
-                || itemp->edgeType() == VEdgeType::ET_ANYEDGE) {
-                if (i == 0) puts("{\n");
-                puts("decltype(");
-                visit(itemp);
-                puts(") __Vtc__tmp" + cvtToStr(i) + ";\n");
-                i++;
-            }
-        }
-        if (i > 0) {
-            i = 0;
-            puts("do {\n");
-            for (auto* itemp = nodep->sensesp()->sensesp(); itemp;
-                 itemp = VN_CAST(itemp->nextp(), SenItem)) {
-                if (itemp->edgeType() == VEdgeType::ET_POSEDGE
+            if (itemp->varrefp()->varp()->dtypep()->basicp()->isEventValue()) {
+                senEventItems.push_back(itemp);
+            } else if (itemp->edgeType() == VEdgeType::ET_POSEDGE
                     || itemp->edgeType() == VEdgeType::ET_NEGEDGE
                     || itemp->edgeType() == VEdgeType::ET_ANYEDGE) {
-                    puts("__Vtc__tmp" + cvtToStr(i) + " = ");
-                    visit(itemp);
-                    puts(";\n");
-                    i++;
-                }
+                senEdgeItems.push_back(itemp);
             }
         }
-        puts("co_await vlSymsp->__Vm_eventMap[{");
+        int i = 0;
+        for (auto* itemp : senEdgeItems) {
+            if (i == 0) puts("{\n");
+            puts("decltype(");
+            visit(itemp);
+            puts(") __Vtc__tmp" + cvtToStr(i) + ";\n");
+            i++;
+        }
+        if (!senEdgeItems.empty()) {
+            if (!senEventItems.empty())
+                puts("Event __Vtc__triggeringEvent = nullptr;\n");
+            i = 0;
+            puts("do {\n");
+        }
+        for (auto* itemp : senEdgeItems) {
+            puts("__Vtc__tmp" + cvtToStr(i) + " = ");
+            visit(itemp);
+            puts(";\n");
+            i++;
+        }
+        if (!senEdgeItems.empty() && !senEventItems.empty())
+            puts("__Vtc__triggeringEvent = ");
+        puts("co_await vlSymsp->__Vm_eventDispatcher[{");
         iterateAndNextNull(nodep->sensesp());
         puts("}];\n");
-        if (i > 0) {
-            i = 0;
+        if (!senEdgeItems.empty()) {
             puts("} while (!(");
-            for (auto* itemp = nodep->sensesp()->sensesp(); itemp;
-                 itemp = VN_CAST(itemp->nextp(), SenItem)) {
-                if (itemp->varrefp()->varp()->dtypep()->basicp()->isEventValue()) {
+            for (auto* itemp : senEventItems) {
+                puts("(__Vtc__triggeringEvent == &");
+                visit(itemp);
+                puts(")\n|| ");
+            }
+            i = 0;
+            for (auto* itemp : senEdgeItems) {
+                if (itemp->edgeType() == VEdgeType::ET_POSEDGE) {
+                    puts("(!__Vtc__tmp" + cvtToStr(i) + " && ");
                     visit(itemp);
-                } else {
-                    if (itemp->edgeType() == VEdgeType::ET_POSEDGE) {
-                        puts("(!__Vtc__tmp" + cvtToStr(i) + " && ");
-                        visit(itemp);
-                    } else if (itemp->edgeType() == VEdgeType::ET_NEGEDGE) {
-                        puts("(__Vtc__tmp" + cvtToStr(i) + " && !");
-                        visit(itemp);
-                    } else if (itemp->edgeType() == VEdgeType::ET_ANYEDGE) {
-                        puts("(__Vtc__tmp" + cvtToStr(i) + " != ");
-                        visit(itemp);
-                    }
-                    puts(")");
-                    i++;
+                } else if (itemp->edgeType() == VEdgeType::ET_NEGEDGE) {
+                    puts("(__Vtc__tmp" + cvtToStr(i) + " && !");
+                    visit(itemp);
+                } else if (itemp->edgeType() == VEdgeType::ET_ANYEDGE) {
+                    puts("(__Vtc__tmp" + cvtToStr(i) + " != ");
+                    visit(itemp);
                 }
-                if (itemp->nextp()) puts("\n|| ");
+                puts(")");
+                i++;
+                if (i < senEdgeItems.size()) puts("\n|| ");
             }
             puts("));\n}\n");
         }
@@ -899,7 +904,7 @@ public:
         puts("while (!(");
         iterateAndNextNull(nodep->condp());
         puts(")) {\n");
-        puts("co_await vlSymsp->__Vm_eventMap[{");
+        puts("co_await vlSymsp->__Vm_eventDispatcher[{");
         for (auto* varrefp = nodep->varrefps(); varrefp;
              varrefp = VN_CAST(varrefp->nextp(), VarRef)) {
             puts("&");
@@ -913,38 +918,58 @@ public:
         // Skip forks with no statements
         if (nodep->stmtsp() == nullptr) return;
 
-        puts("/* [fork] */ {\nauto __Vfork_funcs = "
-             "std::make_shared<std::vector<std::function<CoroutineTask()>>>();\n");
+        puts("/* [fork] */ {\n");
+
+        size_t procCount = 0;
+        for (auto* stmtp = nodep->stmtsp(); stmtp; stmtp = stmtp->nextp()) procCount++;
+
         if (!nodep->joinType().joinNone()) {
-            size_t thread_count = 0;
-            if (nodep->joinType().joinAny())
-                thread_count = 1;
-            else
-                for (auto* stmtp = nodep->stmtsp(); stmtp; stmtp = stmtp->nextp()) thread_count++;
             puts("auto __Vfork_join = std::make_shared<int>(");
-            puts(cvtToStr(thread_count) + ");\n");
+            if (nodep->joinType().joinAny())
+                puts("1");
+            else
+                puts(cvtToStr(procCount));
+            puts(");\n");
         }
 
+        if (!nodep->joinType().join()) { // For join_any and join_none we have to store the funcs somewhere so they don't get destroyed before they're finished
+            puts("auto __Vfork_funcs = std::make_shared<std::array<std::function<CoroutineTask()>, " + cvtToStr(procCount) + ">>();\n");
+            puts("*__Vfork_funcs = {\n");
+        }
+        int i = 0;
         for (auto* stmtp = nodep->stmtsp(); stmtp; stmtp = stmtp->nextp()) {
-            puts("__Vfork_funcs->push_back([=]() mutable -> CoroutineTask {\n");
+            i++;
+            if (nodep->joinType().join())
+                puts("auto __Vfork_func" + cvtToStr(i) + " = ");
+            
+            puts("[=]() mutable -> CoroutineTask {\n");
             if (auto* beginp = VN_CAST(stmtp, Begin))
                 iterateAndNextNull(beginp->stmtsp());
             else
-                visit(stmtp);
+                stmtp->accept(*this);
 
             if (!nodep->joinType().joinNone())
-                puts("--(*__Vfork_join);\nvlSymsp->__Vm_eventMap.activate(__Vfork_join.get(), "
-                     "vlSymsp->__Vm_taskQueue);\n");
+                puts("--(*__Vfork_join);\nvlSymsp->__Vm_eventDispatcher.activate(__Vfork_join.get(), "
+                     "vlSymsp->__Vm_resumeQueue);\n");
 
-            // Call get() on shared_ptrs in order to capture them (explicit capture mixed with '='
-            // causes warning)
-            puts("__Vfork_funcs.get();\nco_return;\n});\n");
+            if (!nodep->joinType().join())
+                // Call get() on shared_ptr in order to capture it (explicit capture mixed with '=' causes warning)
+                puts("__Vfork_funcs.get();\n");
+
+            puts("co_return;\n}");
+
+            if (nodep->joinType().join())
+                puts(";\n__Vfork_func" + cvtToStr(i) + "();\n"); // If we join all procs, just call the functions
+            else
+                puts(",\n");
         }
-        puts("for (auto& func : *__Vfork_funcs) func();\n");
+
+        if (!nodep->joinType().join())
+            puts("};\nfor (auto& func : *__Vfork_funcs) func();\n");
 
         if (!nodep->joinType().joinNone())
             puts("while (*__Vfork_join > 0) co_await "
-                 "vlSymsp->__Vm_eventMap[{__Vfork_join.get()}];\n");
+                 "vlSymsp->__Vm_eventDispatcher[{__Vfork_join.get()}];\n");
         puts("}\n");
     }
     virtual void visit(AstSenTree* nodep) override {
@@ -957,9 +982,9 @@ public:
     virtual void visit(AstSenItem* nodep) override { iterateAndNextNull(nodep->sensp()); }
     virtual void visit(AstEventTrigger* nodep) override {
         puts("/* [ -> statement ] */\n");
-        puts("vlSymsp->__Vm_eventMap.activate({&");
+        puts("vlSymsp->__Vm_eventDispatcher.activate({&");
         iterateAndNextNull(nodep->trigger());
-        puts("}, vlSymsp->__Vm_taskQueue);\n");
+        puts("}, vlSymsp->__Vm_resumeQueue);\n");
     }
     virtual void visit(AstWhile* nodep) override {
         iterateAndNextNull(nodep->precondsp());

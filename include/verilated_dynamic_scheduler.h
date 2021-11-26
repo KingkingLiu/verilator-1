@@ -35,16 +35,16 @@ namespace experimental
 #include <coroutine>
 #endif
 
-struct TimedQueue {
-    using TimedCoro = std::pair<vluint64_t, std::coroutine_handle<>>;
+struct DelayedQueue {
+    using DelayedCoro = std::pair<vluint64_t, std::coroutine_handle<>>;
 
     struct CustomCompare {
-        bool operator()(const TimedCoro& lhs, const TimedCoro& rhs) {
+        bool operator()(const DelayedCoro& lhs, const DelayedCoro& rhs) {
             return lhs.first > rhs.first;
         }
     };
 
-    std::priority_queue<TimedCoro, std::vector<TimedCoro>, CustomCompare> queue;
+    std::priority_queue<DelayedCoro, std::vector<DelayedCoro>, CustomCompare> queue;
 
     void push(vluint64_t time, std::coroutine_handle<> coro) {
         queue.push(std::make_pair(time, coro));
@@ -53,7 +53,10 @@ struct TimedQueue {
     void activate(vluint64_t time, std::vector<std::coroutine_handle<>>& coros) {
         while (!queue.empty() && queue.top().first <= time) {
             coros.push_back(queue.top().second);
+            //XXX wake up immediately?
+            //auto coro = queue.top().second;
             queue.pop();
+            //coro();
         }
     }
 
@@ -76,11 +79,15 @@ struct TimedQueue {
 
     auto operator[](vluint64_t time) {
         struct Awaitable {
-            TimedQueue& queue;
+            DelayedQueue& queue;
             vluint64_t time;
 
             bool await_ready() { return false; }
-            void await_suspend(std::coroutine_handle<> coro) { queue.push(time, coro); }
+
+            void await_suspend(std::coroutine_handle<> coro) {
+                queue.push(time, coro);
+            }
+
             void await_resume() {}
         };
         return Awaitable{*this, time};
@@ -90,7 +97,12 @@ struct TimedQueue {
 using Event = void*;
 
 using EventSet = std::unordered_set<Event>;
-struct EventMap {
+struct EventDispatcher {
+    struct AwaitingCoro {
+        std::coroutine_handle<> coro;
+        Event& triggeringEvent;
+    };
+
     struct Hash {
         size_t operator()(const EventSet& set) const {
             size_t result = 0;
@@ -98,33 +110,65 @@ struct EventMap {
             return result;
         }
     };
-    std::unordered_multimap<EventSet, std::coroutine_handle<>, Hash> eventSetsToCoros;
+
+    std::unordered_multimap<EventSet, AwaitingCoro, Hash> eventSetsToCoros;
     std::unordered_multimap<Event, EventSet> eventsToEventSets;
 
-    void insert(const EventSet& events, std::coroutine_handle<> coro) {
-        for (auto event : events) { eventsToEventSets.insert(std::make_pair(event, events)); }
+    void insert(const EventSet& events, AwaitingCoro coro) {
+        for (auto event : events) {
+            eventsToEventSets.insert(std::make_pair(event, events));
+        }
         eventSetsToCoros.insert(std::make_pair(events, coro));
     }
 
-    void activate(const EventSet& events, std::vector<std::coroutine_handle<>>& coros) {
+    void activate(Event triggeringEvent, const EventSet& events, std::vector<std::coroutine_handle<>>& coros) {
         auto range = eventSetsToCoros.equal_range(events);
-        for (auto it = range.first; it != range.second; ++it) { coros.push_back(it->second); }
+        for (auto it = range.first; it != range.second; ++it) {
+            it->second.triggeringEvent = triggeringEvent;
+            coros.push_back(it->second.coro);
+        }
         eventSetsToCoros.erase(range.first, range.second);
     }
 
-    void activate(Event event, std::vector<std::coroutine_handle<>>& coros) {
-        auto range = eventsToEventSets.equal_range(event);
-        for (auto it = range.first; it != range.second; ++it) { activate(it->second, coros); }
+    void activate(Event triggeringEvent, std::vector<std::coroutine_handle<>>& coros) {
+        auto range = eventsToEventSets.equal_range(triggeringEvent);
+        for (auto it = range.first; it != range.second; ++it) {
+            activate(triggeringEvent, it->second, coros);
+        }
     }
 
+    //XXX wake up immediately?
+    //void activate(Event triggeringEvent, const EventSet& events, std::vector<std::coroutine_handle<>>& coros) {
+    //    auto range = eventSetsToCoros.equal_range(events);
+    //    for (auto it = range.first; it != range.second; ++it) {
+    //        it->second.triggeringEvent = triggeringEvent;
+    //        coros.push_back(it->second.coro);
+    //    }
+    //    eventSetsToCoros.erase(range.first, range.second);
+    //}
+
+    //void activate(Event triggeringEvent, std::vector<std::coroutine_handle<>>&) {
+    //    auto range = eventsToEventSets.equal_range(triggeringEvent);
+    //    std::vector<std::coroutine_handle<>> coros;
+    //    for (auto it = range.first; it != range.second; ++it) {
+    //        activate(triggeringEvent, it->second, coros);
+    //    }
+    //    for (auto coro : coros) coro();
+    //}
+    
     auto operator[](EventSet&& events) {
         struct Awaitable {
-            EventMap& map;
+            EventDispatcher& dispatcher;
             EventSet events;
+            Event triggeringEvent;
 
             bool await_ready() { return false; }
-            void await_suspend(std::coroutine_handle<> coro) { map.insert(events, coro); }
-            void await_resume() {}
+
+            void await_suspend(std::coroutine_handle<> coro) {
+                dispatcher.insert(events, {coro, triggeringEvent});
+            }
+
+            Event await_resume() { return triggeringEvent; }
         };
         return Awaitable{*this, std::move(events)};
     }
