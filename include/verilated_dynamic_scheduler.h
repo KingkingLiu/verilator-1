@@ -36,7 +36,7 @@ namespace experimental
 #endif
 
 struct DelayedQueue {
-    using DelayedCoro = std::pair<vluint64_t, std::coroutine_handle<>>;
+    using DelayedCoro = std::pair<double, std::coroutine_handle<>>;
 
     struct CustomCompare {
         bool operator()(const DelayedCoro& lhs, const DelayedCoro& rhs) {
@@ -46,11 +46,11 @@ struct DelayedQueue {
 
     std::priority_queue<DelayedCoro, std::vector<DelayedCoro>, CustomCompare> queue;
 
-    void push(vluint64_t time, std::coroutine_handle<> coro) {
+    void push(double time, std::coroutine_handle<> coro) {
         queue.push(std::make_pair(time, coro));
     }
 
-    void activate(vluint64_t time, std::vector<std::coroutine_handle<>>& coros) {
+    void activate(double time, std::vector<std::coroutine_handle<>>& coros) {
         while (!queue.empty() && queue.top().first <= time) {
             coros.push_back(queue.top().second);
             //XXX wake up immediately?
@@ -60,7 +60,7 @@ struct DelayedQueue {
         }
     }
 
-    void activate(vluint64_t time, std::vector<std::function<void()>>& tasks) {
+    void activate(double time, std::vector<std::function<void()>>& tasks) {
         while (!queue.empty() && queue.top().first <= time) {
             auto coro = queue.top().second;
             tasks.push_back([coro]() mutable { coro.resume(); });
@@ -68,19 +68,19 @@ struct DelayedQueue {
         }
     }
 
-    vluint64_t nextTimeSlot() {
+    double nextTimeSlot() {
         if (!empty())
             return queue.top().first;
         else
-            return VL_TIME_Q();
+            return VL_TIME_D();
     }
 
     bool empty() { return queue.empty(); }
 
-    auto operator[](vluint64_t time) {
+    auto operator[](double time) {
         struct Awaitable {
             DelayedQueue& queue;
-            vluint64_t time;
+            double time;
 
             bool await_ready() { return false; }
 

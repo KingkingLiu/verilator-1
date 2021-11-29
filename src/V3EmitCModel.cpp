@@ -169,7 +169,7 @@ class EmitCModel final : public EmitCFunc {
         puts("/// Return true if no more timed work to do. Application uses to exit.\n");
         puts("bool timeSlotsEmpty();\n");
         puts("/// Return earliest time slot. Application uses to advance time.\n");
-        puts("vluint64_t timeSlotsEarliestTime();\n");
+        puts("double timeSlotsEarliestTime();\n");
 
         if (v3Global.opt.trace()) {
             puts("/// Trace signals in the model; called by application code\n");
@@ -424,9 +424,9 @@ class EmitCModel final : public EmitCFunc {
              + "(vlSymsp);\n");
         for (int i = 0; i < v3Global.opt.threads() - 1; i++) {
             puts("vlSymsp->__Vm_threadPoolp->workerp(" + cvtToStr(i)
-                 + ")->activate(VL_TIME_Q());\n");
+                 + ")->activate(VL_TIME_D());\n");
         }
-        puts("vlSymsp->__Vm_delayedQueue.activate(VL_TIME_Q(), vlSymsp->__Vm_resumeQueue);\n");
+        puts("vlSymsp->__Vm_delayedQueue.activate(VL_TIME_D(), vlSymsp->__Vm_resumeQueue);\n");
 
         if (v3Global.opt.threads() == 1) {
             uint32_t mtaskId = 0;
@@ -507,7 +507,7 @@ class EmitCModel final : public EmitCFunc {
         putSectionDelimiter("Dynamic scheduler");
         puts("bool " + topClassName()
              + "::timeSlotsEmpty() { return vlSymsp->__Vm_delayedQueue.empty(); }\n");
-        puts("vluint64_t " + topClassName()
+        puts("double " + topClassName()
              + "::timeSlotsEarliestTime() { return "
                "vlSymsp->__Vm_delayedQueue.nextTimeSlot(); }\n");
 
