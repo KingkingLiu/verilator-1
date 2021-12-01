@@ -50,13 +50,11 @@ struct DelayedQueue {
         queue.push(std::make_pair(time, coro));
     }
 
-    void activate(double time, std::vector<std::coroutine_handle<>>& coros) {
+    void activate(double time) {
         while (!queue.empty() && queue.top().first <= time) {
-            coros.push_back(queue.top().second);
-            //XXX wake up immediately?
-            //auto coro = queue.top().second;
+            auto coro = queue.top().second;
             queue.pop();
-            //coro();
+            coro();
         }
     }
 
@@ -84,9 +82,7 @@ struct DelayedQueue {
 
             bool await_ready() { return false; }
 
-            void await_suspend(std::coroutine_handle<> coro) {
-                queue.push(time, coro);
-            }
+            void await_suspend(std::coroutine_handle<> coro) { queue.push(time, coro); }
 
             void await_resume() {}
         };
@@ -98,11 +94,6 @@ using Event = void*;
 
 using EventSet = std::unordered_set<Event>;
 struct EventDispatcher {
-    struct AwaitingCoro {
-        std::coroutine_handle<> coro;
-        Event& triggeringEvent;
-    };
-
     struct Hash {
         size_t operator()(const EventSet& set) const {
             size_t result = 0;
@@ -111,64 +102,37 @@ struct EventDispatcher {
         }
     };
 
-    std::unordered_multimap<EventSet, AwaitingCoro, Hash> eventSetsToCoros;
+    std::unordered_multimap<EventSet, std::coroutine_handle<>, Hash> eventSetsToCoros;
     std::unordered_multimap<Event, EventSet> eventsToEventSets;
 
-    void insert(const EventSet& events, AwaitingCoro coro) {
-        for (auto event : events) {
-            eventsToEventSets.insert(std::make_pair(event, events));
-        }
+    void insert(const EventSet& events, std::coroutine_handle<> coro) {
+        for (auto event : events) { eventsToEventSets.insert(std::make_pair(event, events)); }
         eventSetsToCoros.insert(std::make_pair(events, coro));
     }
 
-    void activate(Event triggeringEvent, const EventSet& events, std::vector<std::coroutine_handle<>>& coros) {
+    void trigger(const EventSet& events, std::vector<std::coroutine_handle<>>& coros) {
         auto range = eventSetsToCoros.equal_range(events);
-        for (auto it = range.first; it != range.second; ++it) {
-            it->second.triggeringEvent = triggeringEvent;
-            coros.push_back(it->second.coro);
-        }
+        for (auto it = range.first; it != range.second; ++it) { coros.push_back(it->second); }
         eventSetsToCoros.erase(range.first, range.second);
     }
 
-    void activate(Event triggeringEvent, std::vector<std::coroutine_handle<>>& coros) {
-        auto range = eventsToEventSets.equal_range(triggeringEvent);
-        for (auto it = range.first; it != range.second; ++it) {
-            activate(triggeringEvent, it->second, coros);
-        }
+    void trigger(Event event) {
+        auto range = eventsToEventSets.equal_range(event);
+        std::vector<std::coroutine_handle<>> coros;
+        for (auto it = range.first; it != range.second; ++it) { trigger(it->second, coros); }
+        for (auto coro : coros) coro();
     }
 
-    //XXX wake up immediately?
-    //void activate(Event triggeringEvent, const EventSet& events, std::vector<std::coroutine_handle<>>& coros) {
-    //    auto range = eventSetsToCoros.equal_range(events);
-    //    for (auto it = range.first; it != range.second; ++it) {
-    //        it->second.triggeringEvent = triggeringEvent;
-    //        coros.push_back(it->second.coro);
-    //    }
-    //    eventSetsToCoros.erase(range.first, range.second);
-    //}
-
-    //void activate(Event triggeringEvent, std::vector<std::coroutine_handle<>>&) {
-    //    auto range = eventsToEventSets.equal_range(triggeringEvent);
-    //    std::vector<std::coroutine_handle<>> coros;
-    //    for (auto it = range.first; it != range.second; ++it) {
-    //        activate(triggeringEvent, it->second, coros);
-    //    }
-    //    for (auto coro : coros) coro();
-    //}
-    
     auto operator[](EventSet&& events) {
         struct Awaitable {
             EventDispatcher& dispatcher;
             EventSet events;
-            Event triggeringEvent;
 
             bool await_ready() { return false; }
 
-            void await_suspend(std::coroutine_handle<> coro) {
-                dispatcher.insert(events, {coro, triggeringEvent});
-            }
+            void await_suspend(std::coroutine_handle<> coro) { dispatcher.insert(events, coro); }
 
-            Event await_resume() { return triggeringEvent; }
+            void await_resume() {}
         };
         return Awaitable{*this, std::move(events)};
     }

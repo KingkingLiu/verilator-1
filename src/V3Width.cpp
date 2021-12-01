@@ -586,9 +586,7 @@ private:
         }
         iterateChildren(nodep);
     }
-    virtual void visit(AstTimingControl* nodep) override {
-        iterateChildren(nodep);
-    }
+    virtual void visit(AstTimingControl* nodep) override { iterateChildren(nodep); }
     virtual void visit(AstFork* nodep) override {
         if (VN_IS(m_ftaskp, Func) && !nodep->joinType().joinNone()) {
             nodep->v3error("Only fork .. join_none is legal in functions. "

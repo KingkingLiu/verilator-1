@@ -142,10 +142,6 @@ class EmitCGatherDependencies final : AstNVisitor {
         addSymsDependency();
         iterateChildrenConst(nodep);
     }
-    virtual void visit(AstWait* nodep) override {
-        addSymsDependency();
-        iterateChildrenConst(nodep);
-    }
     virtual void visit(AstDelay* nodep) override {
         addSymsDependency();
         iterateChildrenConst(nodep);

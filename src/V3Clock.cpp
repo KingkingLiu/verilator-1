@@ -478,6 +478,7 @@ private:
                 // Move statements to function
                 addToCombo(stmtsp);
             }
+            if (nodep->sensesp() == nodep->sensesStorep()) clearLastSen();
             VL_DO_DANGLING(nodep->unlinkFrBack()->deleteTree(), nodep);
         }
     }

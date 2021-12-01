@@ -328,22 +328,15 @@ class EmitCModel final : public EmitCFunc {
         puts("VL_DEBUG_IF(VL_DBG_MSGF(\"+ ");
         puts(initial ? "Initial" : "Clock");
         puts(" loop\\n\"););\n");
-        puts("vlSymsp->doScheduled();\n");
         if (initial)
             puts(topModNameProtected + "__" + protect("_eval_settle") + "(&(vlSymsp->TOP));\n");
         puts(topModNameProtected + "__" + protect("_eval") + "(&(vlSymsp->TOP));\n");
-        puts("vlSymsp->doScheduled();\n");
         if (!initial) {
             puts("} while (");
             puts(topModNameProtected + "__" + protect("_check_sensp") + "(&(vlSymsp->TOP)));\n");
         }
         puts(topModNameProtected + "__" + protect("_eval_postponed") + "(&(vlSymsp->TOP));\n");
-        for (auto* nodep = modp->stmtsp(); nodep; nodep = nodep->nextp()) {
-            if (VN_IS(nodep, Var) && nodep->dtypep()->basicp()
-                && nodep->dtypep()->basicp()->isEventValue()) {
-                puts("vlSymsp->TOP." + nodep->nameProtect() + " = 0;");
-            }
-        }
+
         if (v3Global.rootp()->changeRequest()) {
             puts("if (VL_UNLIKELY(++__VclockLoop > " + cvtToStr(v3Global.opt.convergeLimit())
                  + ")) {\n");
@@ -426,7 +419,13 @@ class EmitCModel final : public EmitCFunc {
             puts("vlSymsp->__Vm_threadPoolp->workerp(" + cvtToStr(i)
                  + ")->activate(VL_TIME_D());\n");
         }
-        puts("vlSymsp->__Vm_delayedQueue.activate(VL_TIME_D(), vlSymsp->__Vm_resumeQueue);\n");
+        for (auto* nodep = modp->stmtsp(); nodep; nodep = nodep->nextp()) {
+            if (VN_IS(nodep, Var) && nodep->dtypep()->basicp()
+                && nodep->dtypep()->basicp()->isEventValue()) {
+                puts("vlSymsp->TOP." + nodep->nameProtect() + " = 0;\n");
+            }
+        }
+        puts("vlSymsp->__Vm_delayedQueue.activate(VL_TIME_D());\n");
 
         if (v3Global.opt.threads() == 1) {
             uint32_t mtaskId = 0;
