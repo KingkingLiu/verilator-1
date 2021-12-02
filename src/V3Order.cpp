@@ -1751,8 +1751,11 @@ AstActive* OrderVisitor::processMoveOneLogic(const OrderLogicVertex* lvertexp,
             pushDeletep(procp);
         }
 
-        // XXX disable this with a switch
-        newFuncpr = nullptr;  // Split separate processes
+        bool dynamicScheduling = false;
+        if (VN_IS(nodep, Begin)) {
+            dynamicScheduling = true;
+            newFuncpr = nullptr;  // Split separate processes
+        }
 
         while (nodep) {
             // Make or borrow a CFunc to contain the new statements
@@ -1765,7 +1768,7 @@ AstActive* OrderVisitor::processMoveOneLogic(const OrderLogicVertex* lvertexp,
             }
             if (!newFuncpr && domainp != m_deleteDomainp) {
                 const string name = cfuncName(modp, domainp, scopep, nodep);
-                newFuncpr = new AstCFunc(nodep->fileline(), name, scopep, "CoroutineTask");
+                newFuncpr = new AstCFunc(nodep->fileline(), name, scopep, dynamicScheduling ? "CoroutineTask" : "");
                 newFuncpr->isStatic(false);
                 newFuncpr->isLoose(true);
                 newStmtsr = 0;
@@ -1802,6 +1805,8 @@ AstActive* OrderVisitor::processMoveOneLogic(const OrderLogicVertex* lvertexp,
 
             nodep = nextp;
         }
+        if (dynamicScheduling)
+            newFuncpr = nullptr;  // Split separate processes
     }
     return activep;
 }
