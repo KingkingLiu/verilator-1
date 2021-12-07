@@ -386,16 +386,8 @@ private:
                                         newMonitorNumVarRefp(nodep, VAccess::READ)}},
                 stmtsp, nullptr};
             ifp->branchPred(VBranchPred::BP_UNLIKELY);
-            auto* sensesp = new AstSenTree{fl, nullptr};
-            for (auto* exprp = nodep->fmtp()->exprsp(); exprp; exprp = exprp->nextp()) {
-                if (auto* varrefp = VN_CAST(exprp, VarRef)) {
-                    sensesp->addSensesp(
-                        new AstSenItem{fl, VEdgeType::ET_ANYEDGE,
-                                       new AstVarRef{fl, varrefp->varp(), VAccess::READ}});
-                }
-            }
-            AstNode* alwaysp = new AstAlways{fl, VAlwaysKwd::ALWAYS, sensesp, ifp};
-            m_modp->addStmtp(alwaysp);
+            AstNode* newp = new AstAlwaysPostponed{fl, ifp};
+            m_modp->addStmtp(newp);
         } else if (nodep->displayType() == AstDisplayType::DT_STROBE) {
             nodep->displayType(AstDisplayType::DT_DISPLAY);
             // Need one-shot
