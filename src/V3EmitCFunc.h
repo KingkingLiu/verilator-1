@@ -846,7 +846,7 @@ public:
         for (auto* stmtp = nodep->stmtsp(); stmtp; stmtp = stmtp->nextp()) procCount++;
 
         if (!nodep->joinType().joinNone()) {
-            puts("auto __Vfork_join = std::make_shared<int>(");
+            puts("auto __Vfork_join = std::make_shared<Join>(");
             if (nodep->joinType().joinAny())
                 puts("1");
             else
@@ -874,8 +874,8 @@ public:
                 stmtp->accept(*this);
 
             if (!nodep->joinType().joinNone())
-                puts("--(*__Vfork_join);\nvlSymsp->__Vm_eventDispatcher.trigger(__Vfork_join.get("
-                     "));\n");
+                puts("--__Vfork_join->counter;\nvlSymsp->__Vm_eventDispatcher.trigger(&__Vfork_"
+                     "join->event);\n");
 
             if (!nodep->joinType().join())
                 // Call get() on shared_ptr in order to capture it (explicit capture mixed with '='
@@ -894,8 +894,8 @@ public:
         if (!nodep->joinType().join()) puts("};\nfor (auto& func : *__Vfork_funcs) func();\n");
 
         if (!nodep->joinType().joinNone())
-            puts("while (*__Vfork_join > 0) co_await "
-                 "vlSymsp->__Vm_eventDispatcher[{__Vfork_join.get()}];\n");
+            puts("while (__Vfork_join->counter > 0) co_await "
+                 "vlSymsp->__Vm_eventDispatcher[{&__Vfork_join->event}];\n");
         puts("}\n");
     }
     virtual void visit(AstSenTree* nodep) override {

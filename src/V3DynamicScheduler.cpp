@@ -356,38 +356,6 @@ public:
 };
 
 //######################################################################
-
-class DynamicSchedulerEventTriggeredVisitor final : public AstNVisitor {
-private:
-    // NODE STATE
-    // AstEventTrigger::user1()      -> bool.  Set true if node has been processed
-    // AstUser1InUse    m_inuser1;      (Allocated for use in DynamicSchedulerCreateEventsVisitor)
-
-    // STATE
-
-    // METHODS
-    VL_DEBUG_FUNC;  // Declare debug()
-
-    // VISITORS
-    virtual void visit(AstEventTrigger* nodep) override {
-        if (nodep->user1SetOnce()) return;
-        nodep->addHereThisAsNext(new AstAssign{
-            nodep->fileline(),
-            new AstVarRef{nodep->fileline(), VN_CAST(nodep->trigger(), VarRef)->varScopep(),
-                          VAccess::WRITE},
-            new AstConst{nodep->fileline(), AstConst::BitTrue()}});
-    }
-
-    //--------------------
-    virtual void visit(AstNode* nodep) override { iterateChildren(nodep); }
-
-public:
-    // CONSTRUCTORS
-    explicit DynamicSchedulerEventTriggeredVisitor(AstNetlist* nodep) { iterate(nodep); }
-    virtual ~DynamicSchedulerEventTriggeredVisitor() override {}
-};
-
-//######################################################################
 // DynamicScheduler class functions
 
 void V3DynamicScheduler::wrapProcesses(AstNetlist* nodep) {
@@ -405,8 +373,6 @@ void V3DynamicScheduler::prepEvents(AstNetlist* nodep) {
     DynamicSchedulerAddTriggersVisitor addTriggersVisitor(createEventsVisitor, nodep);
     V3Global::dumpCheckGlobalTree("dsch_add_triggers", 0,
                                   v3Global.opt.dumpTreeLevel(__FILE__) >= 6);
-    UINFO(2, "  Add event.triggered Assignments...\n");
-    DynamicSchedulerEventTriggeredVisitor eventTriggeredVisitor(nodep);
     UINFO(2, "  Done.\n");
     V3Global::dumpCheckGlobalTree("dsch_prep_events", 0,
                                   v3Global.opt.dumpTreeLevel(__FILE__) >= 3);

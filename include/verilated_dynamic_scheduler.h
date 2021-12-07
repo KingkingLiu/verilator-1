@@ -90,7 +90,7 @@ struct DelayedQueue {
     }
 };
 
-using Event = void*;
+using Event = CData*;
 
 using EventSet = std::unordered_set<Event>;
 struct EventDispatcher {
@@ -137,6 +137,7 @@ struct EventDispatcher {
 
     void trigger(Event event) {
         if (wasTriggered(event)) resumeTriggered();
+        *event = 1;
         triggeredQueue.push_back(event);
     }
 
@@ -158,6 +159,13 @@ struct EventDispatcher {
         };
         return Awaitable{*this, std::move(events)};
     }
+};
+
+struct Join {
+    Join(vluint16_t c) : counter(c) {}
+
+    vluint16_t counter;
+    CData event;
 };
 
 struct CoroutineTask {
