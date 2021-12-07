@@ -13,6 +13,56 @@
 // SPDX-License-Identifier: LGPL-3.0-only OR Artistic-2.0
 //
 //*************************************************************************
+// V3DynamicScheduler's Transformations:
+//
+//      Each Delay, TimingControl, Wait:
+//          Mark containing task for dynamic scheduling
+//          Mark containing process for dynamic scheduling
+//      Each Task:
+//          If it's virtual, mark it
+//      Each task calling a marked task:
+//          Mark it for dynamic scheduling
+//      Each process calling a marked task:
+//          Mark it for dynamic scheduling
+//      Each marked process:
+//          Wrap its statements into begin...end so it won't get split
+//
+//      Each TimingControl, Wait:
+//          Create event variables for triggering those.
+//          For Wait:
+//              Transform into:
+//                  while (!wait.condp) {
+//                      @(vars from wait.condp);
+//                  }
+//                  wait.bodysp;
+//              (process the new TimingControl as specified below)
+//          For TimingControl:
+//              If waiting on event, leave it as is
+//              If waiting on posedge:
+//                  Create a posedge event variable for the awaited signal
+//              If waiting on negedge:
+//                  Create a negedge event variable for the awaited signal
+//              If waiting on bothedge:
+//                  Split it into posedge and negedge
+//                  Create a posedge event variable for the awaited signal
+//                  Create a negedge event variable for the awaited signal
+//              If waiting on anyedge:
+//                  Create a anyedge event variable for the awaited signal
+//              For each variable in the condition being waited on:
+//                  Create an anyedge event variable for the awaited variable
+//
+//      Each assignment:
+//          If there is an edge event variable associated with the LHS:
+//              Create an EventTrigger for this event variable under an if that checks if the edge
+//              occurs
+//      Each var that could be assigned from the outside (e.g. a clock):
+//          If there is an edge event variable associated with it:
+//              Create a new Active for this edge with an EventTrigger for this event variable
+//
+//      Each EventTrigger:
+//          Assign 1 to the triggered event variable just before it (so that event.triggered == 1)
+//
+//*************************************************************************
 
 #include "config_build.h"
 #include "verilatedos.h"
