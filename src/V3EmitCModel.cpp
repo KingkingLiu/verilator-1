@@ -324,17 +324,13 @@ class EmitCModel final : public EmitCFunc {
         if (v3Global.opt.trace()) puts("vlSymsp->__Vm_activity = true;\n");
 
         puts("do {\n");
-        if (!initial) puts("do {\n");
         puts("VL_DEBUG_IF(VL_DBG_MSGF(\"+ ");
         puts(initial ? "Initial" : "Clock");
         puts(" loop\\n\"););\n");
         if (initial)
             puts(topModNameProtected + "__" + protect("_eval_settle") + "(&(vlSymsp->TOP));\n");
         puts(topModNameProtected + "__" + protect("_eval") + "(&(vlSymsp->TOP));\n");
-        if (!initial) {
-            puts("} while (");
-            puts(topModNameProtected + "__" + protect("_check_sensp") + "(&(vlSymsp->TOP)));\n");
-        }
+        puts("vlSymsp->__Vm_eventDispatcher.resumeTriggered();\n");
         puts(topModNameProtected + "__" + protect("_eval_postponed") + "(&(vlSymsp->TOP));\n");
 
         if (v3Global.rootp()->changeRequest()) {

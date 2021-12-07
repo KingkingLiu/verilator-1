@@ -104,23 +104,45 @@ struct EventDispatcher {
 
     std::unordered_multimap<EventSet, std::coroutine_handle<>, Hash> eventSetsToCoros;
     std::unordered_multimap<Event, EventSet> eventsToEventSets;
+    std::vector<Event> triggeredQueue;
 
     void insert(const EventSet& events, std::coroutine_handle<> coro) {
-        for (auto event : events) { eventsToEventSets.insert(std::make_pair(event, events)); }
+        for (auto event : events) {
+            if (wasTriggered(event)) {
+                resumeTriggered();
+                break;
+            }
+        }
+        for (auto event : events) eventsToEventSets.insert(std::make_pair(event, events));
         eventSetsToCoros.insert(std::make_pair(events, coro));
     }
 
-    void trigger(const EventSet& events, std::vector<std::coroutine_handle<>>& coros) {
+    void resume(const EventSet& events, std::vector<std::coroutine_handle<>>& coros) {
         auto range = eventSetsToCoros.equal_range(events);
-        for (auto it = range.first; it != range.second; ++it) { coros.push_back(it->second); }
+        for (auto it = range.first; it != range.second; ++it) coros.push_back(it->second);
         eventSetsToCoros.erase(range.first, range.second);
     }
 
-    void trigger(Event event) {
+    void resume(Event event) {
         auto range = eventsToEventSets.equal_range(event);
         std::vector<std::coroutine_handle<>> coros;
-        for (auto it = range.first; it != range.second; ++it) { trigger(it->second, coros); }
+        for (auto it = range.first; it != range.second; ++it) resume(it->second, coros);
         for (auto coro : coros) coro();
+    }
+
+    void resumeTriggered() {
+        std::vector<Event> queue = std::move(triggeredQueue);
+        for (auto event : queue) resume(event);
+    }
+
+    void trigger(Event event) {
+        if (wasTriggered(event)) resumeTriggered();
+        triggeredQueue.push_back(event);
+    }
+
+    bool wasTriggered(Event event) {
+        return std::find(triggeredQueue.begin(), triggeredQueue.end(), event)
+               != triggeredQueue.end();
     }
 
     auto operator[](EventSet&& events) {
