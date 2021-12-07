@@ -298,7 +298,7 @@ static void process() {
     }
 
     // Wrap statements in processes into blocks so they won't get split
-    V3DynamicScheduler::process(v3Global.rootp());
+    V3DynamicScheduler::wrapProcesses(v3Global.rootp());
 
     if (!v3Global.opt.xmlOnly()) {
         // Add __PVT's
@@ -380,7 +380,7 @@ static void process() {
         // Order the code; form SBLOCKs and BLOCKCALLs
         V3Order::orderAll(v3Global.rootp());
 
-        V3DynamicScheduler::dynSched(v3Global.rootp());
+        V3DynamicScheduler::prepEvents(v3Global.rootp());
 
         // Change generated clocks to look at delayed signals
         V3GenClk::genClkAll(v3Global.rootp());
