@@ -473,6 +473,7 @@ private:
             iterateNewStmt(nodep, "AlwaysPublic", nullptr);
         }
     }
+    virtual void visit(AstConstraint* nodep) override { iterateNewStmt(nodep, "", ""); }
     virtual void visit(AstCFunc* nodep) override {
         iterateNewStmt(nodep, "User C Function", "User C Function");
     }

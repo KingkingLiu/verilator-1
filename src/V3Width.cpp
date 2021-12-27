@@ -2998,6 +2998,7 @@ private:
         if (nodep->name() == "randomize") {
             v3Global.useRandomizeMethods(true);
             V3Randomize::newRandomizeFunc(first_classp);
+            iterateAndNextNull(nodep->pinsp());
         }
         UASSERT_OBJ(first_classp, nodep, "Unlinked");
         for (AstClass* classp = first_classp; classp;) {
@@ -4345,6 +4346,10 @@ private:
             }
             VL_DO_DANGLING(pushDeletep(nodep), nodep);
         }
+    }
+    virtual void visit(AstConstraint* nodep) override {
+        UINFO(5, "   CONSTRAINT " << nodep << endl);
+        userIterateChildren(nodep, WidthVP(SELF, BOTH).p());
     }
     virtual void visit(AstNodeFTask* nodep) override {
         // Grab width from the output variable (if it's a function)
