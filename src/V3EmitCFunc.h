@@ -817,63 +817,11 @@ public:
     }
     virtual void visit(AstBegin* nodep) override { iterateAndNextNull(nodep->stmtsp()); }
     virtual void visit(AstFork* nodep) override {
-        // Skip forks with no statements
-        if (nodep->stmtsp() == nullptr) return;
-
-        puts("/* [fork] */ {\n");
-
-        size_t procCount = 0;
-        for (auto* stmtp = nodep->stmtsp(); stmtp; stmtp = stmtp->nextp()) procCount++;
-
-        if (!nodep->joinType().joinNone()) {
-            puts("auto __Vfork_join = std::make_shared<Join>(");
-            if (nodep->joinType().joinAny())
-                puts("1");
-            else
-                puts(cvtToStr(procCount));
-            puts(");\n");
+        VL_RESTORER(m_inCoroutine);
+        {
+            m_inCoroutine = false;
+            iterateChildren(nodep);
         }
-
-        if (!nodep->joinType()
-                 .join()) {  // For join_any and join_none we have to store the funcs somewhere so
-                             // they don't get destroyed before they're finished
-            puts(
-                "auto __Vfork_funcs = std::make_shared<std::array<std::function<CoroutineTask()>, "
-                + cvtToStr(procCount) + ">>();\n");
-            puts("*__Vfork_funcs = {\n");
-        }
-        int i = 0;
-        for (auto* stmtp = nodep->stmtsp(); stmtp; stmtp = stmtp->nextp()) {
-            i++;
-            if (nodep->joinType().join()) puts("auto __Vfork_func" + cvtToStr(i) + " = ");
-
-            puts("[=]() mutable -> CoroutineTask {\n");
-            stmtp->accept(*this);
-
-            if (!nodep->joinType().joinNone())
-                puts("--__Vfork_join->counter;\nvlSymsp->__Vm_eventDispatcher.trigger(&__Vfork_"
-                     "join->event);\n");
-
-            if (!nodep->joinType().join())
-                // Call get() on shared_ptr in order to capture it (explicit capture mixed with '='
-                // causes warning)
-                puts("__Vfork_funcs.get();\n");
-
-            puts("co_return;\n}");
-
-            if (nodep->joinType().join())
-                puts(";\n__Vfork_func" + cvtToStr(i)
-                     + "();\n");  // If we join all procs, just call the functions
-            else
-                puts(",\n");
-        }
-
-        if (!nodep->joinType().join()) puts("};\nfor (auto& func : *__Vfork_funcs) func();\n");
-
-        if (!nodep->joinType().joinNone())
-            puts("while (__Vfork_join->counter > 0) co_await "
-                 "vlSymsp->__Vm_eventDispatcher[{&__Vfork_join->event}];\n");
-        puts("}\n");
     }
     virtual void visit(AstSenTree* nodep) override {
         for (auto* itemp = nodep->sensesp(); itemp; itemp = VN_CAST(itemp->nextp(), SenItem)) {
@@ -884,9 +832,8 @@ public:
     }
     virtual void visit(AstSenItem* nodep) override { iterateAndNextNull(nodep->sensp()); }
     virtual void visit(AstEventTrigger* nodep) override {
-        puts("/* [ -> statement ] */\n");
         puts("vlSymsp->__Vm_eventDispatcher.trigger({&");
-        iterateAndNextNull(nodep->varrefp());
+        iterateNull(nodep->trigp());
         puts("});\n");
     }
     virtual void visit(AstWhile* nodep) override {

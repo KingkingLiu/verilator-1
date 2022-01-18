@@ -3305,6 +3305,8 @@ public:
     }  // * = Posedge/negedge
     AstNode* sensp() const { return op1p(); }  // op1 = Signal sensitized
     AstNodeVarRef* varrefp() const {
+        if (auto* memberSelp = VN_CAST(op1p(), MemberSel))
+            return VN_CAST(memberSelp->fromp(), NodeVarRef);
         return VN_CAST(op1p(), NodeVarRef);
     }  // op1 = Signal sensitized
     //
@@ -4636,12 +4638,12 @@ public:
 
 class AstEventTrigger final : public AstNodeStmt {
 public:
-    explicit AstEventTrigger(FileLine* fl, AstNode* varrefp = NULL)
+    explicit AstEventTrigger(FileLine* fl, AstNode* trigp = nullptr)
         : ASTGEN_SUPER_EventTrigger(fl) {
-        setOp1p(varrefp);
+        setOp1p(trigp);
     }
     ASTNODE_NODE_FUNCS(EventTrigger)
-    AstVarRef* varrefp() const { return VN_CAST(op1p(), VarRef); }
+    AstNode* trigp() const { return op1p(); }
 };
 
 class AstGenIf final : public AstNodeIf {
@@ -8893,7 +8895,7 @@ public:
     AstScope* scopep() const { return m_scopep; }
     void scopep(AstScope* nodep) { m_scopep = nodep; }
     string rtnTypeVoid() const { return ((m_rtnType == "") ? "void" : m_rtnType); }
-    bool dontCombine() const { return m_dontCombine || isTrace(); }
+    bool dontCombine() const { return m_dontCombine || isTrace() || isConstructor(); }
     void dontCombine(bool flag) { m_dontCombine = flag; }
     bool dontInline() const { return dontCombine() || slow() || funcPublic(); }
     bool declPrivate() const { return m_declPrivate; }
