@@ -1822,7 +1822,7 @@ AstActive* OrderProcess::processMoveOneLogic(const OrderLogicVertex* lvertexp,
         }
 
         bool dynamicScheduling = false;
-        if (VN_IS(nodep, Begin)) {
+        if (v3Global.opt.dynamicScheduler() && VN_IS(nodep, Begin)) {
             dynamicScheduling = true;
             newFuncpr = nullptr;  // Split separate processes
         }

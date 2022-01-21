@@ -883,7 +883,9 @@ inline int VerilatedContext::debug() VL_MT_SAFE { return Verilated::debug(); }
 //=========================================================================
 // Dynamic scheduler
 
+#ifdef VL_DYNAMIC_SCHEDULER
 #include "verilated_dynamic_scheduler.h"
+#endif
 
 //======================================================================
 

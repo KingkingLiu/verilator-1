@@ -586,8 +586,11 @@ private:
             return;
         }
         iterateChildren(nodep);
+        if (!v3Global.opt.dynamicScheduler()) {
+            nodep->v3warn(STMTDLY, "Unsupported: Ignoring delay on this delayed statement.");
+            VL_DO_DANGLING(pushDeletep(nodep->unlinkFrBack()), nodep);
+        }
     }
-    virtual void visit(AstTimingControl* nodep) override { iterateChildren(nodep); }
     virtual void visit(AstEventTrigger* nodep) override {
         auto* varrefp = VN_CAST(nodep->trigp(), VarRef);
         if (auto* memberSelp = VN_CAST(nodep->trigp(), MemberSel))
@@ -602,18 +605,21 @@ private:
             VL_DO_DANGLING(pushDeletep(nodep->unlinkFrBack()), nodep);
             return;
         }
-        if (v3Global.opt.bboxUnsup()
-            // With no statements, begin is identical
-            || !nodep->stmtsp()
-            // With one statement, a begin block does as good as a fork/join or join_any
-            || (!nodep->stmtsp()->nextp() && !nodep->joinType().joinNone())) {
+        if (v3Global.opt.dynamicScheduler()) {
+            iterateChildren(nodep);
+        } else if (v3Global.opt.bboxUnsup()
+                   // With no statements, begin is identical
+                   || !nodep->stmtsp()
+                   // With one statement, a begin block does as good as a fork/join or join_any
+                   || (!nodep->stmtsp()->nextp() && !nodep->joinType().joinNone())) {
             AstNode* stmtsp = nullptr;
             if (nodep->stmtsp()) stmtsp = nodep->stmtsp()->unlinkFrBack();
             AstBegin* const newp = new AstBegin{nodep->fileline(), nodep->name(), stmtsp};
             nodep->replaceWith(newp);
             VL_DO_DANGLING(nodep->deleteTree(), nodep);
         } else {
-            iterateChildren(nodep);
+            nodep->v3warn(E_UNSUPPORTED, "Unsupported: fork statements");
+            // TBD might support only normal join, if so complain about other join flavors
         }
     }
     virtual void visit(AstDisableFork* nodep) override {
@@ -1318,6 +1324,17 @@ private:
         AstConst* const newp = new AstConst(nodep->fileline(), AstConst::RealDouble(), time);
         nodep->replaceWith(newp);
         VL_DO_DANGLING(nodep->deleteTree(), nodep);
+    }
+    virtual void visit(AstTimingControl* nodep) override {
+        if (v3Global.opt.dynamicScheduler()) {
+            iterateChildren(nodep);
+            return;
+        }
+        nodep->v3warn(E_UNSUPPORTED, "Unsupported: timing control statement in this location\n"
+                                         << nodep->warnMore()
+                                         << "... Suggest have one timing control statement "
+                                         << "per procedure, at the top of the procedure");
+        VL_DO_DANGLING(nodep->unlinkFrBack()->deleteTree(), nodep);
     }
     virtual void visit(AstAttrOf* nodep) override {
         VL_RESTORER(m_attrp);

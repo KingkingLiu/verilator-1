@@ -925,6 +925,7 @@ sub compile_vlt_flags {
     unshift @verilator_flags, "--rr" if $opt_rr;
     unshift @verilator_flags, "--x-assign unique";  # More likely to be buggy
     unshift @verilator_flags, "--trace" if $opt_trace;
+    unshift @verilator_flags, "--dynamic-scheduler" if $Opt_Dynamic_Scheduler;
     my $threads = ::calc_threads($Vltmt_threads);
     unshift @verilator_flags, "--threads $threads" if $param{vltmt} && $checkflags !~ /-threads /;
     unshift @verilator_flags, "--trace-threads 1" if $param{vltmt} && $checkflags =~ /-trace /;

@@ -513,7 +513,7 @@ private:
         if (!nodep->joinType().joinNone()) {
             auto* joinVarp
                 = new AstVar{nodep->fileline(), AstVarType::BLOCKTEMP,
-                             "__Vfork__" + std::to_string(m_count) + "__join", m_joinDTypep};
+                             "__Vfork__" + std::to_string(m_count++) + "__join", m_joinDTypep};
             joinVarp->funcLocal(true);
             joinVscp = new AstVarScope{joinVarp->fileline(), m_scopep, joinVarp};
             m_scopep->addVarp(joinVscp);

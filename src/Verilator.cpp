@@ -246,7 +246,7 @@ static void process() {
         }
     }
 
-    if (!v3Global.opt.xmlOnly() && !v3Global.opt.lintOnly()) {
+    if (v3Global.opt.dynamicScheduler() && !v3Global.opt.xmlOnly() && !v3Global.opt.lintOnly()) {
         V3DynamicScheduler::handleAnyedge(v3Global.rootp());
     }
 
@@ -301,8 +301,7 @@ static void process() {
         V3Task::taskAll(v3Global.rootp());
     }
 
-    // Wrap statements in processes into blocks so they won't get split
-    if (!v3Global.opt.xmlOnly() && !v3Global.opt.lintOnly()) {
+    if (v3Global.opt.dynamicScheduler() && !v3Global.opt.xmlOnly() && !v3Global.opt.lintOnly()) {
         V3DynamicScheduler::transformProcesses(v3Global.rootp());
     }
 
@@ -375,7 +374,8 @@ static void process() {
         // This creates lots of duplicate ACTIVES so ActiveTop needs to be after this step
         V3Delayed::delayedAll(v3Global.rootp());
 
-        if (!v3Global.opt.xmlOnly() && !v3Global.opt.lintOnly()) {
+        if (v3Global.opt.dynamicScheduler() && !v3Global.opt.xmlOnly()
+            && !v3Global.opt.lintOnly()) {
             V3DynamicScheduler::prepareEvents(v3Global.rootp());
         }
 

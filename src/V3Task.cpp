@@ -1193,12 +1193,13 @@ private:
         string suffix;  // So, make them unique
         if (!nodep->taskPublic() && !nodep->classMethod()) suffix = "_" + m_scopep->nameDotless();
         const string name = ((nodep->name() == "new") ? "new" : prefix + nodep->name() + suffix);
+        bool coroutine = v3Global.opt.dynamicScheduler()
+                         && !(nodep->isFunction() || nodep->taskPublic() || nodep->dpiExport());
         AstCFunc* const cfuncp
             = new AstCFunc(nodep->fileline(), name, m_scopep,
                            rtnvarp ? (nodep->taskPublic() ? rtnvarp->cPubArgType(true, true) : "")
-                           : (nodep->isFunction() || nodep->taskPublic() || nodep->dpiExport())
-                               ? ""
-                               : "CoroutineTask");
+                           : coroutine ? "CoroutineTask"
+                                       : "");
         // It's ok to combine imports because this is just a wrapper;
         // duplicate wrappers can get merged.
         cfuncp->dontCombine(!nodep->dpiImport());

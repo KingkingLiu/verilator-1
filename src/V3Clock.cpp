@@ -256,8 +256,9 @@ private:
         m_settleFuncp = makeTopFunction("_eval_settle", /* slow: */ true);
         m_finalFuncp = makeTopFunction("_final", /* slow: */ true);
 
-        m_evalFuncp->addStmtsp(new AstCStmt{
-            m_evalFuncp->fileline(), "vlSymsp->__Vm_delayedQueue.activate(VL_TIME_D());\n"});
+        if (v3Global.opt.dynamicScheduler())
+            m_evalFuncp->addStmtsp(new AstCStmt{
+                m_evalFuncp->fileline(), "vlSymsp->__Vm_delayedQueue.activate(VL_TIME_D());\n"});
 
         // Process the activates
         iterateChildren(nodep);

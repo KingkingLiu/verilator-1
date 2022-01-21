@@ -533,12 +533,14 @@ class EmitCModel final : public EmitCFunc {
             puts("}\n");
         }
 
-        putSectionDelimiter("Dynamic scheduler");
-        puts("bool " + topClassName()
-             + "::timeSlotsEmpty() { return vlSymsp->__Vm_delayedQueue.empty(); }\n");
-        puts("double " + topClassName()
-             + "::timeSlotsEarliestTime() { return "
-               "vlSymsp->__Vm_delayedQueue.nextTimeSlot(); }\n");
+        if (v3Global.opt.dynamicScheduler()) {
+            putSectionDelimiter("Dynamic scheduler");
+            puts("bool " + topClassName()
+                 + "::timeSlotsEmpty() { return vlSymsp->__Vm_delayedQueue.empty(); }\n");
+            puts("double " + topClassName()
+                 + "::timeSlotsEarliestTime() { return "
+                   "vlSymsp->__Vm_delayedQueue.nextTimeSlot(); }\n");
+        }
 
         putSectionDelimiter("Utilities");
         // ::contextp
