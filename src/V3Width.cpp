@@ -596,7 +596,14 @@ private:
         if (auto* memberSelp = VN_CAST(nodep->trigp(), MemberSel))
             varrefp = VN_CAST(memberSelp->fromp(), VarRef);
         if (varrefp) varrefp->access(VAccess::WRITE);
-        iterateChildren(nodep);
+        if (v3Global.opt.dynamicScheduler()) {
+            iterateChildren(nodep);
+        } else {
+            auto* assignp = new AstAssignDly{nodep->fileline(), nodep->trigp()->unlinkFrBack(),
+                                             new AstConst{nodep->fileline(), AstConst::BitTrue()}};
+            nodep->replaceWith(assignp);
+            VL_DO_DANGLING(pushDeletep(nodep), nodep);
+        }
     }
     virtual void visit(AstFork* nodep) override {
         if (VN_IS(m_ftaskp, Func) && !nodep->joinType().joinNone()) {
