@@ -522,7 +522,7 @@ private:
 
         VL_RESTORER(m_mode);
         auto stmtp = nodep->stmtsp();
-        size_t procCount = 0;
+        vluint32_t joinCount = 0;
         while (stmtp) {
             m_locals.clear();
             m_mode = GATHER;
@@ -531,7 +531,7 @@ private:
 
             AstCFunc* const cfuncp = new AstCFunc{stmtp->fileline(),
                                                   "__Vfork__" + std::to_string(m_count++) + "__"
-                                                      + std::to_string(procCount++),
+                                                      + std::to_string(joinCount++),
                                                   m_scopep, "CoroutineTask"};
             m_scopep->addActivep(cfuncp);
             cfuncp->user1(true);
@@ -587,9 +587,9 @@ private:
                 nodep->fileline(), new AstVarRef{nodep->fileline(), joinVscp, VAccess::WRITE},
                 m_joinCounterp->dtypep()};
             counterSelp->varp(m_joinCounterp);
-            assignp = new AstAssign{
-                nodep->fileline(), counterSelp,
-                new AstConst{nodep->fileline(), nodep->joinType().joinAny() ? 1 : procCount}};
+            if (joinCount > 0 && nodep->joinType().joinAny()) joinCount = 1;
+            assignp = new AstAssign{nodep->fileline(), counterSelp,
+                                    new AstConst{nodep->fileline(), joinCount}};
             nodep->addHereThisAsNext(assignp);
 
             counterSelp = new AstMemberSel{

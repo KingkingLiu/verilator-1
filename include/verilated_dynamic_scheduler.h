@@ -168,14 +168,6 @@ struct EventDispatcher {
     }
 };
 
-struct Join {
-    Join(vluint16_t c)
-        : counter(c) {}
-
-    vluint16_t counter;
-    CData event;
-};
-
 struct CoroutineTask {
     struct promise_type {
         CoroutineTask get_return_object() { return {this}; }
