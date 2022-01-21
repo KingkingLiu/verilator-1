@@ -12,7 +12,7 @@ scenarios(vlt => 1);
 
 if ($Self->{dynamic_scheduler}) {
     compile(
-        delayed_queue => 1
+        delayed_queue => $Self->{dynamic_scheduler},
         );
 
     execute(

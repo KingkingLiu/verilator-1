@@ -20,6 +20,7 @@ int main(int argc, char* argv[]) {
     printf("\nTesting\n");
     topp->clk = 0;
     for (int i = 0; i < 10; i++) {
+#ifdef VL_DYNAMIC_SCHEDULER
         topp->eval();
         auto newTime = topp->timeSlotsEarliestTime();
         if (newTime - simTime <= 0 ||
@@ -29,6 +30,12 @@ int main(int argc, char* argv[]) {
         } else {
             simTime = topp->timeSlotsEarliestTime();
         }
+#else
+        topp->eval();
+        topp->clk = 1;
+        topp->eval();
+        topp->clk = 0;
+#endif
     }
     if (topp->Rand != 0xfeed0fad) {
         vl_fatal(__FILE__, __LINE__, "top", "Unexpected value for Rand output\n");

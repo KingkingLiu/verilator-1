@@ -14,7 +14,7 @@ if ($Self->{dynamic_scheduler}) {
     skip("Test not supported with the dynamic scheduler");
 } else {
     compile(
-        delayed_queue => 1,
+        delayed_queue => $Self->{dynamic_scheduler},
         nc_flags2 => ['+access+r'],
         );
 
