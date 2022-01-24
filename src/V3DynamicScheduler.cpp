@@ -416,8 +416,7 @@ private:
         iterateChildren(nodep);
         auto* activep = new AstAlwaysDelayed{
             nodep->fileline(),
-            new AstCStmt{nodep->fileline(),
-                         "vlSymsp->__Vm_eventDispatcher.resumeAllTriggered();\n"}};
+            new AstResumeTriggered{nodep->fileline()}};
         nodep->scopep()->addActivep(activep);
     }
     virtual void visit(AstAlways* nodep) override {

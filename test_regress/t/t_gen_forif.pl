@@ -10,17 +10,14 @@ if (!$::Driver) { use FindBin; exec("$FindBin::Bin/bootstrap.pl", @ARGV, $0); di
 
 scenarios(simulator => 1);
 
-if ($Self->{dynamic_scheduler}) {
-    skip("Test not supported with the dynamic scheduler");
-} else {
-    compile(
-        delayed_queue => $Self->{dynamic_scheduler},
-        nc_flags2 => ['+access+r'],
-        );
+compile(
+    delayed_queue => $Self->{dynamic_scheduler},
+    nc_flags2 => ['+access+r'],
+    );
 
-    execute(
-        check_finished => 1,
-        );
-}
+execute(
+    check_finished => 1,
+    );
+
 ok(1);
 1;

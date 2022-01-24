@@ -396,8 +396,8 @@ class OrderBuildVisitor final : public AstNVisitor {
 
     SenTreeFinder m_finder;
 
-    OrderEitherVertex* m_dlyVxp = nullptr;
-    OrderEitherVertex* m_postVxp = nullptr;
+    OrderEitherVertex* m_eventTriggerVxp = nullptr;
+    OrderEitherVertex* m_postponedVxp = nullptr;
 
     // METHODS
     VL_DEBUG_FUNC;  // Declare debug()
@@ -411,10 +411,7 @@ class OrderBuildVisitor final : public AstNVisitor {
         // If this logic has a clocked activation, add a link from the sensitivity list LogicVertex
         // to this LogicVertex.
         if (m_activeSenVxp) new OrderEdge(m_graphp, m_activeSenVxp, m_logicVxp, WEIGHT_NORMAL);
-        if (m_inPost || m_inPostponed)
-            new OrderEdge(m_graphp, m_postVxp, m_logicVxp, WEIGHT_COMBO, OrderEdge::CUTABLE);
-        else if (m_inClocked)
-            new OrderEdge(m_graphp, m_logicVxp, m_dlyVxp, WEIGHT_COMBO, OrderEdge::CUTABLE);
+        if (m_inPostponed) new OrderEdge(m_graphp, m_postponedVxp, m_logicVxp, WEIGHT_NORMAL);
         // Gather variable dependencies based on usage
         iterateChildren(nodep);
         // Finished with this logic
@@ -438,14 +435,13 @@ class OrderBuildVisitor final : public AstNVisitor {
     }
     virtual void visit(AstScope* nodep) override {
         UASSERT_OBJ(!m_scopep, nodep, "Should not nest");
-        m_dlyVxp = new OrderDynamicSchedulingVertex(m_graphp, m_scopep, "Dly");
-        m_postVxp = new OrderDynamicSchedulingVertex(m_graphp, m_scopep, "PRE Postponed");
-        new OrderEdge(m_graphp, m_dlyVxp, m_postVxp, WEIGHT_NORMAL);
+        m_eventTriggerVxp = new OrderDynamicSchedulingVertex(m_graphp, m_scopep, "POST Event Triggers");
+        m_postponedVxp = new OrderDynamicSchedulingVertex(m_graphp, m_scopep, "PRE Postponed");
         m_scopep = nodep;
         iterateChildren(nodep);
         m_scopep = nullptr;
-        m_dlyVxp = nullptr;
-        m_postVxp = nullptr;
+        m_eventTriggerVxp = nullptr;
+        m_postponedVxp = nullptr;
     }
     virtual void visit(AstActive* nodep) override {
         UASSERT_OBJ(!nodep->sensesStorep(), nodep,
@@ -632,8 +628,8 @@ class OrderBuildVisitor final : public AstNVisitor {
                     OrderVarVertex* const preVxp = getVarVertex(varscp, VarVertexType::PRE);
                     new OrderEdge(m_graphp, m_logicVxp, preVxp, WEIGHT_NORMAL);
                     // Add edge from consuming LogicVertex -> to consumed VarPostVertex
-                    OrderVarVertex* const postVxp = getVarVertex(varscp, VarVertexType::POST);
-                    new OrderEdge(m_graphp, m_logicVxp, postVxp, WEIGHT_POST);
+                    OrderVarVertex* const postponedVxp = getVarVertex(varscp, VarVertexType::POST);
+                    new OrderEdge(m_graphp, m_logicVxp, postponedVxp, WEIGHT_POST);
                 }
             }
         }
@@ -678,12 +674,18 @@ class OrderBuildVisitor final : public AstNVisitor {
         // Create LogicVertex for this logic node
         auto* comboDomainp = m_finder.getComb();
         m_logicVxp = new OrderLogicVertex(m_graphp, m_scopep, comboDomainp, nodep);
-        new OrderEdge(m_graphp, m_dlyVxp, m_logicVxp, WEIGHT_NORMAL);
-        new OrderEdge(m_graphp, m_logicVxp, m_postVxp, WEIGHT_NORMAL);
+        new OrderEdge(m_graphp, m_logicVxp, m_postponedVxp, WEIGHT_NORMAL);
         // Gather variable dependencies based on usage
         iterateChildren(nodep);
         // Finished with this logic
         m_logicVxp = nullptr;
+    }
+    virtual void visit(AstResumeTriggered* nodep) override {
+        new OrderEdge(m_graphp, m_eventTriggerVxp, m_logicVxp, WEIGHT_NORMAL);
+    }
+    virtual void visit(AstEventTrigger* nodep) override {
+        new OrderEdge(m_graphp, m_logicVxp, m_eventTriggerVxp, WEIGHT_NORMAL);
+        iterateChildren(nodep);
     }
     virtual void visit(AstAlwaysPostponed* nodep) override {
         UASSERT_OBJ(!m_inPostponed, nodep, "Should not nest");

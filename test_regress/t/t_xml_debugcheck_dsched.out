@@ -28,15 +28,19 @@
     <module fl="d10" loc="d,10,8,10,9" name="$root" origName="$root" topModule="1" public="true">
       <var fl="d14" loc="d,14,10,14,13" name="clk" dtype_id="1" dir="input" pinIndex="1" vartype="logic" origName="clk" clocker="true" public="true"/>
       <var fl="d23" loc="d,23,9,23,10" name="t.e" dtype_id="2" vartype="my_t" origName="e"/>
-      <var fl="d23" loc="d,23,9,23,10" name="__Vdly__t.e" dtype_id="2" vartype="my_t" origName="__Vdly__t__DOT__e"/>
       <var fl="d14" loc="d,14,10,14,13" name="__Vclklast__TOP__clk" dtype_id="1" vartype="logic" origName="__Vclklast__TOP__clk"/>
       <var fl="d22" loc="d,22,13,22,16" name="t.cyc" dtype_id="3" vartype="integer" origName="cyc"/>
-      <var fl="d22" loc="d,22,13,22,16" name="__Vdly__t.cyc" dtype_id="3" vartype="integer" origName="__Vdly__t__DOT__cyc"/>
       <instance fl="a0" loc="a,0,0,0,0" name="$unit" defName="__024unit" origName="__024unit"/>
       <topscope fl="d10" loc="d,10,8,10,9">
         <scope fl="d10" loc="d,10,8,10,9" name="TOP"/>
       </topscope>
-      <cfunc fl="d60" loc="d,60,4,60,10" name="_sequent__TOP__1">
+      <cfunc fl="d10" loc="d,10,8,10,9" name="_combo__TOP__1">
+        <resumetriggered fl="d10" loc="d,10,8,10,9"/>
+        <resumetriggered fl="d10" loc="d,10,8,10,9"/>
+      </cfunc>
+      <cfunc fl="d60" loc="d,60,4,60,10" name="_sequent__TOP__2">
+        <var fl="d22" loc="d,22,13,22,16" name="__Vdly__t.cyc" dtype_id="3" vartype="integer" origName="__Vdly__t__DOT__cyc"/>
+        <var fl="d23" loc="d,23,9,23,10" name="__Vdly__t.e" dtype_id="2" vartype="my_t" origName="__Vdly__t__DOT__e"/>
         <var fl="d67" loc="d,67,119,67,123" name="__Vtemp_h########__0" dtype_id="4" vartype="string" origName="__Vtemp_h########__0"/>
         <var fl="d77" loc="d,77,119,77,123" name="__Vtemp_h########__1" dtype_id="4" vartype="string" origName="__Vtemp_h########__1"/>
         <var fl="d87" loc="d,87,119,87,123" name="__Vtemp_h########__2" dtype_id="4" vartype="string" origName="__Vtemp_h########__2"/>
@@ -839,8 +843,16 @@
             </if>
           </begin>
         </if>
+        <assignpost fl="d61" loc="d,61,7,61,10" dtype_id="3">
+          <varref fl="d61" loc="d,61,7,61,10" name="__Vdly__t.cyc" dtype_id="3"/>
+          <varref fl="d61" loc="d,61,7,61,10" name="t.cyc" dtype_id="3"/>
+        </assignpost>
+        <assignpost fl="d64" loc="d,64,3,64,4" dtype_id="5">
+          <varref fl="d64" loc="d,64,3,64,4" name="__Vdly__t.e" dtype_id="5"/>
+          <varref fl="d64" loc="d,64,3,64,4" name="t.e" dtype_id="5"/>
+        </assignpost>
       </cfunc>
-      <cfunc fl="d22" loc="d,22,19,22,20" name="_initial__TOP__2">
+      <cfunc fl="d22" loc="d,22,19,22,20" name="_initial__TOP__3">
         <var fl="d27" loc="d,27,11,27,14" name="t.all" dtype_id="4" vartype="string" origName="t__DOT__all"/>
         <var fl="d51" loc="d,51,17,51,18" name="t.unnamedblk1.e" dtype_id="2" vartype="my_t" origName="t__DOT__unnamedblk1__DOT__e"/>
         <var fl="d48" loc="d,48,123,48,127" name="__Vtemp_h########__0" dtype_id="4" vartype="string" origName="__Vtemp_h########__0"/>
@@ -1383,28 +1395,11 @@
           </begin>
         </if>
       </cfunc>
-      <cfunc fl="d10" loc="d,10,8,10,9" name="_combo__TOP__3">
-        <cstmt fl="d10" loc="d,10,8,10,9">
-          <text fl="d10" loc="d,10,8,10,9"/>
-        </cstmt>
-        <cstmt fl="d10" loc="d,10,8,10,9">
-          <text fl="d10" loc="d,10,8,10,9"/>
-        </cstmt>
-      </cfunc>
-      <cfunc fl="d64" loc="d,64,3,64,4" name="_sequent__TOP__4">
-        <assignpost fl="d64" loc="d,64,3,64,4" dtype_id="5">
-          <varref fl="d64" loc="d,64,3,64,4" name="__Vdly__t.e" dtype_id="5"/>
-          <varref fl="d64" loc="d,64,3,64,4" name="t.e" dtype_id="5"/>
-        </assignpost>
-        <assignpost fl="d61" loc="d,61,7,61,10" dtype_id="3">
-          <varref fl="d61" loc="d,61,7,61,10" name="__Vdly__t.cyc" dtype_id="3"/>
-          <varref fl="d61" loc="d,61,7,61,10" name="t.cyc" dtype_id="3"/>
-        </assignpost>
-      </cfunc>
       <cfunc fl="d10" loc="d,10,8,10,9" name="_eval">
         <cstmt fl="d10" loc="d,10,8,10,9">
           <text fl="d10" loc="d,10,8,10,9"/>
         </cstmt>
+        <ccall fl="d10" loc="d,10,8,10,9" func="_combo__TOP__1"/>
         <if fl="d60" loc="d,60,11,60,12">
           <and fl="d60" loc="d,60,14,60,21" dtype_id="8">
             <ccast fl="d60" loc="d,60,14,60,21" dtype_id="8">
@@ -1417,23 +1412,7 @@
             </not>
           </and>
           <begin>
-            <ccall fl="d60" loc="d,60,4,60,10" func="_sequent__TOP__1"/>
-          </begin>
-        </if>
-        <ccall fl="d10" loc="d,10,8,10,9" func="_combo__TOP__3"/>
-        <if fl="d60" loc="d,60,11,60,12">
-          <and fl="d60" loc="d,60,14,60,21" dtype_id="8">
-            <ccast fl="d60" loc="d,60,14,60,21" dtype_id="8">
-              <varref fl="d60" loc="d,60,14,60,21" name="clk" dtype_id="8"/>
-            </ccast>
-            <not fl="d60" loc="d,60,14,60,21" dtype_id="8">
-              <ccast fl="d60" loc="d,60,14,60,21" dtype_id="8">
-                <varref fl="d60" loc="d,60,14,60,21" name="__Vclklast__TOP__clk" dtype_id="8"/>
-              </ccast>
-            </not>
-          </and>
-          <begin>
-            <ccall fl="d64" loc="d,64,3,64,4" func="_sequent__TOP__4"/>
+            <ccall fl="d60" loc="d,60,4,60,10" func="_sequent__TOP__2"/>
           </begin>
         </if>
         <assign fl="d14" loc="d,14,10,14,13" dtype_id="8">
@@ -1446,7 +1425,7 @@
           <varref fl="d14" loc="d,14,10,14,13" name="clk" dtype_id="8"/>
           <varref fl="d14" loc="d,14,10,14,13" name="__Vclklast__TOP__clk" dtype_id="8"/>
         </assign>
-        <ccall fl="d22" loc="d,22,19,22,20" func="_initial__TOP__2"/>
+        <ccall fl="d22" loc="d,22,19,22,20" func="_initial__TOP__3"/>
       </cfunc>
       <cfunc fl="d10" loc="d,10,8,10,9" name="_eval_settle"/>
       <cfunc fl="d10" loc="d,10,8,10,9" name="_final"/>
@@ -1472,12 +1451,6 @@
         </creset>
         <creset fl="d23" loc="d,23,9,23,10">
           <varref fl="d23" loc="d,23,9,23,10" name="t.e" dtype_id="2"/>
-        </creset>
-        <creset fl="d22" loc="d,22,13,22,16">
-          <varref fl="d22" loc="d,22,13,22,16" name="__Vdly__t.cyc" dtype_id="3"/>
-        </creset>
-        <creset fl="d23" loc="d,23,9,23,10">
-          <varref fl="d23" loc="d,23,9,23,10" name="__Vdly__t.e" dtype_id="2"/>
         </creset>
       </cfunc>
       <cuse fl="a0" loc="a,0,0,0,0" name="$unit"/>

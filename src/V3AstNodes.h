@@ -4646,6 +4646,13 @@ public:
     AstNode* trigp() const { return op1p(); }
 };
 
+class AstResumeTriggered final : public AstNodeStmt {
+public:
+    explicit AstResumeTriggered(FileLine* fl)
+        : ASTGEN_SUPER_ResumeTriggered(fl) {}
+    ASTNODE_NODE_FUNCS(ResumeTriggered)
+};
+
 class AstGenIf final : public AstNodeIf {
 public:
     AstGenIf(FileLine* fl, AstNode* condp, AstNode* ifsp, AstNode* elsesp)

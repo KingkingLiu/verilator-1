@@ -23,9 +23,9 @@ if ($Self->{vlt}) {
     file_grep($Self->{stats}, qr/Optimizations, MergeCond merges\s+(\d+)/i,
               10);
     file_grep($Self->{stats}, qr/Optimizations, MergeCond merged items\s+(\d+)/i,
-              $Self->{dynamic_scheduler} ? 644 : 580);
+              580);
     file_grep($Self->{stats}, qr/Optimizations, MergeCond longest merge\s+(\d+)/i,
-              $Self->{dynamic_scheduler} ? 127 : 64);
+              64);
 }
 
 ok(1);

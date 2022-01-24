@@ -836,6 +836,9 @@ public:
         iterateNull(nodep->trigp());
         puts("});\n");
     }
+    virtual void visit(AstResumeTriggered* nodep) override {
+        puts("vlSymsp->__Vm_eventDispatcher.resumeAllTriggered();\n");
+    }
     virtual void visit(AstWhile* nodep) override {
         iterateAndNextNull(nodep->precondsp());
         puts("while (");
