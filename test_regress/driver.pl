@@ -118,7 +118,7 @@ if (! GetOptions(
           "verbose!"    => \$opt_verbose,
           "verilation!"         => \$Opt_Verilation,  # Undocumented debugging
           "verilated-debug!"    => \$Opt_Verilated_Debug,
-          "dynamic-scheduler!"  => \$Opt_Dynamic_Scheduler,
+          "dynamic-scheduler!"  => sub { $Opt_Dynamic_Scheduler = 1; push @Opt_Driver_Verilator_Flags, "--dynamic-scheduler"; },
           #W               see parameter()
           # Scenarios
           "atsim|athdl!"=> sub { $opt_scenarios{atsim} = $_[1]; },
@@ -925,7 +925,6 @@ sub compile_vlt_flags {
     unshift @verilator_flags, "--rr" if $opt_rr;
     unshift @verilator_flags, "--x-assign unique";  # More likely to be buggy
     unshift @verilator_flags, "--trace" if $opt_trace;
-    unshift @verilator_flags, "--dynamic-scheduler" if $Opt_Dynamic_Scheduler;
     my $threads = ::calc_threads($Vltmt_threads);
     unshift @verilator_flags, "--threads $threads" if $param{vltmt} && $checkflags !~ /-threads /;
     unshift @verilator_flags, "--trace-threads 1" if $param{vltmt} && $checkflags =~ /-trace /;
