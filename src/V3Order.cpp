@@ -435,7 +435,8 @@ class OrderBuildVisitor final : public AstNVisitor {
     }
     virtual void visit(AstScope* nodep) override {
         UASSERT_OBJ(!m_scopep, nodep, "Should not nest");
-        m_eventTriggerVxp = new OrderDynamicSchedulingVertex(m_graphp, m_scopep, "POST Event Triggers");
+        m_eventTriggerVxp
+            = new OrderDynamicSchedulingVertex(m_graphp, m_scopep, "POST Event Triggers");
         m_postponedVxp = new OrderDynamicSchedulingVertex(m_graphp, m_scopep, "PRE Postponed");
         m_scopep = nodep;
         iterateChildren(nodep);
@@ -2003,7 +2004,9 @@ void OrderProcess::processMTasks() {
         const AstSenTree* last_domainp = nullptr;
         AstCFunc* leafCFuncp = nullptr;
         int leafStmts = 0;
+        bool exclusive = false;
         for (const OrderLogicVertex* logicp : state.m_logics) {
+            if (VN_IS(logicp->nodep(), AlwaysDelayed)) exclusive = true;
             if (logicp->domainp() != last_domainp) {
                 // Start a new leaf function.
                 leafCFuncp = nullptr;
@@ -2023,6 +2026,7 @@ void OrderProcess::processMTasks() {
         // - The ExecMTask graph and the AstMTaskBody's produced here
         //   persist until code generation time.
         state.m_execMTaskp = new ExecMTask(execGraphp->mutableDepGraphp(), bodyp, mtaskp->id());
+        state.m_execMTaskp->exclusive(exclusive);
         // Cross-link each ExecMTask and MTaskBody
         //  Q: Why even have two objects?
         //  A: One is an AstNode, the other is a GraphVertex,

@@ -96,7 +96,8 @@ using Event = CData*;
 
 using EventSet = std::unordered_set<Event>;
 
-struct EventDispatcher {
+struct EventSetToCoroMap {
+private:
     struct Hash {
         size_t operator()(const EventSet& set) const {
             size_t result = 0;
@@ -104,71 +105,79 @@ struct EventDispatcher {
             return result;
         }
     };
-
     std::unordered_multimap<EventSet, std::coroutine_handle<>, Hash> eventSetsToCoros;
     std::unordered_multimap<Event, EventSet> eventsToEventSets;
-    std::vector<Event> triggeredQueue;
-    VerilatedMutex m_mutex;
 
-    void insert(const EventSet& events, std::coroutine_handle<> coro) {
-        VerilatedLockGuard guard{m_mutex};
-        auto range = eventSetsToCoros.equal_range(events);
-        if (range.first != range.second) {
-            guard.unlock();
-            for (auto event : events) {
-                if (wasTriggered(event)) {
-                    resumeTriggered();
-                    break;
-                }
-            }
-            guard.lock();
-        }
-        for (auto event : events) eventsToEventSets.insert(std::make_pair(event, events));
-        eventSetsToCoros.insert(std::make_pair(events, coro));
-    }
-
-    void resume(const EventSet& events, std::vector<std::coroutine_handle<>>& coros) {
+    void move(const EventSet& events, std::vector<std::coroutine_handle<>>& coros) {
         auto range = eventSetsToCoros.equal_range(events);
         for (auto it = range.first; it != range.second; ++it) coros.push_back(it->second);
         eventSetsToCoros.erase(range.first, range.second);
     }
 
-    void resume(Event event) {
-        VerilatedLockGuard guard{m_mutex};
+public:
+    void move(Event event, std::vector<std::coroutine_handle<>>& coros) {
         auto range = eventsToEventSets.equal_range(event);
-        std::vector<std::coroutine_handle<>> coros;
-        for (auto it = range.first; it != range.second; ++it) resume(it->second, coros);
-        guard.unlock();
-        for (auto coro : coros) coro();
+        for (auto it = range.first; it != range.second; ++it) move(it->second, coros);
+    }
+
+    bool contains(const EventSet& events) {
+        auto range = eventSetsToCoros.equal_range(events);
+        return range.first != range.second;
+    }
+
+    void insert(const EventSet& events, std::coroutine_handle<> coro) {
+        for (auto event : events) eventsToEventSets.insert(std::make_pair(event, events));
+        eventSetsToCoros.insert(std::make_pair(events, coro));
+    }
+};
+
+struct EventDispatcher {
+private:
+    EventSetToCoroMap eventSetsToCoros;
+    std::vector<Event> triggeredEvents;
+    std::vector<std::coroutine_handle<>> primedCoros;
+    VerilatedMutex m_mutex;
+
+public:
+    void insert(const EventSet& events, std::coroutine_handle<> coro) {
+        if (isSetWaiting(events)) {
+            primeTriggered();
+        }
+        VerilatedLockGuard guard{m_mutex};
+        eventSetsToCoros.insert(events, coro);
+    }
+
+    void primeTriggered() {
+        VerilatedLockGuard guard{m_mutex};
+        std::vector<Event> queue = std::move(triggeredEvents);
+        for (auto event : queue) eventSetsToCoros.move(event, primedCoros);
     }
 
     void resumeTriggered() {
-        VerilatedLockGuard guard{m_mutex};
-        std::vector<Event> queue = std::move(triggeredQueue);
-        guard.unlock();
-        for (auto event : queue) resume(event);
+        primeTriggered();
+        while (!primedEmpty()) {
+            m_mutex.lock();
+            std::vector<std::coroutine_handle<>> queue = std::move(primedCoros);
+            m_mutex.unlock();
+            for (auto coro : queue) coro();
+            primeTriggered();
+        }
     }
 
-    void resumeAllTriggered() {
-        while (!triggeredEmpty()) resumeTriggered();
-    }
-
-    bool triggeredEmpty() {
+    bool primedEmpty() {
         const VerilatedLockGuard guard{m_mutex};
-        return triggeredQueue.empty();
+        return primedCoros.empty();
+    }
+
+    bool isSetWaiting(const EventSet& events) {
+        const VerilatedLockGuard guard{m_mutex};
+        return eventSetsToCoros.contains(events);
     }
 
     void trigger(Event event) {
-        if (wasTriggered(event)) resumeTriggered();
         *event = 1;
         const VerilatedLockGuard guard{m_mutex};
-        triggeredQueue.push_back(event);
-    }
-
-    bool wasTriggered(Event event) {
-        const VerilatedLockGuard guard{m_mutex};
-        return std::find(triggeredQueue.begin(), triggeredQueue.end(), event)
-               != triggeredQueue.end();
+        triggeredEvents.push_back(event);
     }
 
     auto operator[](EventSet&& events) {

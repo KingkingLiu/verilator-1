@@ -414,9 +414,8 @@ private:
     }
     virtual void visit(AstTopScope* nodep) override {
         iterateChildren(nodep);
-        auto* activep = new AstAlwaysDelayed{
-            nodep->fileline(),
-            new AstResumeTriggered{nodep->fileline()}};
+        auto* activep
+            = new AstAlwaysDelayed{nodep->fileline(), new AstResumeTriggered{nodep->fileline()}};
         nodep->scopep()->addActivep(activep);
     }
     virtual void visit(AstAlways* nodep) override {
