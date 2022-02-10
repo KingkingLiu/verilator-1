@@ -27,25 +27,23 @@
 //      Each variable written to in a marked process/task:
 //          Mark it for dynamic scheduling
 //
-//      Each timing control waiting on an unmarked variable:
-//          If waiting on ANYEDGE on more than 1-bit wide signals:
-//              Change edge type to BOTHEDGE
-//
-//      Each marked process:
-//          Wrap its statements into begin...end so it won't get split
-//
-//      Each process:
-//          If waiting on ANYEDGE on a marked variable:
-//              Transform process into function with a body like this:
+//      Each always process:
+//          If waiting on a marked variable:
+//              Transform process into an initial process with a body like this:
 //                  forever begin
-//                      @(sensp);
-//                      fork process; join_none
+//                      @(sensp) begin
+//                          process_body;
+//                      end
 //                  end
+//          Mark it
 //
 //      Each AssignDly:
 //          If in marked process:
 //              Transform into:
 //                  fork @__VdlyEvent__ lhsp = rhsp; join_none
+//
+//      Each marked process:
+//          Wrap its statements into begin...end so it won't get split in V3Order
 //
 //      Each Fork:
 //          Move each statement to a new function
