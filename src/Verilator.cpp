@@ -246,10 +246,6 @@ static void process() {
         }
     }
 
-    if (v3Global.opt.dynamicScheduler() && !v3Global.opt.xmlOnly() && !v3Global.opt.lintOnly()) {
-        V3DynamicScheduler::handleAnyedge(v3Global.rootp());
-    }
-
     //--PRE-FLAT OPTIMIZATIONS------------------
 
     // Initial const/dead to reduce work for ordering code

@@ -249,46 +249,6 @@ public:
 
 //######################################################################
 
-class DynamicSchedulerAnyedgeVisitor final : public AstNVisitor {
-private:
-    // NODE STATE
-    //  AstNode::user1()      -> bool.  Set true if process/function uses constructs like delays,
-    //                                  timing controls, waits, forks
-    // AstUser1InUse    m_inuser1;      (Allocated for use in DynamicSchedulerMarkDynamicVisitor)
-
-    // METHODS
-    VL_DEBUG_FUNC;  // Declare debug()
-    bool onlySenItemInSenTree(AstSenItem* nodep) {
-        // Only one if it's not in a list
-        return (!nodep->nextp() && nodep->backp()->nextp() != nodep);
-    }
-
-    // VISITORS
-    virtual void visit(AstSenItem* nodep) override {
-        if (!onlySenItemInSenTree(nodep))
-            return;
-        else if (nodep->varrefp() && !nodep->varrefp()->varp()->isDynamic()
-                 && !VN_IS(nodep->varrefp()->dtypep(), NodeArrayDType)) {
-            if (const AstBasicDType* const basicp = nodep->varrefp()->dtypep()->basicp()) {
-                if (!basicp->isEventValue() && nodep->edgeType() == VEdgeType::ET_ANYEDGE
-                    && nodep->varrefp()->width1()) {
-                    nodep->edgeType(VEdgeType::ET_BOTHEDGE);
-                }
-            }
-        }
-    }
-
-    //--------------------
-    virtual void visit(AstNode* nodep) override { iterateChildren(nodep); }
-
-public:
-    // CONSTRUCTORS
-    explicit DynamicSchedulerAnyedgeVisitor(AstNetlist* nodep) { iterate(nodep); }
-    virtual ~DynamicSchedulerAnyedgeVisitor() override {}
-};
-
-//######################################################################
-
 class DynamicSchedulerWrapProcessVisitor final : public AstNVisitor {
 private:
     // NODE STATE
@@ -997,14 +957,6 @@ public:
 
 //######################################################################
 // DynamicScheduler class functions
-
-void V3DynamicScheduler::handleAnyedge(AstNetlist* nodep) {
-    DynamicSchedulerMarkDynamicVisitor visitor(nodep);
-    { DynamicSchedulerMarkVariablesVisitor visitor(nodep); }
-    UINFO(2, "  Handle Anyedge Sensitivity...\n");
-    { DynamicSchedulerAnyedgeVisitor visitor(nodep); }
-    V3Global::dumpCheckGlobalTree("dsch_anyedge", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 3);
-}
 
 void V3DynamicScheduler::transformProcesses(AstNetlist* nodep) {
     UINFO(2, "  Transform Intra Assign Delays...\n");
