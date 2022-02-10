@@ -361,7 +361,6 @@ private:
 
     // STATE
     AstScope* m_scopep = nullptr;
-    size_t m_count = 0;
 
     // METHODS
     VL_DEBUG_FUNC;  // Declare debug()
@@ -381,33 +380,19 @@ private:
     virtual void visit(AstAlways* nodep) override {
         auto* sensesp = nodep->sensesp();
         if (sensesp && sensesp->sensesp()
-            && sensesp->sensesp()->edgeType() == VEdgeType::ET_ANYEDGE
             && sensesp->sensesp()->varrefp() && sensesp->sensesp()->varrefp()->varp()->isDynamic()
             && nodep->bodysp()) {
             auto* eventp = getCreateEvent(sensesp->sensesp()->varrefp()->varScopep(),
                                           VEdgeType::ET_ANYEDGE);
-
-            auto fl = m_scopep->fileline();
-
-            auto newFuncName = "_anyedge_" + std::to_string(m_count++);
-            auto* newFuncpr = new AstCFunc{fl, newFuncName, m_scopep, "CoroutineTask"};
-            newFuncpr->isStatic(false);
-            newFuncpr->isLoose(true);
-            m_scopep->addActivep(newFuncpr);
-
+            auto fl = nodep->fileline();
             auto* beginp = new AstBegin{fl, "", nodep->bodysp()->unlinkFrBackWithNext()};
-            auto* forkp = new AstFork{fl, "", beginp};
-            forkp->joinType(VJoinType::JOIN_NONE);
             auto* whilep
                 = new AstWhile{fl, new AstConst{fl, AstConst::BitTrue()},
-                               new AstTimingControl{fl, sensesp->cloneTree(false), forkp}};
-            newFuncpr->addStmtsp(whilep);
-            AstCCall* const callp = new AstCCall{fl, newFuncpr};
-            auto* initialp = new AstInitial{fl, callp};
-            m_scopep->addActivep(initialp);
-            nodep->unlinkFrBack();
+                               new AstTimingControl{fl, sensesp->cloneTree(false), beginp}};
+            auto* initialp = new AstInitial{fl, whilep};
+            initialp->user1(true);
+            nodep->replaceWith(initialp);
             VL_DO_DANGLING(nodep->deleteTree(), nodep);
-            newFuncpr->user1(true);
         }
     }
 
@@ -963,15 +948,15 @@ void V3DynamicScheduler::transformProcesses(AstNetlist* nodep) {
     { DynamicSchedulerIntraAssignDelayVisitor visitor(nodep); }
     DynamicSchedulerMarkDynamicVisitor visitor(nodep);
     { DynamicSchedulerMarkVariablesVisitor visitor(nodep); }
-    UINFO(2, "  Wrap Processes...\n");
-    { DynamicSchedulerWrapProcessVisitor visitor(nodep); }
-    V3Global::dumpCheckGlobalTree("dsch_wrap", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 6);
     UINFO(2, "  Transform Dynamically Triggered Processes...\n");
     { DynamicSchedulerAlwaysVisitor visitor(nodep); }
     V3Global::dumpCheckGlobalTree("dsch_always", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 6);
     UINFO(2, "  Transform AssignDlys in Suspendable Processes...\n");
     { DynamicSchedulerAssignDlyVisitor visitor(nodep); }
     V3Global::dumpCheckGlobalTree("dsch_dly", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 6);
+    UINFO(2, "  Wrap Processes...\n");
+    { DynamicSchedulerWrapProcessVisitor visitor(nodep); }
+    V3Global::dumpCheckGlobalTree("dsch_wrap", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 6);
     UINFO(2, "  Move Forked Processes to New Functions...\n");
     { DynamicSchedulerForkVisitor visitor(nodep); }
     V3Global::dumpCheckGlobalTree("dsch_proc", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 3);
