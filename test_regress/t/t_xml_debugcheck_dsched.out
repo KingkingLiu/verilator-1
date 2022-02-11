@@ -34,11 +34,10 @@
       <topscope fl="d10" loc="d,10,8,10,9">
         <scope fl="d10" loc="d,10,8,10,9" name="TOP"/>
       </topscope>
-      <cfunc fl="d10" loc="d,10,8,10,9" name="_combo__TOP__1">
-        <resumetriggered fl="d10" loc="d,10,8,10,9"/>
-        <resumetriggered fl="d10" loc="d,10,8,10,9"/>
+      <cfunc fl="a0" loc="a,0,0,0,0" name="_combo__TOP__1">
+        <resumetriggered fl="a0" loc="a,0,0,0,0"/>
       </cfunc>
-      <cfunc fl="d60" loc="d,60,4,60,10" name="_sequent__TOP__2">
+      <cfunc fl="d60" loc="d,60,4,60,10" name="_sequent__TOP__3">
         <var fl="d22" loc="d,22,13,22,16" name="__Vdly__t.cyc" dtype_id="3" vartype="integer" origName="__Vdly__t__DOT__cyc"/>
         <var fl="d23" loc="d,23,9,23,10" name="__Vdly__t.e" dtype_id="2" vartype="my_t" origName="__Vdly__t__DOT__e"/>
         <var fl="d67" loc="d,67,119,67,123" name="__Vtemp_h########__0" dtype_id="4" vartype="string" origName="__Vtemp_h########__0"/>
@@ -852,7 +851,7 @@
           <varref fl="d64" loc="d,64,3,64,4" name="t.e" dtype_id="5"/>
         </assignpost>
       </cfunc>
-      <cfunc fl="d22" loc="d,22,19,22,20" name="_initial__TOP__3">
+      <cfunc fl="d22" loc="d,22,19,22,20" name="_initial__TOP__4">
         <var fl="d27" loc="d,27,11,27,14" name="t.all" dtype_id="4" vartype="string" origName="t__DOT__all"/>
         <var fl="d51" loc="d,51,17,51,18" name="t.unnamedblk1.e" dtype_id="2" vartype="my_t" origName="t__DOT__unnamedblk1__DOT__e"/>
         <var fl="d48" loc="d,48,123,48,127" name="__Vtemp_h########__0" dtype_id="4" vartype="string" origName="__Vtemp_h########__0"/>
@@ -1399,7 +1398,7 @@
         <cstmt fl="d10" loc="d,10,8,10,9">
           <text fl="d10" loc="d,10,8,10,9"/>
         </cstmt>
-        <ccall fl="d10" loc="d,10,8,10,9" func="_combo__TOP__1"/>
+        <ccall fl="a0" loc="a,0,0,0,0" func="_combo__TOP__1"/>
         <if fl="d60" loc="d,60,11,60,12">
           <and fl="d60" loc="d,60,14,60,21" dtype_id="8">
             <ccast fl="d60" loc="d,60,14,60,21" dtype_id="8">
@@ -1412,7 +1411,7 @@
             </not>
           </and>
           <begin>
-            <ccall fl="d60" loc="d,60,4,60,10" func="_sequent__TOP__2"/>
+            <ccall fl="d60" loc="d,60,4,60,10" func="_sequent__TOP__3"/>
           </begin>
         </if>
         <assign fl="d14" loc="d,14,10,14,13" dtype_id="8">
@@ -1425,9 +1424,11 @@
           <varref fl="d14" loc="d,14,10,14,13" name="clk" dtype_id="8"/>
           <varref fl="d14" loc="d,14,10,14,13" name="__Vclklast__TOP__clk" dtype_id="8"/>
         </assign>
-        <ccall fl="d22" loc="d,22,19,22,20" func="_initial__TOP__3"/>
+        <ccall fl="d22" loc="d,22,19,22,20" func="_initial__TOP__4"/>
       </cfunc>
-      <cfunc fl="d10" loc="d,10,8,10,9" name="_eval_settle"/>
+      <cfunc fl="d10" loc="d,10,8,10,9" name="_eval_settle">
+        <ccall fl="a0" loc="a,0,0,0,0" func="_combo__TOP__1"/>
+      </cfunc>
       <cfunc fl="d10" loc="d,10,8,10,9" name="_final"/>
       <cfunc fl="d10" loc="d,10,8,10,9" name="_eval_debug_assertions">
         <if fl="d14" loc="d,14,10,14,13">

@@ -499,6 +499,9 @@ private:
     virtual void visit(AstAssignW* nodep) override {  //
         iterateNewStmt(nodep, nullptr, nullptr);
     }
+    virtual void visit(AstResumeTriggered* nodep) override {  //
+        iterateNewStmt(nodep, "ResumeTriggered", "ResumeTriggered");
+    }
     virtual void visit(AstCoverToggle* nodep) override {
         iterateNewStmt(nodep, "CoverToggle", "CoverToggle");
     }
@@ -514,9 +517,6 @@ private:
                       && VN_AS(nodep->backp(), NodeAssign)->lhsp() == nodep),
                     nodep, "Concat on LHS of assignment; V3Const should have deleted it");
         iterateChildren(nodep);
-    }
-    virtual void visit(AstAlwaysDelayed* nodep) VL_OVERRIDE {
-        iterateNewStmt(nodep, nullptr, "alwaysDelayed");
     }
 
     //--------------------

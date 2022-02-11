@@ -92,21 +92,21 @@ struct DelayedQueue {
     }
 };
 
-using Event = CData*;
+using Event = CData;
 
-using EventSet = std::unordered_set<Event>;
+using EventSet = std::unordered_set<Event*>;
 
 struct EventSetToCoroMap {
 private:
     struct Hash {
         size_t operator()(const EventSet& set) const {
             size_t result = 0;
-            for (auto event : set) result ^= std::hash<Event>()(event);
+            for (auto event : set) result ^= std::hash<Event*>()(event);
             return result;
         }
     };
     std::unordered_multimap<EventSet, std::coroutine_handle<>, Hash> eventSetsToCoros;
-    std::unordered_multimap<Event, EventSet> eventsToEventSets;
+    std::unordered_multimap<Event*, EventSet> eventsToEventSets;
 
     void move(const EventSet& events, std::vector<std::coroutine_handle<>>& coros) {
         auto range = eventSetsToCoros.equal_range(events);
@@ -115,7 +115,7 @@ private:
     }
 
 public:
-    void move(Event event, std::vector<std::coroutine_handle<>>& coros) {
+    void move(Event* event, std::vector<std::coroutine_handle<>>& coros) {
         auto range = eventsToEventSets.equal_range(event);
         for (auto it = range.first; it != range.second; ++it) move(it->second, coros);
     }
@@ -134,7 +134,7 @@ public:
 struct EventDispatcher {
 private:
     EventSetToCoroMap eventSetsToCoros;
-    std::vector<Event> triggeredEvents;
+    std::vector<Event*> triggeredEvents;
     std::vector<std::coroutine_handle<>> primedCoros;
     VerilatedMutex m_mutex;
 
@@ -149,8 +149,16 @@ public:
 
     void primeTriggered() {
         VerilatedLockGuard guard{m_mutex};
-        std::vector<Event> queue = std::move(triggeredEvents);
+        std::vector<Event*> queue = std::move(triggeredEvents);
         for (auto event : queue) eventSetsToCoros.move(event, primedCoros);
+    }
+
+    void resumeTriggered(Event& dlyEvent) {
+        do {
+            resumeTriggered();
+            trigger(dlyEvent);
+            primeTriggered();
+        } while (!primedEmpty());
     }
 
     void resumeTriggered() {
@@ -174,10 +182,10 @@ public:
         return eventSetsToCoros.contains(events);
     }
 
-    void trigger(Event event) {
-        *event = 1;
+    void trigger(Event& event) {
+        event = 1;
         const VerilatedLockGuard guard{m_mutex};
-        triggeredEvents.push_back(event);
+        triggeredEvents.push_back(&event);
     }
 
     auto operator[](EventSet&& events) {

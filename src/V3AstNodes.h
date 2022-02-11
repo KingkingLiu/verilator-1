@@ -3387,15 +3387,6 @@ public:
     ASTNODE_NODE_FUNCS(AlwaysPostponed)
 };
 
-class AstAlwaysDelayed final : public AstNodeProcedure {
-    // Like always but delayed scheduling region
-
-public:
-    AstAlwaysDelayed(FileLine* fl, AstNode* bodysp)
-        : ASTGEN_SUPER_AlwaysDelayed(fl, bodysp) {}
-    ASTNODE_NODE_FUNCS(AlwaysDelayed)
-};
-
 class AstAlwaysPost final : public AstNodeProcedure {
     // Like always but post assignments for memory assignment IFs
 public:
@@ -4650,9 +4641,15 @@ public:
 
 class AstResumeTriggered final : public AstNodeStmt {
 public:
-    explicit AstResumeTriggered(FileLine* fl)
-        : ASTGEN_SUPER_ResumeTriggered(fl) {}
+    explicit AstResumeTriggered(FileLine* fl, AstNode* dlyEventVarscp)
+        : ASTGEN_SUPER_ResumeTriggered(fl) {
+        setNOp1p(dlyEventVarscp);
+    }
     ASTNODE_NODE_FUNCS(ResumeTriggered)
+    AstNode* dlyEventVarscp() const { return op1p(); }
+    virtual bool isGateOptimizable() const override { return false; }
+    virtual bool isPredictOptimizable() const override { return false; }
+    virtual bool isSubstOptimizable() const override { return false; }
 };
 
 class AstGenIf final : public AstNodeIf {

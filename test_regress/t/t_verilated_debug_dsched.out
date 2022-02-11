@@ -12,6 +12,7 @@ internalsDump:
   Data: w96: 000000aa 000000bb 000000cc 
 -V{t#,#}+ Initial loop
 -V{t#,#}+    Vt_verilated_debug___024root___eval_settle
+-V{t#,#}+    Vt_verilated_debug___024root___combo__TOP__2
 -V{t#,#}+    Vt_verilated_debug___024root___eval
 -V{t#,#}+    Vt_verilated_debug___024root___combo__TOP__2
 -V{t#,#}+ Clock loop
@@ -22,6 +23,6 @@ internalsDump:
 -V{t#,#}+ Clock loop
 -V{t#,#}+    Vt_verilated_debug___024root___eval
 -V{t#,#}+    Vt_verilated_debug___024root___combo__TOP__2
--V{t#,#}+    Vt_verilated_debug___024root___sequent__TOP__3
+-V{t#,#}+    Vt_verilated_debug___024root___sequent__TOP__4
 *-* All Finished *-*
 -V{t#,#}+    Vt_verilated_debug___024root___final

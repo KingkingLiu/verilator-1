@@ -17,7 +17,7 @@ compile(
 if ($Self->{vlt_all}) {
     file_grep($Self->{stats}, qr/Optimizations, Tables created\s+(\d+)/i, 10);
     file_grep($Self->{stats}, qr/Optimizations, Combined CFuncs\s+(\d+)/i,
-              ($Self->{vltmt} ? 0 : 8));
+              ($Self->{vltmt} ? 0 : ($Self->{dynamic_scheduler} ? 9 : 8)));
 }
 
 execute(

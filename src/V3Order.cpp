@@ -394,8 +394,6 @@ class OrderBuildVisitor final : public AstNVisitor {
     bool m_inPost = false;  // Underneath AstAssignPost/AstAlwaysPost
     bool m_inPostponed = false;  // Underneath AstAlwaysPostponed
 
-    SenTreeFinder m_finder;
-
     OrderEitherVertex* m_eventTriggerVxp = nullptr;
     OrderEitherVertex* m_postponedVxp = nullptr;
 
@@ -466,7 +464,8 @@ class OrderBuildVisitor final : public AstNVisitor {
 
         // Ignore the sensitivity domain for combinational logic. We will assign combinational
         // logic to a domain later, based on the domains of incoming variables.
-        if (!nodep->sensesp()->hasCombo()) m_domainp = nodep->sensesp();
+        if (!nodep->sensesp()->hasCombo() || VN_IS(nodep->stmtsp(), ResumeTriggered))
+            m_domainp = nodep->sensesp();
 
         // Analyze logic underneath
         iterateChildren(nodep);
@@ -668,21 +667,18 @@ class OrderBuildVisitor final : public AstNVisitor {
         iterateLogic(nodep);
         m_inPost = false;
     }
-    virtual void visit(AstAlwaysDelayed* nodep) override {
+    virtual void visit(AstResumeTriggered* nodep) override {
         UASSERT_OBJ(!m_logicVxp, nodep, "Should not nest");
         // Reset VarUsage
         AstNode::user2ClearTree();
         // Create LogicVertex for this logic node
-        auto* comboDomainp = m_finder.getComb();
-        m_logicVxp = new OrderLogicVertex(m_graphp, m_scopep, comboDomainp, nodep);
+        m_logicVxp = new OrderLogicVertex(m_graphp, m_scopep, m_domainp, nodep);
+        new OrderEdge(m_graphp, m_eventTriggerVxp, m_logicVxp, WEIGHT_NORMAL);
         new OrderEdge(m_graphp, m_logicVxp, m_postponedVxp, WEIGHT_NORMAL);
         // Gather variable dependencies based on usage
         iterateChildren(nodep);
         // Finished with this logic
         m_logicVxp = nullptr;
-    }
-    virtual void visit(AstResumeTriggered* nodep) override {
-        new OrderEdge(m_graphp, m_eventTriggerVxp, m_logicVxp, WEIGHT_NORMAL);
     }
     virtual void visit(AstEventTrigger* nodep) override {
         new OrderEdge(m_graphp, m_logicVxp, m_eventTriggerVxp, WEIGHT_NORMAL);
@@ -751,8 +747,7 @@ class OrderBuildVisitor final : public AstNVisitor {
     virtual void visit(AstNode* nodep) override { iterateChildren(nodep); }
 
     // CONSTRUCTOR
-    OrderBuildVisitor(AstNetlist* nodep)
-        : m_finder{nodep} {
+    OrderBuildVisitor(AstNetlist* nodep) {
         // Enable debugging (3 is default if global debug; we want acyc debugging)
         if (debug()) m_graphp->debug(5);
 
@@ -2006,7 +2001,7 @@ void OrderProcess::processMTasks() {
         int leafStmts = 0;
         bool exclusive = false;
         for (const OrderLogicVertex* logicp : state.m_logics) {
-            if (VN_IS(logicp->nodep(), AlwaysDelayed)) exclusive = true;
+            if (VN_IS(logicp->nodep(), ResumeTriggered)) exclusive = true;
             if (logicp->domainp() != last_domainp) {
                 // Start a new leaf function.
                 leafCFuncp = nullptr;

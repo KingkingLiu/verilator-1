@@ -371,12 +371,6 @@ private:
         iterateChildren(nodep);
         m_scopep = nullptr;
     }
-    virtual void visit(AstTopScope* nodep) override {
-        iterateChildren(nodep);
-        auto* activep
-            = new AstAlwaysDelayed{nodep->fileline(), new AstResumeTriggered{nodep->fileline()}};
-        nodep->scopep()->addActivep(activep);
-    }
     virtual void visit(AstAlways* nodep) override {
         auto* sensesp = nodep->sensesp();
         // Transform if the process is marked and has no sentree
@@ -639,9 +633,6 @@ private:
         m_scopep->modp()->addStmtp(newvarp);
         auto* newvscp = new AstVarScope{fl, m_scopep, newvarp};
         m_scopep->addVarp(newvscp);
-        auto* triggerp = new AstEventTrigger{fl, new AstVarRef{fl, newvscp, VAccess::WRITE}};
-        auto* activep = new AstAlwaysDelayed{fl, triggerp};
-        m_scopep->addActivep(activep);
         return m_dlyEvent = newvscp;
     }
 
@@ -703,6 +694,9 @@ private:
     virtual void visit(AstNode* nodep) override { iterateChildren(nodep); }
 
 public:
+    // METHODS
+    AstVarScope* getDlyEvent() { return m_dlyEvent; }
+
     // CONSTRUCTORS
     explicit DynamicSchedulerAssignDlyVisitor(AstNetlist* nodep) { iterate(nodep); }
     virtual ~DynamicSchedulerAssignDlyVisitor() override {}
@@ -967,7 +961,18 @@ void V3DynamicScheduler::transformProcesses(AstNetlist* nodep) {
     { DynamicSchedulerAlwaysVisitor visitor(nodep); }
     V3Global::dumpCheckGlobalTree("dsch_always", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 6);
     UINFO(2, "  Transform AssignDlys in Suspendable Processes...\n");
-    { DynamicSchedulerAssignDlyVisitor visitor(nodep); }
+    {
+        DynamicSchedulerAssignDlyVisitor visitor(nodep);
+        UINFO(2, "  Add AstResumeTriggered...\n");
+        auto fl = nodep->fileline();
+        auto* activep = new AstActive{fl, "resumeTriggered",
+                                      new AstSenTree{fl, new AstSenItem{fl, AstSenItem::Combo()}}};
+        activep->sensesStorep(activep->sensesp());
+        activep->addStmtsp(new AstResumeTriggered{
+            fl, visitor.getDlyEvent() ? new AstVarRef{fl, visitor.getDlyEvent(), VAccess::WRITE}
+                                      : nullptr});
+        nodep->topScopep()->scopep()->addActivep(activep);
+    }
     V3Global::dumpCheckGlobalTree("dsch_dly", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 6);
     UINFO(2, "  Wrap Processes...\n");
     { DynamicSchedulerWrapProcessVisitor visitor(nodep); }

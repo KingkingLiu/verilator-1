@@ -832,12 +832,14 @@ public:
     }
     virtual void visit(AstSenItem* nodep) override { iterateAndNextNull(nodep->sensp()); }
     virtual void visit(AstEventTrigger* nodep) override {
-        puts("vlSymsp->__Vm_eventDispatcher.trigger({&");
+        puts("vlSymsp->__Vm_eventDispatcher.trigger(");
         iterateNull(nodep->trigp());
-        puts("});\n");
+        puts(");\n");
     }
     virtual void visit(AstResumeTriggered* nodep) override {
-        puts("vlSymsp->__Vm_eventDispatcher.resumeTriggered();\n");
+        puts("vlSymsp->__Vm_eventDispatcher.resumeTriggered(");
+        iterateNull(nodep->dlyEventVarscp());
+        puts(");\n");
     }
     virtual void visit(AstWhile* nodep) override {
         iterateAndNextNull(nodep->precondsp());
