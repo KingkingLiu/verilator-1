@@ -2226,11 +2226,13 @@ public:
     void edgeEvent(VEdgeType edgeType, AstVarScope* varscp) {
         m_edgeEvents.insert(std::make_pair(edgeType, varscp));
     }
-    AstVarScope* edgeEvent(VEdgeType edgeType) {
+    AstVarScope* edgeEvent(VEdgeType edgeType) const {
         auto it = m_edgeEvents.find(edgeType);
         if (it != m_edgeEvents.end()) return it->second;
         return nullptr;
     }
+    bool hasEdgeEvents() const { return !m_edgeEvents.empty(); }
+    bool isEventValue() const { return basicp() && basicp()->isEventValue(); }
     virtual string verilogKwd() const override;
     void lifetime(const VLifetime& flag) { m_lifetime = flag; }
     VLifetime lifetime() const { return m_lifetime; }

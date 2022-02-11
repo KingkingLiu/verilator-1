@@ -28,14 +28,17 @@
 //          Mark it for dynamic scheduling
 //
 //      Each always process:
+//          If marked and has no sentree:
+//              Transform process into an initial process with a body like this:
+//                  forever
+//                      process_body;
 //          If waiting on a marked variable:
 //              Transform process into an initial process with a body like this:
-//                  forever begin
+//                  forever
 //                      @(sensp) begin
 //                          process_body;
 //                      end
-//                  end
-//          Mark it
+//              Mark it
 //
 //      Each AssignDly:
 //          If in marked process:
@@ -100,7 +103,6 @@ static AstVarScope* getCreateEvent(AstVarScope* vscp, VEdgeType edgeType) {
     newvarp->sigPublic(true);
     vscp->scopep()->modp()->addStmtp(newvarp);
     auto* newvscp = new AstVarScope{vscp->fileline(), vscp->scopep(), newvarp};
-    vscp->user1p(newvscp);
     vscp->scopep()->addVarp(newvscp);
     vscp->varp()->edgeEvent(edgeType, newvscp);
     return newvscp;
@@ -377,16 +379,31 @@ private:
     }
     virtual void visit(AstAlways* nodep) override {
         auto* sensesp = nodep->sensesp();
-        if (sensesp && sensesp->sensesp()
-            && sensesp->sensesp()->varrefp() && sensesp->sensesp()->varrefp()->varp()->isDynamic()
-            && nodep->bodysp()) {
-            auto* eventp = getCreateEvent(sensesp->sensesp()->varrefp()->varScopep(),
-                                          VEdgeType::ET_ANYEDGE);
+        // Transform if the process is marked and has no sentree
+        bool transform = !sensesp && nodep->bodysp() && nodep->user1();
+        // Transform if the process is waiting on a dynamic var
+        if (!transform)
+            transform = sensesp && sensesp->sensesp() && sensesp->sensesp()->varrefp()
+                        && sensesp->sensesp()->varrefp()->varp()->isDynamic();
+        if (transform) {
             auto fl = nodep->fileline();
-            auto* beginp = new AstBegin{fl, "", nodep->bodysp()->unlinkFrBackWithNext()};
-            auto* whilep
-                = new AstWhile{fl, new AstConst{fl, AstConst::BitTrue()},
-                               new AstTimingControl{fl, sensesp->cloneTree(false), beginp}};
+            auto* bodysp = nodep->bodysp();
+            if (bodysp) bodysp->unlinkFrBackWithNext();
+            if (sensesp) {
+                sensesp = sensesp->cloneTree(false);
+                for (auto* senitemp = sensesp->sensesp(); senitemp;
+                     senitemp = VN_CAST(senitemp->nextp(), SenItem)) {
+                    if (senitemp->varrefp()->varp()->isEventValue()) continue;
+                    auto* eventp
+                        = getCreateEvent(senitemp->varrefp()->varScopep(), senitemp->edgeType());
+                    senitemp->varrefp()->varScopep(eventp);
+                    senitemp->varrefp()->varp(eventp->varp());
+                    senitemp->edgeType(VEdgeType::ET_ANYEDGE);
+                }
+                bodysp = new AstBegin{fl, "", bodysp};
+                bodysp = new AstTimingControl{fl, sensesp, bodysp};
+            }
+            auto* whilep = new AstWhile{fl, new AstConst{fl, AstConst::BitTrue()}, bodysp};
             auto* initialp = new AstInitial{fl, whilep};
             initialp->user1(true);
             nodep->replaceWith(initialp);
@@ -730,7 +747,7 @@ private:
             auto fl = nodep->fileline();
             AstNode* senitemsp = nullptr;
             for (auto* vscp : m_waitVars) {
-                AstVarScope* eventp = vscp->varp()->dtypep()->basicp()->isEventValue()
+                AstVarScope* eventp = vscp->varp()->isEventValue()
                                           ? vscp
                                           : getCreateEvent(vscp, VEdgeType::ET_ANYEDGE);
                 senitemsp = AstNode::addNext(
@@ -762,7 +779,7 @@ private:
             nodep->varp()->user1(true);
             m_waitVars.insert(nodep->varScopep());
         } else if (m_inTimingControlSens) {
-            if (!nodep->varp()->dtypep()->basicp()->isEventValue()) {
+            if (!nodep->varp()->isEventValue()) {
                 nodep->varp()->user1(true);
                 auto edgeType = VN_CAST(nodep->backp(), SenItem)->edgeType();
                 nodep->varScopep(getCreateEvent(nodep->varScopep(), edgeType));
@@ -775,7 +792,7 @@ private:
             nodep->varp()->user1(true);
             m_waitVars.insert(VN_CAST(nodep->fromp(), VarRef)->varScopep());
         } else if (m_inTimingControlSens) {
-            if (!nodep->varp()->dtypep()->basicp()->isEventValue()) {
+            if (!nodep->varp()->isEventValue()) {
                 nodep->varp()->user1(true);
                 auto edgeType = VN_CAST(nodep->backp(), SenItem)->edgeType();
                 nodep->replaceWith(new AstVarRef(
@@ -845,7 +862,7 @@ private:
         if (nodep->user2SetOnce()) return;
         if (auto* varrefp = VN_CAST(nodep->lhsp(), VarRef)) {
             auto fl = nodep->fileline();
-            if (varrefp->varp()->user1()) {
+            if (varrefp->varp()->hasEdgeEvents()) {
                 auto* newvscp
                     = getCreateVar(varrefp->varScopep(), "__Vprevval" + std::to_string(m_count++)
                                                              + "__" + varrefp->name());
