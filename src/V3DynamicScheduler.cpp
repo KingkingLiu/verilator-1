@@ -19,7 +19,7 @@
 //          Mark containing task for dynamic scheduling
 //          Mark containing process for dynamic scheduling
 //      Each Task:
-//          If it's virtual, mark it
+//          If it's virtual and any overriding task is marked, mark it
 //      Each task calling a marked task:
 //          Mark it for dynamic scheduling
 //      Each process calling a marked task:
@@ -116,15 +116,23 @@ private:
     //  AstNode::user1()      -> bool.  Set true if process/function uses constructs like delays,
     //                                  timing controls, waits, forks
     AstUser1InUse m_inuser1;
+    //  AstCFunc::user2()      -> bool.  Set true if node has been processed
+    AstUser2InUse m_inuser2;
 
     // STATE
     AstNode* m_proc = nullptr;
+    AstClass* m_classp = nullptr;
     bool repeat = false;
 
     // METHODS
     VL_DEBUG_FUNC;  // Declare debug()
 
     // VISITORS
+    virtual void visit(AstClass* nodep) override {
+        VL_RESTORER(m_classp);
+        m_classp = nodep;
+        iterateChildren(nodep);
+    }
     virtual void visit(AstNodeProcedure* nodep) override {
         VL_RESTORER(m_proc);
         {
@@ -147,14 +155,26 @@ private:
     }
     virtual void visit(AstCFunc* nodep) override {
         VL_RESTORER(m_proc);
-        {
-            m_proc = nodep;
-            if (!nodep->user1()) {
-                if (nodep->isVirtual())
-                    nodep->user1(true);
-                else
-                    iterateChildren(nodep);
-                if (nodep->user1()) repeat = true;
+        m_proc = nodep;
+        if (!nodep->user1()) {
+            iterateChildren(nodep);
+            if (nodep->user1()) repeat = true;
+        }
+        if (nodep->user1()) {
+            nodep->rtnType("CoroutineTask");
+            if (nodep->isVirtual()) {
+                if (nodep->user2SetOnce()) return;
+                for (auto* cextp = m_classp->extendsp(); cextp;
+                     cextp = VN_CAST(cextp->nextp(), ClassExtends)) {
+                    for (AstNode* itemp = VN_CAST(cextp->classp()->membersp(), Scope)->blocksp();
+                         itemp; itemp = itemp->nextp()) {
+                        if (itemp->name() == nodep->name()) {
+                            itemp->user1(true);
+                            repeat = true;
+                            break;
+                        }
+                    }
+                }
             }
         }
     }
