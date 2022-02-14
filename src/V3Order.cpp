@@ -1814,16 +1814,14 @@ AstActive* OrderProcess::processMoveOneLogic(const OrderLogicVertex* lvertexp,
         // Process procedures per statement (unless profCFuncs), so we can split CFuncs within
         // procedures. Everything else is handled in one go
         AstNodeProcedure* const procp = VN_CAST(nodep, NodeProcedure);
+        bool dynamicScheduling = false;
         if (procp && !v3Global.opt.profCFuncs()) {
+            dynamicScheduling = procp->isDynamic();
             nodep = procp->bodysp();
             pushDeletep(procp);
         }
 
-        bool dynamicScheduling = false;
-        if (v3Global.opt.dynamicScheduler() && VN_IS(nodep, Begin)) {
-            dynamicScheduling = true;
-            newFuncpr = nullptr;  // Split separate processes
-        }
+        if (dynamicScheduling) newFuncpr = nullptr;  // Split separate processes
 
         while (nodep) {
             // Make or borrow a CFunc to contain the new statements

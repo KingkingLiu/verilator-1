@@ -269,7 +269,7 @@ public:
 
 //######################################################################
 
-class DynamicSchedulerWrapProcessVisitor final : public AstNVisitor {
+class DynamicSchedulerMarkProcessesVisitor final : public AstNVisitor {
 private:
     // NODE STATE
     //  AstNodeProcedure::user1()      -> bool.  Set true if 'dynamic' (shouldn't be split up)
@@ -280,11 +280,7 @@ private:
 
     // VISITORS
     virtual void visit(AstNodeProcedure* nodep) override {
-        if (nodep->user1()) {
-            // Prevent splitting by wrapping body in an AstBegin
-            auto* bodysp = nodep->bodysp()->unlinkFrBackWithNext();
-            nodep->addStmtp(new AstBegin{nodep->fileline(), "", bodysp});
-        }
+        if (nodep->user1()) nodep->isDynamic(true);
     }
 
     //--------------------
@@ -292,8 +288,8 @@ private:
 
 public:
     // CONSTRUCTORS
-    explicit DynamicSchedulerWrapProcessVisitor(AstNetlist* nodep) { iterate(nodep); }
-    virtual ~DynamicSchedulerWrapProcessVisitor() override {}
+    explicit DynamicSchedulerMarkProcessesVisitor(AstNetlist* nodep) { iterate(nodep); }
+    virtual ~DynamicSchedulerMarkProcessesVisitor() override {}
 };
 
 //######################################################################
@@ -876,59 +872,47 @@ private:
         if (nodep->user2SetOnce()) return;
         if (auto* varrefp = VN_CAST(nodep->lhsp(), VarRef)) {
             auto fl = nodep->fileline();
-            if (varrefp->varp()->hasEdgeEvents()) {
-                auto* newvscp
-                    = getCreateVar(varrefp->varScopep(), "__Vprevval" + std::to_string(m_count++)
-                                                             + "__" + varrefp->name());
-                AstNode* stmtspAfter = nullptr;
+            if (!varrefp->varp()->hasEdgeEvents()) return;
+            auto* newvscp
+                = getCreateVar(varrefp->varScopep(),
+                               "__Vprevval" + std::to_string(m_count++) + "__" + varrefp->name());
+            AstNode* stmtspAfter = nullptr;
 
-                if (auto* eventp = varrefp->varp()->edgeEvent(VEdgeType::ET_POSEDGE)) {
-                    stmtspAfter = AstNode::addNext(
-                        stmtspAfter,
-                        new AstIf{
-                            fl,
-                            new AstAnd{
-                                fl, new AstLogNot{fl, new AstVarRef{fl, newvscp, VAccess::READ}},
-                                new AstVarRef{fl, varrefp->varScopep(), VAccess::READ}},
-                            new AstEventTrigger{fl, new AstVarRef{fl, eventp, VAccess::WRITE}}});
-                }
-
-                if (auto* eventp = varrefp->varp()->edgeEvent(VEdgeType::ET_NEGEDGE)) {
-                    stmtspAfter = AstNode::addNext(
-                        stmtspAfter,
-                        new AstIf{
-                            fl,
-                            new AstAnd{fl, new AstVarRef{fl, newvscp, VAccess::READ},
-                                       new AstLogNot{fl, new AstVarRef{fl, varrefp->varScopep(),
-                                                                       VAccess::READ}}},
-                            new AstEventTrigger{fl, new AstVarRef{fl, eventp, VAccess::WRITE}}});
-                }
-
-                if (auto* eventp = varrefp->varp()->edgeEvent(VEdgeType::ET_ANYEDGE)) {
-                    stmtspAfter = AstNode::addNext(
-                        stmtspAfter,
-                        new AstIf{
-                            fl,
-                            new AstNeq{fl, new AstVarRef{fl, newvscp, VAccess::READ},
-                                       new AstVarRef{fl, varrefp->varScopep(), VAccess::READ}},
-                            new AstEventTrigger{fl, new AstVarRef{fl, eventp, VAccess::WRITE}}});
-                }
-
-                if (stmtspAfter) {
-                    auto* stmtspBefore
-                        = new AstAssign{fl, new AstVarRef{fl, newvscp, VAccess::WRITE},
-                                        new AstVarRef{fl, varrefp->varScopep(), VAccess::READ}};
-                    if (!VN_IS(nodep, Assign)) {
-                        nodep->addHereThisAsNext(new AstAlways{
-                            nodep->fileline(), VAlwaysKwd::ALWAYS, nullptr, stmtspBefore});
-                        nodep->addNextHere(new AstAlways{nodep->fileline(), VAlwaysKwd::ALWAYS,
-                                                         nullptr, stmtspAfter});
-                    } else {
-                        nodep->addHereThisAsNext(stmtspBefore);
-                        nodep->addNextHere(stmtspAfter);
-                    }
-                }
+            if (auto* eventp = varrefp->varp()->edgeEvent(VEdgeType::ET_POSEDGE)) {
+                stmtspAfter = AstNode::addNext(
+                    stmtspAfter,
+                    new AstIf{fl,
+                              new AstAnd{
+                                  fl, new AstLogNot{fl, new AstVarRef{fl, newvscp, VAccess::READ}},
+                                  new AstVarRef{fl, varrefp->varScopep(), VAccess::READ}},
+                              new AstEventTrigger{fl, new AstVarRef{fl, eventp, VAccess::WRITE}}});
             }
+
+            if (auto* eventp = varrefp->varp()->edgeEvent(VEdgeType::ET_NEGEDGE)) {
+                stmtspAfter = AstNode::addNext(
+                    stmtspAfter,
+                    new AstIf{fl,
+                              new AstAnd{fl, new AstVarRef{fl, newvscp, VAccess::READ},
+                                         new AstLogNot{fl, new AstVarRef{fl, varrefp->varScopep(),
+                                                                         VAccess::READ}}},
+                              new AstEventTrigger{fl, new AstVarRef{fl, eventp, VAccess::WRITE}}});
+            }
+
+            if (auto* eventp = varrefp->varp()->edgeEvent(VEdgeType::ET_ANYEDGE)) {
+                stmtspAfter = AstNode::addNext(
+                    stmtspAfter,
+                    new AstIf{fl,
+                              new AstNeq{fl, new AstVarRef{fl, newvscp, VAccess::READ},
+                                         new AstVarRef{fl, varrefp->varScopep(), VAccess::READ}},
+                              new AstEventTrigger{fl, new AstVarRef{fl, eventp, VAccess::WRITE}}});
+            }
+
+            UASSERT(stmtspAfter, "Unhandled edge event!");
+            auto* stmtspBefore
+                = new AstAssign{fl, new AstVarRef{fl, newvscp, VAccess::WRITE},
+                                new AstVarRef{fl, varrefp->varScopep(), VAccess::READ}};
+            nodep->addHereThisAsNext(stmtspBefore);
+            nodep->addNextHere(stmtspAfter);
         }
     }
     virtual void visit(AstVarScope* nodep) override {
@@ -972,7 +956,8 @@ public:
 //######################################################################
 // DynamicScheduler class functions
 
-void V3DynamicScheduler::transformProcesses(AstNetlist* nodep) {
+void V3DynamicScheduler::processes(AstNetlist* nodep) {
+    UINFO(2, __FUNCTION__ << ": " << endl);
     UINFO(2, "  Transform Intra Assign Delays...\n");
     { DynamicSchedulerIntraAssignDelayVisitor visitor(nodep); }
     DynamicSchedulerMarkDynamicVisitor visitor(nodep);
@@ -994,15 +979,15 @@ void V3DynamicScheduler::transformProcesses(AstNetlist* nodep) {
         nodep->topScopep()->scopep()->addActivep(activep);
     }
     V3Global::dumpCheckGlobalTree("dsch_dly", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 6);
-    UINFO(2, "  Wrap Processes...\n");
-    { DynamicSchedulerWrapProcessVisitor visitor(nodep); }
+    UINFO(2, "  Mark Processes...\n");
+    { DynamicSchedulerMarkProcessesVisitor visitor(nodep); }
     V3Global::dumpCheckGlobalTree("dsch_wrap", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 6);
     UINFO(2, "  Move Forked Processes to New Functions...\n");
     { DynamicSchedulerForkVisitor visitor(nodep); }
-    V3Global::dumpCheckGlobalTree("dsch_proc", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 3);
+    V3Global::dumpCheckGlobalTree("dsch_fork", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 6);
 }
 
-void V3DynamicScheduler::prepareEvents(AstNetlist* nodep) {
+void V3DynamicScheduler::events(AstNetlist* nodep) {
     UINFO(2, __FUNCTION__ << ": " << endl);
     UINFO(2, "  Add Edge Events...\n");
     DynamicSchedulerCreateEventsVisitor createEventsVisitor(nodep);
@@ -1013,6 +998,5 @@ void V3DynamicScheduler::prepareEvents(AstNetlist* nodep) {
     V3Global::dumpCheckGlobalTree("dsch_add_triggers", 0,
                                   v3Global.opt.dumpTreeLevel(__FILE__) >= 6);
     UINFO(2, "  Done.\n");
-    V3Global::dumpCheckGlobalTree("dsch_prep_events", 0,
-                                  v3Global.opt.dumpTreeLevel(__FILE__) >= 3);
+    V3Global::dumpCheckGlobalTree("dsch", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 3);
 }

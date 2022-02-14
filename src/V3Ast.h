@@ -2207,6 +2207,9 @@ public:
 
 class AstNodeProcedure VL_NOT_FINAL : public AstNode {
     // IEEE procedure: initial, final, always
+private:
+    bool m_dynamic = false;
+
 protected:
     AstNodeProcedure(AstType t, FileLine* fl, AstNode* bodysp)
         : AstNode{t, fl} {
@@ -2220,6 +2223,8 @@ public:
     AstNode* bodysp() const { return op2p(); }  // op2 = Statements to evaluate
     void addStmtp(AstNode* nodep) { addOp2p(nodep); }
     bool isJustOneBodyStmt() const { return bodysp() && !bodysp()->nextp(); }
+    bool isDynamic() const { return m_dynamic; }
+    void isDynamic(bool flag) { m_dynamic = flag; }
 };
 
 class AstNodeStmt VL_NOT_FINAL : public AstNode {

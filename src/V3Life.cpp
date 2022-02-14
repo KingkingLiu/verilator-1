@@ -286,8 +286,6 @@ private:
     VL_DEBUG_FUNC;  // Declare debug()
 
     // VISITORS
-    virtual void visit(AstEventTrigger* nodep) override {}
-    virtual void visit(AstBegin* nodep) override {}
     virtual void visit(AstVarRef* nodep) override {
         // Consumption/generation of a variable,
         // it's used so can't elim assignment before this use.
@@ -325,6 +323,10 @@ private:
     virtual void visit(AstAssignDly* nodep) override {
         // Don't treat as normal assign; V3Life doesn't understand time sense
         iterateChildren(nodep);
+    }
+    virtual void visit(AstNodeProcedure* nodep) override {
+        // Ignore dynamic processes; V3Life doesn't understand time sense
+        if (nodep->isDynamic()) return;
     }
 
     //---- Track control flow changes
@@ -415,6 +417,7 @@ private:
     virtual void visit(AstCFunc* nodep) override {
         // UINFO(4, "  CFUNC " << nodep << endl);
         if (!m_tracingCall && !nodep->entryPoint()) return;
+        if (nodep->isCoroutine()) return;
         m_tracingCall = false;
         if (nodep->dpiImportPrototype() && !nodep->pure()) {
             m_sideEffect = true;  // If appears on assign RHS, don't ever delete the assignment

@@ -298,7 +298,7 @@ static void process() {
     }
 
     if (v3Global.opt.dynamicScheduler() && !v3Global.opt.xmlOnly() && !v3Global.opt.lintOnly()) {
-        V3DynamicScheduler::transformProcesses(v3Global.rootp());
+        V3DynamicScheduler::processes(v3Global.rootp());
     }
 
     if (!v3Global.opt.xmlOnly()) {
@@ -349,6 +349,11 @@ static void process() {
                    "This may cause ordering problems.");
         }
 
+        if (v3Global.opt.dynamicScheduler() && !v3Global.opt.xmlOnly()
+            && !v3Global.opt.lintOnly()) {
+            V3DynamicScheduler::events(v3Global.rootp());
+        }
+
         // Combine COVERINCs with duplicate terms
         if (v3Global.opt.coverage()) V3CoverageJoin::coverageJoin(v3Global.rootp());
 
@@ -369,11 +374,6 @@ static void process() {
         // Create delayed assignments
         // This creates lots of duplicate ACTIVES so ActiveTop needs to be after this step
         V3Delayed::delayedAll(v3Global.rootp());
-
-        if (v3Global.opt.dynamicScheduler() && !v3Global.opt.xmlOnly()
-            && !v3Global.opt.lintOnly()) {
-            V3DynamicScheduler::prepareEvents(v3Global.rootp());
-        }
 
         // Make Active's on the top level.
         // Differs from V3Active, because identical clocks may be pushed

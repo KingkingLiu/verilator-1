@@ -27,9 +27,8 @@
 
 class V3DynamicScheduler final {
 public:
-    static void handleAnyedge(AstNetlist* nodep);
-    static void transformProcesses(AstNetlist* nodep);
-    static void prepareEvents(AstNetlist* nodep);
+    static void processes(AstNetlist* nodep);
+    static void events(AstNetlist* nodep);
 };
 
 #endif  // Guard
