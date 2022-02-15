@@ -117,6 +117,15 @@ private:
     AstUser1InUse m_inuser1;
 
     // STATE
+    struct Overrides {
+        std::unordered_set<AstCFunc*> nodes;
+
+        auto begin() { return nodes.begin(); }
+        auto end() { return nodes.end(); }
+        bool operator[](AstCFunc* nodep) const { return nodes.find(nodep) != nodes.end(); }
+        void insert(AstCFunc* nodep) { nodes.insert(nodep); }
+    };
+    std::unordered_map<AstCFunc*, Overrides> m_overrides;
     AstClass* m_classp = nullptr;
     bool m_dynamic = false;
     bool m_repeat = false;
@@ -127,6 +136,13 @@ private:
     void setDynamic() {
         if (!m_dynamic) m_repeat = true;
         m_dynamic = true;
+    }
+    static AstNode* findMember(AstClass* classp, const std::string& name) {
+        for (AstNode* itemp = VN_CAST(classp->membersp(), Scope)->blocksp(); itemp;
+             itemp = itemp->nextp()) {
+            if (itemp->name() == name) return itemp;
+        }
+        return nullptr;
     }
 
     // VISITORS
@@ -180,23 +196,21 @@ private:
         VL_RESTORER(m_dynamic);
         m_dynamic = nodep->isCoroutine();
         iterateChildren(nodep);
-        if (m_dynamic) {
-            nodep->rtnType("CoroutineTask");
-            if (nodep->isVirtual()) {
-                if (nodep->user1SetOnce()) return;
-                for (auto* cextp = m_classp->extendsp(); cextp;
-                     cextp = VN_CAST(cextp->nextp(), ClassExtends)) {
-                    // TODO: also handle hierarchy downwards – so functions that override this
-                    for (AstNode* itemp = VN_CAST(cextp->classp()->membersp(), Scope)->blocksp();
-                         itemp; itemp = itemp->nextp()) {
-                        if (itemp->name() == nodep->name()) {
-                            VN_CAST(itemp, CFunc)->rtnType("CoroutineTask");
-                            m_repeat = true;
-                            break;
-                        }
-                    }
-                }
+        if (nodep->isVirtual() && !nodep->user1SetOnce()) {
+            for (auto* cextp = m_classp->extendsp(); cextp;
+                 cextp = VN_CAST(cextp->nextp(), ClassExtends)) {
+                auto* cfuncp = VN_CAST(findMember(cextp->classp(), nodep->name()), CFunc);
+                if (!cfuncp) continue;
+                m_overrides[nodep].insert(cfuncp);
+                m_overrides[cfuncp].insert(nodep);
             }
+        }
+        if (!m_dynamic) return;
+        nodep->rtnType("CoroutineTask");
+        for (auto cfuncp : m_overrides[nodep]) {
+            if (cfuncp->isCoroutine()) continue;
+            cfuncp->rtnType("CoroutineTask");
+            m_repeat = true;
         }
     }
     virtual void visit(AstDelay* nodep) override {
