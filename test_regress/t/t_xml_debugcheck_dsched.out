@@ -863,6 +863,36 @@
           <const fl="d31" loc="d,31,11,31,14" name="4&apos;h3" dtype_id="5"/>
           <varref fl="d31" loc="d,31,7,31,8" name="t.e" dtype_id="5"/>
         </assign>
+        <if fl="d36" loc="d,36,10,36,12">
+          <neq fl="d36" loc="d,36,25,36,28" dtype_id="8">
+            <const fl="d36" loc="d,36,30,36,33" name="4&apos;h4" dtype_id="5"/>
+            <arraysel fl="d36" loc="d,36,17,36,21" dtype_id="5">
+              <varref fl="d36" loc="d,36,17,36,21" name="__Venumtab_enum_next0" dtype_id="11"/>
+              <and fl="d36" loc="d,36,17,36,21" dtype_id="10">
+                <const fl="d36" loc="d,36,17,36,21" name="32&apos;h7" dtype_id="6"/>
+                <ccast fl="d36" loc="d,36,15,36,16" dtype_id="10">
+                  <varref fl="d36" loc="d,36,15,36,16" name="t.e" dtype_id="10"/>
+                </ccast>
+              </and>
+            </arraysel>
+          </neq>
+          <begin>
+            <display fl="d36" loc="d,36,42,36,48" displaytype="$write">
+              <sformatf fl="d36" loc="d,36,42,36,48" name="%%Error: t/t_enum_type_methods.v:36:  got=&apos;h%x exp=&apos;h4&#10;" dtype_id="4">
+                <arraysel fl="d36" loc="d,36,123,36,127" dtype_id="5">
+                  <varref fl="d36" loc="d,36,123,36,127" name="__Venumtab_enum_next0" dtype_id="11"/>
+                  <and fl="d36" loc="d,36,123,36,127" dtype_id="10">
+                    <const fl="d36" loc="d,36,123,36,127" name="32&apos;h7" dtype_id="6"/>
+                    <ccast fl="d36" loc="d,36,121,36,122" dtype_id="10">
+                      <varref fl="d36" loc="d,36,121,36,122" name="t.e" dtype_id="10"/>
+                    </ccast>
+                  </and>
+                </arraysel>
+              </sformatf>
+            </display>
+            <stop fl="d36" loc="d,36,140,36,145"/>
+          </begin>
+        </if>
         <if fl="d37" loc="d,37,10,37,12">
           <neq fl="d37" loc="d,37,26,37,29" dtype_id="8">
             <const fl="d37" loc="d,37,31,37,34" name="4&apos;h4" dtype_id="5"/>

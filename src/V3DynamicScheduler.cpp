@@ -113,19 +113,21 @@ static AstVarScope* getCreateEvent(AstVarScope* vscp, VEdgeType edgeType) {
 class DynamicSchedulerMarkDynamicVisitor final : public AstNVisitor {
 private:
     // NODE STATE
-    //  AstNode::user1()      -> bool.  Set true if process/function uses constructs like delays,
-    //                                  timing controls, waits, forks
+    //  AstCFunc::user1()      -> bool.  Set true if node has been processed
     AstUser1InUse m_inuser1;
-    //  AstCFunc::user2()      -> bool.  Set true if node has been processed
-    AstUser2InUse m_inuser2;
 
     // STATE
-    AstNode* m_proc = nullptr;
     AstClass* m_classp = nullptr;
-    bool repeat = false;
+    bool m_dynamic = false;
+    bool m_repeat = false;
 
     // METHODS
     VL_DEBUG_FUNC;  // Declare debug()
+
+    void setDynamic() {
+        if (!m_dynamic) m_repeat = true;
+        m_dynamic = true;
+    }
 
     // VISITORS
     virtual void visit(AstClass* nodep) override {
@@ -134,43 +136,62 @@ private:
         iterateChildren(nodep);
     }
     virtual void visit(AstNodeProcedure* nodep) override {
-        VL_RESTORER(m_proc);
-        {
-            m_proc = nodep;
-            if (!nodep->user1()) { iterateChildren(nodep); }
-        }
+        VL_RESTORER(m_dynamic);
+        m_dynamic = nodep->isDynamic();
+        iterateChildren(nodep);
+        nodep->isDynamic(m_dynamic);
     }
-    virtual void visit(AstNodeFTask* nodep) override {
-        VL_RESTORER(m_proc);
-        {
-            m_proc = nodep;
-            if (!nodep->user1()) {
-                if (nodep->isVirtual())
-                    nodep->user1(true);
-                else
-                    iterateChildren(nodep);
-                if (nodep->user1()) repeat = true;
+    virtual void visit(AstAlways* nodep) override {
+        auto* sensesp = nodep->sensesp();
+        // Transform if the process is marked and has no sentree
+        bool transform = !sensesp && nodep->bodysp() && nodep->isDynamic();
+        // Transform if the process is waiting on a dynamic var
+        if (!transform)
+            transform = sensesp && sensesp->sensesp() && sensesp->sensesp()->varrefp()
+                        && sensesp->sensesp()->varrefp()->varp()->isDynamic();
+        if (transform) {
+            auto fl = nodep->fileline();
+            auto* bodysp = nodep->bodysp();
+            if (bodysp) bodysp->unlinkFrBackWithNext();
+            if (sensesp) {
+                sensesp = sensesp->cloneTree(false);
+                for (auto* senitemp = sensesp->sensesp(); senitemp;
+                     senitemp = VN_CAST(senitemp->nextp(), SenItem)) {
+                    if (senitemp->varrefp()->varp()->isEventValue()) continue;
+                    auto* eventp
+                        = getCreateEvent(senitemp->varrefp()->varScopep(), senitemp->edgeType());
+                    senitemp->varrefp()->varScopep(eventp);
+                    senitemp->varrefp()->varp(eventp->varp());
+                    senitemp->edgeType(VEdgeType::ET_ANYEDGE);
+                }
+                bodysp = new AstBegin{fl, "", bodysp};
+                bodysp = new AstTimingControl{fl, sensesp, bodysp};
             }
+            auto* whilep = new AstWhile{fl, new AstConst{fl, AstConst::BitTrue()}, bodysp};
+            auto* initialp = new AstInitial{fl, whilep};
+            nodep->replaceWith(initialp);
+            VL_DO_DANGLING(nodep->deleteTree(), nodep);
+            visit(initialp);
+        } else {
+            visit(static_cast<AstNodeProcedure*>(nodep));
         }
     }
     virtual void visit(AstCFunc* nodep) override {
-        VL_RESTORER(m_proc);
-        m_proc = nodep;
-        if (!nodep->user1()) {
-            iterateChildren(nodep);
-            if (nodep->user1()) repeat = true;
-        }
-        if (nodep->user1()) {
+        VL_RESTORER(m_dynamic);
+        m_dynamic = nodep->isCoroutine();
+        iterateChildren(nodep);
+        if (m_dynamic) {
             nodep->rtnType("CoroutineTask");
             if (nodep->isVirtual()) {
-                if (nodep->user2SetOnce()) return;
+                if (nodep->user1SetOnce()) return;
                 for (auto* cextp = m_classp->extendsp(); cextp;
                      cextp = VN_CAST(cextp->nextp(), ClassExtends)) {
+                    // TODO: also handle hierarchy downwards – so functions that override this
                     for (AstNode* itemp = VN_CAST(cextp->classp()->membersp(), Scope)->blocksp();
                          itemp; itemp = itemp->nextp()) {
                         if (itemp->name() == nodep->name()) {
-                            itemp->user1(true);
-                            repeat = true;
+                            VN_CAST(itemp, CFunc)->rtnType("CoroutineTask");
+                            m_repeat = true;
                             break;
                         }
                     }
@@ -179,79 +200,27 @@ private:
         }
     }
     virtual void visit(AstDelay* nodep) override {
-        if (m_proc) m_proc->user1(true);
+        setDynamic();
+        iterateChildren(nodep);
     }
     virtual void visit(AstNodeAssign* nodep) override {
-        if (nodep->delayp() && m_proc) m_proc->user1(true);
+        if (nodep->delayp()) setDynamic();
+        iterateChildren(nodep);
     }
     virtual void visit(AstTimingControl* nodep) override {
-        if (m_proc) m_proc->user1(true);
+        setDynamic();
+        iterateChildren(nodep);
     }
     virtual void visit(AstWait* nodep) override {
-        if (m_proc) m_proc->user1(true);
-    }
-    virtual void visit(AstFork* nodep) override {
-        if (m_proc) m_proc->user1(m_proc->user1() || !nodep->joinType().joinNone());
-        iterateChildren(nodep);
-    }
-    virtual void visit(AstNodeFTaskRef* nodep) override {
-        if (m_proc && nodep->taskp()->user1()) m_proc->user1(true);
-    }
-    virtual void visit(AstMethodCall* nodep) override {
-        if (m_proc && nodep->taskp()->user1()) m_proc->user1(true);
-    }
-    virtual void visit(AstCMethodCall* nodep) override {
-        if (m_proc && nodep->funcp()->user1()) m_proc->user1(true);
-    }
-
-    //--------------------
-    virtual void visit(AstNode* nodep) override { iterateChildren(nodep); }
-
-public:
-    // CONSTRUCTORS
-    explicit DynamicSchedulerMarkDynamicVisitor(AstNetlist* nodep) {
-        do {
-            repeat = false;
-            iterate(nodep);
-        } while (repeat);
-    }
-    virtual ~DynamicSchedulerMarkDynamicVisitor() override {}
-};
-
-//######################################################################
-
-class DynamicSchedulerMarkVariablesVisitor final : public AstNVisitor {
-private:
-    // NODE STATE
-    //  AstNode::user1()      -> bool.  Set true if process/function uses constructs like delays,
-    //                                  timing controls, waits, forks
-    // AstUser1InUse    m_inuser1;      (Allocated for use in DynamicSchedulerMarkDynamicVisitor)
-
-    // STATE
-    bool m_dynamic = false;
-
-    // METHODS
-    VL_DEBUG_FUNC;  // Declare debug()
-
-    // VISITORS
-    virtual void visit(AstNodeProcedure* nodep) override {
-        VL_RESTORER(m_dynamic);
-        m_dynamic = nodep->user1();
-        iterateChildren(nodep);
-    }
-    virtual void visit(AstNodeFTask* nodep) override {
-        VL_RESTORER(m_dynamic);
-        m_dynamic = nodep->user1();
-        iterateChildren(nodep);
-    }
-    virtual void visit(AstCFunc* nodep) override {
-        VL_RESTORER(m_dynamic);
-        m_dynamic = nodep->user1();
+        setDynamic();
         iterateChildren(nodep);
     }
     virtual void visit(AstFork* nodep) override {
-        VL_RESTORER(m_dynamic);
-        m_dynamic = true;
+        if (!nodep->joinType().joinNone()) setDynamic();
+        iterateChildren(nodep);
+    }
+    virtual void visit(AstNodeCCall* nodep) override {
+        if (nodep->funcp()->isCoroutine()) setDynamic();
         iterateChildren(nodep);
     }
     virtual void visit(AstVarRef* nodep) override {
@@ -263,33 +232,13 @@ private:
 
 public:
     // CONSTRUCTORS
-    explicit DynamicSchedulerMarkVariablesVisitor(AstNetlist* nodep) { iterate(nodep); }
-    virtual ~DynamicSchedulerMarkVariablesVisitor() override {}
-};
-
-//######################################################################
-
-class DynamicSchedulerMarkProcessesVisitor final : public AstNVisitor {
-private:
-    // NODE STATE
-    //  AstNodeProcedure::user1()      -> bool.  Set true if 'dynamic' (shouldn't be split up)
-    // AstUser1InUse    m_inuser1;      (Allocated for use in DynamicSchedulerMarkDynamicVisitor)
-
-    // METHODS
-    VL_DEBUG_FUNC;  // Declare debug()
-
-    // VISITORS
-    virtual void visit(AstNodeProcedure* nodep) override {
-        if (nodep->user1()) nodep->isDynamic(true);
+    explicit DynamicSchedulerMarkDynamicVisitor(AstNetlist* nodep) {
+        do {
+            m_repeat = false;
+            iterate(nodep);
+        } while (m_repeat);
     }
-
-    //--------------------
-    virtual void visit(AstNode* nodep) override { iterateChildren(nodep); }
-
-public:
-    // CONSTRUCTORS
-    explicit DynamicSchedulerMarkProcessesVisitor(AstNetlist* nodep) { iterate(nodep); }
-    virtual ~DynamicSchedulerMarkProcessesVisitor() override {}
+    virtual ~DynamicSchedulerMarkDynamicVisitor() override {}
 };
 
 //######################################################################
@@ -368,76 +317,11 @@ public:
 
 //######################################################################
 
-class DynamicSchedulerAlwaysVisitor final : public AstNVisitor {
-private:
-    // NODE STATE
-    //  AstNode::user1()      -> bool.  Set true if process/function uses constructs like delays,
-    //                                  timing controls, waits, forks
-    // AstUser1InUse    m_inuser1;      (Allocated for use in DynamicSchedulerMarkDynamicVisitor)
-
-    // STATE
-    AstScope* m_scopep = nullptr;
-
-    // METHODS
-    VL_DEBUG_FUNC;  // Declare debug()
-
-    // VISITORS
-    virtual void visit(AstScope* nodep) override {
-        m_scopep = nodep;
-        iterateChildren(nodep);
-        m_scopep = nullptr;
-    }
-    virtual void visit(AstAlways* nodep) override {
-        auto* sensesp = nodep->sensesp();
-        // Transform if the process is marked and has no sentree
-        bool transform = !sensesp && nodep->bodysp() && nodep->user1();
-        // Transform if the process is waiting on a dynamic var
-        if (!transform)
-            transform = sensesp && sensesp->sensesp() && sensesp->sensesp()->varrefp()
-                        && sensesp->sensesp()->varrefp()->varp()->isDynamic();
-        if (transform) {
-            auto fl = nodep->fileline();
-            auto* bodysp = nodep->bodysp();
-            if (bodysp) bodysp->unlinkFrBackWithNext();
-            if (sensesp) {
-                sensesp = sensesp->cloneTree(false);
-                for (auto* senitemp = sensesp->sensesp(); senitemp;
-                     senitemp = VN_CAST(senitemp->nextp(), SenItem)) {
-                    if (senitemp->varrefp()->varp()->isEventValue()) continue;
-                    auto* eventp
-                        = getCreateEvent(senitemp->varrefp()->varScopep(), senitemp->edgeType());
-                    senitemp->varrefp()->varScopep(eventp);
-                    senitemp->varrefp()->varp(eventp->varp());
-                    senitemp->edgeType(VEdgeType::ET_ANYEDGE);
-                }
-                bodysp = new AstBegin{fl, "", bodysp};
-                bodysp = new AstTimingControl{fl, sensesp, bodysp};
-            }
-            auto* whilep = new AstWhile{fl, new AstConst{fl, AstConst::BitTrue()}, bodysp};
-            auto* initialp = new AstInitial{fl, whilep};
-            initialp->user1(true);
-            nodep->replaceWith(initialp);
-            VL_DO_DANGLING(nodep->deleteTree(), nodep);
-        }
-    }
-
-    //--------------------
-    virtual void visit(AstNode* nodep) override { iterateChildren(nodep); }
-
-public:
-    // CONSTRUCTORS
-    explicit DynamicSchedulerAlwaysVisitor(AstNetlist* nodep) { iterate(nodep); }
-    virtual ~DynamicSchedulerAlwaysVisitor() override {}
-};
-
-//######################################################################
-
 class DynamicSchedulerForkVisitor final : public AstNVisitor {
 private:
     // NODE STATE
-    //  AstNode::user1()      -> bool.  Set true if process/function uses constructs like delays,
-    //                                  timing controls, waits, forks
-    // AstUser1InUse    m_inuser1;      (Allocated for use in DynamicSchedulerMarkDynamicVisitor)
+    //  AstFork::user1()      -> bool.  Set true if node has been processed
+    AstUser1InUse    m_inuser1;
 
     // STATE
     AstScope* m_scopep = nullptr;
@@ -475,7 +359,7 @@ private:
             iterateChildren(nodep);
             return;
         }
-        if (nodep->user2SetOnce()) return;
+        if (nodep->user1SetOnce()) return;
 
         AstVarScope* joinVscp = nullptr;
         if (!nodep->joinType().joinNone()) {
@@ -502,7 +386,6 @@ private:
                                                       + std::to_string(joinCount++),
                                                   m_scopep, "CoroutineTask"};
             m_scopep->addActivep(cfuncp);
-            cfuncp->user1(true);
 
             // Create list of arguments and move to function
             AstNode* argsp = nullptr;
@@ -626,9 +509,6 @@ public:
 class DynamicSchedulerAssignDlyVisitor final : public AstNVisitor {
 private:
     // NODE STATE
-    //  AstNode::user1()      -> bool.  Set true if process/function uses constructs like delays,
-    //                                  timing controls, waits, forks
-    // AstUser1InUse    m_inuser1;      (Allocated for use in DynamicSchedulerMarkDynamicVisitor)
 
     // STATE
     AstVarScope* m_dlyEvent = nullptr;
@@ -660,17 +540,12 @@ private:
     }
     virtual void visit(AstNodeProcedure* nodep) override {
         VL_RESTORER(m_dynamic);
-        m_dynamic = nodep->user1();
-        iterateChildren(nodep);
-    }
-    virtual void visit(AstNodeFTask* nodep) override {
-        VL_RESTORER(m_dynamic);
-        m_dynamic = nodep->user1();
+        m_dynamic = nodep->isDynamic();
         iterateChildren(nodep);
     }
     virtual void visit(AstCFunc* nodep) override {
         VL_RESTORER(m_dynamic);
-        m_dynamic = nodep->user1();
+        m_dynamic = nodep->isCoroutine();
         iterateChildren(nodep);
     }
     virtual void visit(AstFork* nodep) override {
@@ -723,8 +598,6 @@ public:
 class DynamicSchedulerCreateEventsVisitor final : public AstNVisitor {
 private:
     // NODE STATE
-    // AstVar::user1()      -> bool.  Set true if variable is waited on
-    AstUser1InUse m_inuser1;
 
     // STATE
     using VarScopeSet = std::set<AstVarScope*>;
@@ -786,11 +659,9 @@ private:
     }
     virtual void visit(AstVarRef* nodep) override {
         if (m_inWait) {
-            nodep->varp()->user1(true);
             m_waitVars.insert(nodep->varScopep());
         } else if (m_inTimingControlSens) {
             if (!nodep->varp()->isEventValue()) {
-                nodep->varp()->user1(true);
                 auto edgeType = VN_CAST(nodep->backp(), SenItem)->edgeType();
                 nodep->varScopep(getCreateEvent(nodep->varScopep(), edgeType));
                 nodep->varp(nodep->varScopep()->varp());
@@ -799,11 +670,9 @@ private:
     }
     virtual void visit(AstMemberSel* nodep) override {
         if (m_inWait) {
-            nodep->varp()->user1(true);
             m_waitVars.insert(VN_CAST(nodep->fromp(), VarRef)->varScopep());
         } else if (m_inTimingControlSens) {
             if (!nodep->varp()->isEventValue()) {
-                nodep->varp()->user1(true);
                 auto edgeType = VN_CAST(nodep->backp(), SenItem)->edgeType();
                 nodep->replaceWith(new AstVarRef(
                     nodep->fileline(),
@@ -828,10 +697,8 @@ public:
 class DynamicSchedulerAddTriggersVisitor final : public AstNVisitor {
 private:
     // NODE STATE
-    //  AstVar::user1()      -> bool.  Set true if variable is waited on
-    // AstUser1InUse    m_inuser1;      (Allocated for use in DynamicSchedulerCreateEventsVisitor)
-    //  AstNode::user2()      -> bool.  Set true if node has been processed
-    AstUser2InUse m_inuser2;
+    //  AstNodeAssign::user1()      -> bool.  Set true if node has been processed
+    AstUser1InUse m_inuser1;
 
     // STATE
     using VarMap = std::map<const std::pair<AstNodeModule*, string>, AstVar*>;
@@ -869,7 +736,7 @@ private:
         iterateChildren(nodep);
     }
     virtual void visit(AstNodeAssign* nodep) override {
-        if (nodep->user2SetOnce()) return;
+        if (nodep->user1SetOnce()) return;
         if (auto* varrefp = VN_CAST(nodep->lhsp(), VarRef)) {
             auto fl = nodep->fileline();
             if (!varrefp->varp()->hasEdgeEvents()) return;
@@ -917,7 +784,7 @@ private:
     }
     virtual void visit(AstVarScope* nodep) override {
         AstVar* varp = nodep->varp();
-        if (varp->user1() && (varp->isUsedClock() || varp->isSigPublic())) {
+        if (varp->hasEdgeEvents() && (varp->isUsedClock() || varp->isSigPublic())) {
             auto fl = nodep->fileline();
             for (auto edgeType :
                  {VEdgeType::ET_POSEDGE, VEdgeType::ET_NEGEDGE, VEdgeType::ET_ANYEDGE}) {
@@ -960,11 +827,10 @@ void V3DynamicScheduler::processes(AstNetlist* nodep) {
     UINFO(2, __FUNCTION__ << ": " << endl);
     UINFO(2, "  Transform Intra Assign Delays...\n");
     { DynamicSchedulerIntraAssignDelayVisitor visitor(nodep); }
-    DynamicSchedulerMarkDynamicVisitor visitor(nodep);
-    { DynamicSchedulerMarkVariablesVisitor visitor(nodep); }
-    UINFO(2, "  Transform Dynamically Triggered Processes...\n");
-    { DynamicSchedulerAlwaysVisitor visitor(nodep); }
-    V3Global::dumpCheckGlobalTree("dsch_always", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 6);
+    V3Global::dumpCheckGlobalTree("dsch_transf_intra", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 6);
+    UINFO(2, "  Mark Dynamic...\n");
+    { DynamicSchedulerMarkDynamicVisitor visitor(nodep); }
+    V3Global::dumpCheckGlobalTree("dsch_mark_dyn", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 6);
     UINFO(2, "  Transform AssignDlys in Suspendable Processes...\n");
     {
         DynamicSchedulerAssignDlyVisitor visitor(nodep);
@@ -978,13 +844,10 @@ void V3DynamicScheduler::processes(AstNetlist* nodep) {
                                       : nullptr});
         nodep->topScopep()->scopep()->addActivep(activep);
     }
-    V3Global::dumpCheckGlobalTree("dsch_dly", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 6);
-    UINFO(2, "  Mark Processes...\n");
-    { DynamicSchedulerMarkProcessesVisitor visitor(nodep); }
-    V3Global::dumpCheckGlobalTree("dsch_wrap", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 6);
+    V3Global::dumpCheckGlobalTree("dsch_transf_dly", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 6);
     UINFO(2, "  Move Forked Processes to New Functions...\n");
     { DynamicSchedulerForkVisitor visitor(nodep); }
-    V3Global::dumpCheckGlobalTree("dsch_fork", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 6);
+    V3Global::dumpCheckGlobalTree("dsch_procs", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 3);
 }
 
 void V3DynamicScheduler::events(AstNetlist* nodep) {
@@ -998,5 +861,5 @@ void V3DynamicScheduler::events(AstNetlist* nodep) {
     V3Global::dumpCheckGlobalTree("dsch_add_triggers", 0,
                                   v3Global.opt.dumpTreeLevel(__FILE__) >= 6);
     UINFO(2, "  Done.\n");
-    V3Global::dumpCheckGlobalTree("dsch", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 3);
+    V3Global::dumpCheckGlobalTree("dsch_events", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 3);
 }
