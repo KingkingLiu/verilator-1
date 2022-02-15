@@ -326,7 +326,7 @@ private:
     }
     virtual void visit(AstNodeProcedure* nodep) override {
         // Ignore dynamic processes; V3Life doesn't understand time sense
-        if (nodep->isDynamic()) return;
+        if (!nodep->isDynamic()) iterateChildren(nodep);
     }
 
     //---- Track control flow changes
