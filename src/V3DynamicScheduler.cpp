@@ -15,18 +15,27 @@
 //*************************************************************************
 // V3DynamicScheduler's Transformations:
 //
+//      Each assignment with an intra assignment delay:
+//         Transform 'a = #delay b' into:
+//             temp = b;
+//             #delay a = temp;
+//         Transform 'a <= #delay b' into:
+//             temp = b;
+//             fork
+//                 #delay a = temp;
+//             join_none
+//
 //      Each Delay, TimingControl, Wait:
 //          Mark containing task for dynamic scheduling
 //          Mark containing process for dynamic scheduling
-//      Each Task:
-//          If it's virtual and any overriding task is marked, mark it
-//      Each task calling a marked task:
+//      Each CFunc:
+//          If it's virtual and any overriding/overridden func is marked, mark it
+//      Each CFunc calling a marked CFunc:
 //          Mark it for dynamic scheduling
-//      Each process calling a marked task:
+//      Each process calling a marked CFunc:
 //          Mark it for dynamic scheduling
 //      Each variable written to in a marked process/task:
 //          Mark it for dynamic scheduling
-//
 //      Each always process:
 //          If marked and has no sentree:
 //              Transform process into an initial process with a body like this:
@@ -44,9 +53,6 @@
 //          If in marked process:
 //              Transform into:
 //                  fork @__VdlyEvent__ lhsp = rhsp; join_none
-//
-//      Each marked process:
-//          Wrap its statements into begin...end so it won't get split in V3Order
 //
 //      Each Fork:
 //          Move each statement to a new function
