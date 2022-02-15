@@ -341,7 +341,7 @@ class DynamicSchedulerForkVisitor final : public AstNVisitor {
 private:
     // NODE STATE
     //  AstFork::user1()      -> bool.  Set true if node has been processed
-    AstUser1InUse    m_inuser1;
+    AstUser1InUse m_inuser1;
 
     // STATE
     AstScope* m_scopep = nullptr;
@@ -528,8 +528,6 @@ public:
 
 class DynamicSchedulerAssignDlyVisitor final : public AstNVisitor {
 private:
-    // NODE STATE
-
     // STATE
     AstVarScope* m_dlyEvent = nullptr;
     AstScope* m_scopep = nullptr;
@@ -617,8 +615,6 @@ public:
 
 class DynamicSchedulerCreateEventsVisitor final : public AstNVisitor {
 private:
-    // NODE STATE
-
     // STATE
     using VarScopeSet = std::set<AstVarScope*>;
     VarScopeSet m_waitVars;
@@ -847,7 +843,8 @@ void V3DynamicScheduler::processes(AstNetlist* nodep) {
     UINFO(2, __FUNCTION__ << ": " << endl);
     UINFO(2, "  Transform Intra Assign Delays...\n");
     { DynamicSchedulerIntraAssignDelayVisitor visitor(nodep); }
-    V3Global::dumpCheckGlobalTree("dsch_transf_intra", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 6);
+    V3Global::dumpCheckGlobalTree("dsch_transf_intra", 0,
+                                  v3Global.opt.dumpTreeLevel(__FILE__) >= 6);
     UINFO(2, "  Mark Dynamic...\n");
     { DynamicSchedulerMarkDynamicVisitor visitor(nodep); }
     V3Global::dumpCheckGlobalTree("dsch_mark_dyn", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 6);
