@@ -3307,10 +3307,19 @@ public:
     }  // * = Posedge/negedge
     AstNode* sensp() const { return op1p(); }  // op1 = Signal sensitized
     AstNodeVarRef* varrefp() const {
-        if (auto* memberSelp = VN_CAST(op1p(), MemberSel))
-            return VN_CAST(memberSelp->fromp(), NodeVarRef);
         return VN_CAST(op1p(), NodeVarRef);
     }  // op1 = Signal sensitized
+    AstVar* varp() const {
+        if (auto* memberSelp = VN_CAST(op1p(), MemberSel)) return memberSelp->varp();
+        if (auto* varrefp = VN_CAST(op1p(), NodeVarRef)) return varrefp->varp();
+        return nullptr;
+    }
+    AstVarScope* varScopep() const {
+        if (auto* memberSelp = VN_CAST(op1p(), MemberSel))
+            return VN_CAST(memberSelp->fromp(), NodeVarRef)->varScopep();
+        if (auto* varrefp = VN_CAST(op1p(), NodeVarRef)) return varrefp->varScopep();
+        return nullptr;
+    }
     //
     bool isClocked() const { return edgeType().clockedStmt(); }
     bool isCombo() const { return edgeType() == VEdgeType::ET_COMBO; }

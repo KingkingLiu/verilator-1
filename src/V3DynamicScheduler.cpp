@@ -99,19 +99,23 @@
 #include "V3Ast.h"
 #include "V3EmitCBase.h"
 
+static AstVarScope* getCreateEvent(AstVar* varp, AstScope* scopep, VEdgeType edgeType) {
+    if (auto* eventp = varp->edgeEvent(edgeType)) return eventp;
+    string newvarname = (string("__VedgeEvent__") + scopep->nameDotless() + "__" + edgeType.ascii()
+                         + "__" + varp->name());
+    auto* newvarp = new AstVar{varp->fileline(), AstVarType::VAR, newvarname,
+                               varp->findBasicDType(AstBasicDTypeKwd::EVENTVALUE)};
+    newvarp->sigPublic(true);
+    scopep->modp()->addStmtp(newvarp);
+    auto* newvscp = new AstVarScope{varp->fileline(), scopep, newvarp};
+    scopep->addVarp(newvscp);
+    varp->edgeEvent(edgeType, newvscp);
+    return newvscp;
+}
+
 static AstVarScope* getCreateEvent(AstVarScope* vscp, VEdgeType edgeType) {
     UASSERT_OBJ(vscp->scopep(), vscp, "Var unscoped");
-    if (auto* eventp = vscp->varp()->edgeEvent(edgeType)) return eventp;
-    string newvarname = (string("__VedgeEvent__") + vscp->scopep()->nameDotless() + "__"
-                         + edgeType.ascii() + "__" + vscp->varp()->name());
-    auto* newvarp = new AstVar{vscp->fileline(), AstVarType::VAR, newvarname,
-                               vscp->findBasicDType(AstBasicDTypeKwd::EVENTVALUE)};
-    newvarp->sigPublic(true);
-    vscp->scopep()->modp()->addStmtp(newvarp);
-    auto* newvscp = new AstVarScope{vscp->fileline(), vscp->scopep(), newvarp};
-    vscp->scopep()->addVarp(newvscp);
-    vscp->varp()->edgeEvent(edgeType, newvscp);
-    return newvscp;
+    return getCreateEvent(vscp->varp(), vscp->scopep(), edgeType);
 }
 
 //######################################################################
@@ -169,8 +173,8 @@ private:
         bool transform = !sensesp && nodep->bodysp() && nodep->isDynamic();
         // Transform if the process is waiting on a dynamic var
         if (!transform)
-            transform = sensesp && sensesp->sensesp() && sensesp->sensesp()->varrefp()
-                        && sensesp->sensesp()->varrefp()->varp()->isDynamic();
+            transform = sensesp && sensesp->sensesp() && sensesp->sensesp()->varp()
+                        && sensesp->sensesp()->varp()->isDynamic();
         if (transform) {
             auto fl = nodep->fileline();
             auto* bodysp = nodep->bodysp();
@@ -179,12 +183,15 @@ private:
                 sensesp = sensesp->cloneTree(false);
                 for (auto* senitemp = sensesp->sensesp(); senitemp;
                      senitemp = VN_CAST(senitemp->nextp(), SenItem)) {
-                    if (senitemp->varrefp()->varp()->isEventValue()) continue;
-                    auto* eventp
-                        = getCreateEvent(senitemp->varrefp()->varScopep(), senitemp->edgeType());
-                    senitemp->varrefp()->varScopep(eventp);
-                    senitemp->varrefp()->varp(eventp->varp());
-                    senitemp->edgeType(VEdgeType::ET_ANYEDGE);
+                    if (senitemp->varp()->isEventValue()) continue;
+                    auto* eventp = getCreateEvent(
+                        senitemp->varp(), senitemp->varScopep()->scopep(), senitemp->edgeType());
+                    auto* newSenitemp = new AstSenItem{
+                        senitemp->fileline(), VEdgeType::ET_ANYEDGE,
+                        new AstVarRef{senitemp->fileline(), eventp, VAccess::READ}};
+                    senitemp->replaceWith(newSenitemp);
+                    VL_DO_DANGLING(senitemp->deleteTree(), senitemp);
+                    senitemp = newSenitemp;
                 }
                 bodysp = new AstBegin{fl, "", bodysp};
                 bodysp = new AstTimingControl{fl, sensesp, bodysp};
