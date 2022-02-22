@@ -585,7 +585,8 @@ private:
             VL_DO_DANGLING(pushDeletep(nodep->unlinkFrBack()), nodep);
             return;
         }
-        iterateChildren(nodep);
+        userIterate(nodep->lhsp(), WidthVP(nullptr, BOTH).p());
+        iterateNull(nodep->stmtsp());
         if (!v3Global.opt.dynamicScheduler()) {
             nodep->v3warn(STMTDLY, "Unsupported: Ignoring delay on this delayed statement.");
             VL_DO_DANGLING(pushDeletep(nodep->unlinkFrBack()), nodep);
@@ -595,9 +596,13 @@ private:
         auto* varrefp = VN_CAST(nodep->trigp(), VarRef);
         if (auto* memberSelp = VN_CAST(nodep->trigp(), MemberSel))
             varrefp = VN_CAST(memberSelp->fromp(), VarRef);
+        else if (auto* selp = VN_CAST(nodep->trigp(), NodeSel))
+            varrefp = VN_CAST(selp->fromp(), VarRef);
+        else if (auto* selp = VN_CAST(nodep->trigp(), NodePreSel))
+            varrefp = VN_CAST(selp->fromp(), VarRef);
         if (varrefp) varrefp->access(VAccess::WRITE);
         if (v3Global.opt.dynamicScheduler()) {
-            iterateChildren(nodep);
+            userIterateChildren(nodep, WidthVP(nullptr, BOTH).p());
         } else {
             auto* assignp = new AstAssignDly{nodep->fileline(), nodep->trigp()->unlinkFrBack(),
                                              new AstConst{nodep->fileline(), AstConst::BitTrue()}};
@@ -1331,6 +1336,9 @@ private:
         AstConst* const newp = new AstConst(nodep->fileline(), AstConst::RealDouble(), time);
         nodep->replaceWith(newp);
         VL_DO_DANGLING(nodep->deleteTree(), nodep);
+    }
+    virtual void visit(AstSenItem* nodep) override {
+        userIterateChildren(nodep, WidthVP(nullptr, BOTH).p());
     }
     virtual void visit(AstTimingControl* nodep) override {
         if (v3Global.opt.dynamicScheduler()) {

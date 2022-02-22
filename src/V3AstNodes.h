@@ -3310,15 +3310,23 @@ public:
         return VN_CAST(op1p(), NodeVarRef);
     }  // op1 = Signal sensitized
     AstVar* varp() const {
-        if (auto* memberSelp = VN_CAST(op1p(), MemberSel)) return memberSelp->varp();
-        if (auto* varrefp = VN_CAST(op1p(), NodeVarRef)) return varrefp->varp();
-        return nullptr;
+        auto* nodep = sensp();
+        while (nodep != nullptr && !VN_IS(nodep, Var)) {
+            if (auto* memberSelp = VN_CAST(nodep, MemberSel)) nodep = memberSelp->varp();
+            else if (auto* selp = VN_CAST(nodep, NodeSel)) nodep = selp->fromp();
+            else if (auto* varrefp = VN_CAST(nodep, NodeVarRef)) nodep = varrefp->varp();
+            else nodep = nullptr;
+        }
+        return VN_CAST(nodep, Var);
     }
     AstVarScope* varScopep() const {
-        if (auto* memberSelp = VN_CAST(op1p(), MemberSel))
-            return VN_CAST(memberSelp->fromp(), NodeVarRef)->varScopep();
-        if (auto* varrefp = VN_CAST(op1p(), NodeVarRef)) return varrefp->varScopep();
-        return nullptr;
+        auto* nodep = sensp();
+        while (nodep != nullptr && !VN_IS(nodep, NodeVarRef)) {
+            if (auto* memberSelp = VN_CAST(nodep, MemberSel)) nodep = memberSelp->fromp();
+            else if (auto* selp = VN_CAST(nodep, NodeSel)) nodep = selp->fromp();
+            else nodep = nullptr;
+        }
+        return VN_CAST(nodep, NodeVarRef)->varScopep();
     }
     //
     bool isClocked() const { return edgeType().clockedStmt(); }

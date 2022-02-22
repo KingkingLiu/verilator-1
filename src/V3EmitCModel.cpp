@@ -435,6 +435,8 @@ class EmitCModel final : public EmitCFunc {
         for (auto* nodep = modp->stmtsp(); nodep; nodep = nodep->nextp()) {
             if (VN_IS(nodep, Var) && nodep->dtypep()->basicp()
                 && nodep->dtypep()->basicp()->isEventValue()) {
+                // TODO: Handle arrays and classes
+                if (VN_IS(nodep->dtypep(), NodeArrayDType)) continue;
                 puts("vlSymsp->TOP." + nodep->nameProtect() + " = 0;\n");
             }
         }

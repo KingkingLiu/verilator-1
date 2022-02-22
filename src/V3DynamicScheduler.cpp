@@ -671,6 +671,8 @@ private:
         VL_DO_DANGLING(nodep->deleteTree(), nodep);
     }
     virtual void visit(AstSenItem* nodep) override {
+        VL_RESTORER(m_senItemp);
+        m_senItemp = nodep;
         if (m_inTimingControlSens) {
             if (nodep->edgeType() == VEdgeType::ET_BOTHEDGE) {
                 nodep->addNextHere(nodep->cloneTree(false));
@@ -680,23 +682,27 @@ private:
         }
         iterateChildren(nodep);
     }
+    AstSenItem* m_senItemp = nullptr;
     virtual void visit(AstVarRef* nodep) override {
         if (m_inWait) {
             m_waitVars.insert(nodep->varScopep());
         } else if (m_inTimingControlSens) {
             if (!nodep->varp()->isEventValue()) {
-                auto edgeType = VN_CAST(nodep->backp(), SenItem)->edgeType();
+                auto edgeType = m_senItemp->edgeType();
                 nodep->varScopep(getCreateEvent(nodep->varScopep(), edgeType));
                 nodep->varp(nodep->varScopep()->varp());
             }
         }
+    }
+    virtual void visit(AstNodeSel* nodep) override {
+        iterate(nodep->fromp());
     }
     virtual void visit(AstMemberSel* nodep) override {
         if (m_inWait) {
             m_waitVars.insert(VN_CAST(nodep->fromp(), VarRef)->varScopep());
         } else if (m_inTimingControlSens) {
             if (!nodep->varp()->isEventValue()) {
-                auto edgeType = VN_CAST(nodep->backp(), SenItem)->edgeType();
+                auto edgeType = m_senItemp->edgeType();
                 nodep->replaceWith(new AstVarRef(
                     nodep->fileline(),
                     getCreateEvent(VN_CAST(nodep->fromp(), VarRef)->varScopep(), edgeType),
