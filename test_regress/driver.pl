@@ -1880,7 +1880,12 @@ sub _make_main {
 
     my $time = $self->sc ? "sc_time_stamp()" : "contextp->time()";
 
-    print $fh "    while ((${time} < sim_time * MAIN_TIME_MULTIPLIER)\n";
+    print $fh "    while (";
+    if ($delayed_queue && !$self->{inputs}{clk}) {
+        print $fh "topp->eventsPending()\n";
+    } else {
+        print $fh "(${time} < sim_time * MAIN_TIME_MULTIPLIER)\n";
+    }
     print $fh "           && !contextp->gotFinish()) {\n";
 
     if ($delayed_queue) {
@@ -1891,16 +1896,16 @@ sub _make_main {
             $fh->print("#endif  // VM_TRACE\n");
         }
         if ($self->{inputs}{clk}) {
-            print $fh "        auto newTime = topp->timeSlotsEarliestTime();\n";
+            print $fh "        auto newTime = topp->nextTimeSlot();\n";
             print $fh "        if (newTime - contextp->time() <= 0 ||\n";
             print $fh "            newTime - floorf(newTime) == 0) {\n";
             print $fh "            ${set}clk = !${set}clk;\n";
             print $fh "            contextp->timeInc(MAIN_TIME_MULTIPLIER);\n";
             print $fh "        } else {\n";
-            print $fh "            contextp->time(topp->timeSlotsEarliestTime());\n";
+            print $fh "            contextp->time(newTime);\n";
             print $fh "        }\n";
         } else {
-            print $fh "        contextp->time(topp->timeSlotsEarliestTime());\n";
+            print $fh "        contextp->time(topp->nextTimeSlot());\n";
         }
     } else {
         for (my $i = 0; $i < 5; $i++) {

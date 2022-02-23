@@ -183,10 +183,12 @@ class EmitCModel final : public EmitCFunc {
         ofp()->putsPrivate(false);  // public:
         puts("void final();\n");
 
-        puts("/// Return true if no more timed work to do. Application uses to exit.\n");
-        puts("bool timeSlotsEmpty();\n");
-        puts("/// Return earliest time slot. Application uses to advance time.\n");
-        puts("double timeSlotsEarliestTime();\n");
+        if (v3Global.opt.dynamicScheduler()) {
+            puts("/// Returns true if no more timed work to do\n");
+            puts("bool eventsPending();\n");
+            puts("/// Returns time at next time slot (current time if no pending events)\n");
+            puts("double nextTimeSlot();\n");
+        }
 
         if (v3Global.opt.trace()) {
             puts("/// Trace signals in the model; called by application code\n");
@@ -538,9 +540,9 @@ class EmitCModel final : public EmitCFunc {
         if (v3Global.opt.dynamicScheduler()) {
             putSectionDelimiter("Dynamic scheduler");
             puts("bool " + topClassName()
-                 + "::timeSlotsEmpty() { return vlSymsp->__Vm_delayedQueue.empty(); }\n");
+                 + "::eventsPending() { return !vlSymsp->__Vm_delayedQueue.empty(); }\n");
             puts("double " + topClassName()
-                 + "::timeSlotsEarliestTime() { return "
+                 + "::nextTimeSlot() { return "
                    "vlSymsp->__Vm_delayedQueue.nextTimeSlot(); }\n");
         }
 

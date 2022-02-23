@@ -22,13 +22,13 @@ int main(int argc, char* argv[]) {
     for (int i = 0; i < 10; i++) {
 #ifdef VL_DYNAMIC_SCHEDULER
         topp->eval();
-        auto newTime = topp->timeSlotsEarliestTime();
+        auto newTime = topp->nextTimeSlot();
         if (newTime - simTime <= 0 ||
             newTime - floorf(newTime) == 0) {
             topp->clk = !topp->clk;
             simTime += 1;
         } else {
-            simTime = topp->timeSlotsEarliestTime();
+            simTime = newTime;
         }
 #else
         topp->eval();

@@ -576,7 +576,10 @@ private:
         // if (debug() >= 9) nodep->dumpTree(cout, "  Alw: ");
         visitAlways(nodep, nodep->sensesp(), VAlwaysKwd::ALWAYS);
     }
-    virtual void visit(AstTimingControl* nodep) override {}
+    virtual void visit(AstTimingControl* nodep) override {
+        // Do not visit SenItems in a timing control
+        iterateNull(nodep->stmtsp());
+    }
     virtual void visit(AstSenItem* nodep) override {
         if (nodep->varrefp()) {
             if (const AstBasicDType* const basicp = nodep->varrefp()->dtypep()->basicp()) {

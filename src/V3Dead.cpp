@@ -330,7 +330,6 @@ private:
     bool mightElimVar(AstVar* nodep) {
         if (nodep->isSigPublic()) return false;  // Can't elim publics!
         if (nodep->isIO() || nodep->isClassMember()) return false;
-        if (nodep->hasEdgeEvents()) return false;
         if (nodep->isTemp() && !nodep->isTrace()) return true;
         return m_elimUserVars;  // Post-Trace can kill most anything
     }
