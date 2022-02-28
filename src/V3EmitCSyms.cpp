@@ -446,8 +446,8 @@ void EmitCSyms::emitSymHdr() {
     puts("bool __Vm_didInit = false;\n");
 
     if (v3Global.opt.dynamicScheduler()) {
-        puts("DelayedQueue __Vm_delayedQueue;\n");
-        puts("EventDispatcher __Vm_eventDispatcher;\n");
+        puts("VerilatedDelayedQueue __Vm_delayedQueue;\n");
+        puts("VerilatedEventDispatcher __Vm_eventDispatcher;\n");
     }
 
     if (v3Global.opt.mtasks()) {

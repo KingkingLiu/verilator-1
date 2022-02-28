@@ -1835,7 +1835,7 @@ AstActive* OrderProcess::processMoveOneLogic(const OrderLogicVertex* lvertexp,
             if (!newFuncpr && domainp != m_deleteDomainp) {
                 const string name = cfuncName(modp, domainp, scopep, nodep);
                 newFuncpr = new AstCFunc(nodep->fileline(), name, scopep,
-                                         dynamicScheduling ? "CoroutineTask" : "");
+                                         dynamicScheduling ? "VerilatedCoroutine" : "");
                 newFuncpr->isStatic(false);
                 newFuncpr->isLoose(true);
                 newStmtsr = 0;

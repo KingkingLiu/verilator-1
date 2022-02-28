@@ -258,7 +258,7 @@ private:
 
         if (v3Global.opt.dynamicScheduler())
             m_evalFuncp->addStmtsp(new AstCStmt{
-                m_evalFuncp->fileline(), "vlSymsp->__Vm_delayedQueue.activate(VL_TIME_D());\n"});
+                m_evalFuncp->fileline(), "vlSymsp->__Vm_delayedQueue.resume(VL_TIME_D());\n"});
 
         // Process the activates
         iterateChildren(nodep);

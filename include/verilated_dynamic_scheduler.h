@@ -15,74 +15,89 @@
 #include <unordered_set>
 #include <functional>
 
+// Some preprocessor magic to support both Clang and GCC coroutines with both libc++ and stdlibc++
 #ifdef __clang__
 #ifdef _LIBCPP_VERSION
 // Using libc++, coroutine library is in std::experimental
 #include <experimental/coroutine>
 namespace std {
-using namespace experimental;  // Bring std::experimental into the std namespace
+    // Bring std::experimental into the std namespace
+    using namespace experimental;
 }
 #else
 // Using stdlibc++, coroutine library is in std namespace
 #define __cpp_impl_coroutine 1  // clang doesn't define this, but it's needed in <coroutine>
 #include <coroutine>
 namespace std {
-namespace experimental
-    = ::std;  // Bring coroutine library into std::experimental, as clang expects it to be there
+    // Bring coroutine library into std::experimental, as clang expects it to be there
+    namespace experimental = ::std;
 }
 #endif
 #else  // Not clang
 #include <coroutine>
 #endif
 
-struct DelayedQueue {
+//=============================================================================
+// VerilatedDelayedQueue
+// Priority queue where the priority is the simulation time at which a coroutine should resume, and the value is the coroutine to be resumed.
+class VerilatedDelayedQueue final {
+private:
+    // TYPES
     using DelayedCoro = std::pair<double, std::coroutine_handle<>>;
-
-    struct CustomCompare {
+    struct Cmp {
         bool operator()(const DelayedCoro& lhs, const DelayedCoro& rhs) {
             return lhs.first > rhs.first;
         }
     };
+    using DelayedPriorityQueue = std::priority_queue<DelayedCoro, std::vector<DelayedCoro>, Cmp>;
 
-    std::priority_queue<DelayedCoro, std::vector<DelayedCoro>, CustomCompare> queue;
-    VerilatedMutex m_mutex;
+    // MEMBERS
+    DelayedPriorityQueue m_queue;  // Actual encapsulated queue
+    VerilatedMutex m_mutex;  // Protects m_queue
 
+public:
+    // METHODS
+    // Push a suspended coroutine to be resumed at the given simulation time
     void push(double time, std::coroutine_handle<> coro) {
         const VerilatedLockGuard guard{m_mutex};
-        queue.push(std::make_pair(time, coro));
+        m_queue.push(std::make_pair(time, coro));
     }
 
-    void activate(double time) {
+    // Resume coroutines waiting for the given simulation time
+    void resume(double time) {
         VerilatedLockGuard guard{m_mutex};
-        while (!queue.empty() && queue.top().first <= time) {
-            auto coro = queue.top().second;
-            queue.pop();
+        while (!m_queue.empty() && m_queue.top().first <= time) {
+            auto coro = m_queue.top().second;
+            m_queue.pop();
             guard.unlock();
             coro();
             guard.lock();
         }
     }
 
+    // Simulation time of the next time slot
     double nextTimeSlot() {
         const VerilatedLockGuard guard{m_mutex};
-        if (!queue.empty())
-            return queue.top().first;
+        if (!m_queue.empty())
+            return m_queue.top().first;
         else
             return VL_TIME_D();
     }
 
+    // Is the queue empty?
     bool empty() {
         const VerilatedLockGuard guard{m_mutex};
-        return queue.empty();
+        return m_queue.empty();
     }
 
+    // Used by coroutines for co_awaiting a certain simulation time
     auto operator[](double time) {
         const VerilatedLockGuard guard{m_mutex};
         struct Awaitable {
-            DelayedQueue& queue;
-            double time;
+            VerilatedDelayedQueue& queue;  // The queue to push the coroutine to
+            double time;  // Simulation time at which the coroutine should be resumed
 
-            bool await_ready() { return false; }
+            bool await_ready() { return false; }  // Always suspend
 
             void await_suspend(std::coroutine_handle<> coro) { queue.push(time, coro); }
 
@@ -92,68 +107,102 @@ struct DelayedQueue {
     }
 };
 
-using Event = CData;
+// Event variable-related type aliases
+using VerilatedEvent = CData;
+using VerilatedEventSet = std::unordered_set<VerilatedEvent*>;
+using VerilatedCoroutineArray = std::vector<std::coroutine_handle<>>;
 
-using EventSet = std::unordered_set<Event*>;
-
-struct EventSetToCoroMap {
+//=============================================================================
+// VerilatedEventToCoroMap
+// Mapping from events to suspended coroutines. Used by VerilatedEventDispatcher.
+class VerilatedEventToCoroMap final {
 private:
+    // TYPES
     struct Hash {
-        size_t operator()(const EventSet& set) const {
+        size_t operator()(const VerilatedEventSet& set) const {
             size_t result = 0;
-            for (auto event : set) result ^= std::hash<Event*>()(event);
+            for (auto event : set) result ^= std::hash<VerilatedEvent*>()(event);
             return result;
         }
     };
-    std::unordered_multimap<EventSet, std::coroutine_handle<>, Hash> eventSetsToCoros;
-    std::unordered_multimap<Event*, EventSet> eventsToEventSets;
+    using EventSetToCoroMap = std::unordered_multimap<VerilatedEventSet, std::coroutine_handle<>, Hash>;
+    using EventToEventSetMap = std::unordered_multimap<VerilatedEvent*, VerilatedEventSet>;
 
-    void move(const EventSet& events, std::vector<std::coroutine_handle<>>& coros) {
-        auto range = eventSetsToCoros.equal_range(events);
+    // MEMBERS
+    EventToEventSetMap m_eventsToEventSets;  // Events mapped to event sets...
+    EventSetToCoroMap m_eventSetsToCoros;  // ...which are mapped to coroutines
+
+    // METHODS
+    // Move coroutines waiting on the specified events to the array
+    void move(const VerilatedEventSet& events, VerilatedCoroutineArray& coros) {
+        auto range = m_eventSetsToCoros.equal_range(events);
         for (auto it = range.first; it != range.second; ++it) coros.push_back(it->second);
-        eventSetsToCoros.erase(range.first, range.second);
+        m_eventSetsToCoros.erase(range.first, range.second);
     }
 
 public:
-    void move(Event* event, std::vector<std::coroutine_handle<>>& coros) {
-        auto range = eventsToEventSets.equal_range(event);
+    // Move coroutines waiting on the specified event to the array
+    void move(VerilatedEvent* event, VerilatedCoroutineArray& coros) {
+        auto range = m_eventsToEventSets.equal_range(event);
         for (auto it = range.first; it != range.second; ++it) move(it->second, coros);
     }
 
-    bool contains(const EventSet& events) {
-        auto range = eventSetsToCoros.equal_range(events);
+    // Are there coroutines waiting on this set of events?
+    bool contains(const VerilatedEventSet& events) {
+        auto range = m_eventSetsToCoros.equal_range(events);
         return range.first != range.second;
     }
 
-    void insert(const EventSet& events, std::coroutine_handle<> coro) {
-        for (auto event : events) eventsToEventSets.insert(std::make_pair(event, events));
-        eventSetsToCoros.insert(std::make_pair(events, coro));
+    // Insert a coroutine waiting on the specified events
+    void insert(const VerilatedEventSet& events, std::coroutine_handle<> coro) {
+        for (auto event : events) m_eventsToEventSets.insert(std::make_pair(event, events));
+        m_eventSetsToCoros.insert(std::make_pair(events, coro));
     }
 };
 
-struct EventDispatcher {
+//=============================================================================
+// VerilatedEventDispatcher
+// Object that manages event variables and suspended coroutines waiting on those event vars.
+class VerilatedEventDispatcher final {
 private:
-    EventSetToCoroMap eventSetsToCoros;
-    std::vector<Event*> triggeredEvents;
-    std::vector<std::coroutine_handle<>> primedCoros;
-    VerilatedMutex m_mutex;
+    // MEMBERS
+    VerilatedEventToCoroMap m_eventsToCoros;  // Mapping of events to coroutines
+    std::vector<VerilatedEvent*> m_triggeredEvents;  // Events triggered in the current time slot
+    VerilatedCoroutineArray m_primedCoros;  // Coroutines primed for resumption in the current time slot
+    VerilatedMutex m_mutex;  // Protects m_eventSetsToCoros, m_triggeredEvents, and m_primedCoros
+
+    // METHODS
+    // Move coroutines waiting on events from m_triggeredEvents to m_primedCoros
+    void primeTriggered() {
+        VerilatedLockGuard guard{m_mutex};
+        std::vector<VerilatedEvent*> queue = std::move(m_triggeredEvents);
+        for (auto event : queue) m_eventsToCoros.move(event, m_primedCoros);
+    }
+
+    // Are there no primed coroutines?
+    bool primedEmpty() {
+        const VerilatedLockGuard guard{m_mutex};
+        return m_primedCoros.empty();
+    }
+
+    // Are there coroutines waiting on this set of events? (wrapper for thread safety)
+    bool isSetWaitedOn(const VerilatedEventSet& events) {
+        const VerilatedLockGuard guard{m_mutex};
+        return m_eventsToCoros.contains(events);
+    }
 
 public:
-    void insert(const EventSet& events, std::coroutine_handle<> coro) {
-        if (isSetWaiting(events)) {
+    // Insert the specified coroutine waiting on the given set of events
+    void insert(const VerilatedEventSet& events, std::coroutine_handle<> coro) {
+        if (isSetWaitedOn(events)) {
             primeTriggered();
         }
         VerilatedLockGuard guard{m_mutex};
-        eventSetsToCoros.insert(events, coro);
+        m_eventsToCoros.insert(events, coro);
     }
 
-    void primeTriggered() {
-        VerilatedLockGuard guard{m_mutex};
-        std::vector<Event*> queue = std::move(triggeredEvents);
-        for (auto event : queue) eventSetsToCoros.move(event, primedCoros);
-    }
-
-    void resumeTriggered(Event& dlyEvent) {
+    // Resume coroutines waiting on all triggered events (and keep doing it until no events get triggered); also trigger delayed assignment event
+    void resumeTriggered(VerilatedEvent& dlyEvent) {
         do {
             resumeTriggered();
             trigger(dlyEvent);
@@ -161,39 +210,32 @@ public:
         } while (!primedEmpty());
     }
 
+    // Resume coroutines waiting on all triggered events (and keep doing it until no events get triggered)
     void resumeTriggered() {
         primeTriggered();
         while (!primedEmpty()) {
             m_mutex.lock();
-            std::vector<std::coroutine_handle<>> queue = std::move(primedCoros);
+            VerilatedCoroutineArray queue = std::move(m_primedCoros);
             m_mutex.unlock();
             for (auto coro : queue) coro();
             primeTriggered();
         }
     }
 
-    bool primedEmpty() {
-        const VerilatedLockGuard guard{m_mutex};
-        return primedCoros.empty();
-    }
-
-    bool isSetWaiting(const EventSet& events) {
-        const VerilatedLockGuard guard{m_mutex};
-        return eventSetsToCoros.contains(events);
-    }
-
-    void trigger(Event& event) {
+    // Move the given event to the triggered event queue
+    void trigger(VerilatedEvent& event) {
         event = 1;
         const VerilatedLockGuard guard{m_mutex};
-        triggeredEvents.push_back(&event);
+        m_triggeredEvents.push_back(&event);
     }
 
-    auto operator[](EventSet&& events) {
+    // Used by coroutines for co_awaiting a certain set of events
+    auto operator[](VerilatedEventSet&& events) {
         struct Awaitable {
-            EventDispatcher& dispatcher;
-            EventSet events;
+            VerilatedEventDispatcher& dispatcher;  // The dispatcher to put the events in
+            VerilatedEventSet events;  // Events the coroutine will wait on
 
-            bool await_ready() { return false; }
+            bool await_ready() { return false; }  // Always suspend
 
             void await_suspend(std::coroutine_handle<> coro) { dispatcher.insert(events, coro); }
 
@@ -203,47 +245,67 @@ public:
     }
 };
 
-struct CoroutineTask {
-    struct promise_type {
-        CoroutineTask get_return_object() { return {this}; }
+//=============================================================================
+// VerilatedCoroutine
+// Return value of a coroutine. Used for chaining coroutine suspension/resumption.
+class VerilatedCoroutine final {
+private:
+    // TYPES
+    struct VerilatedPromise {
+        VerilatedCoroutine get_return_object() { return {this}; }
 
+        // Never suspend at the start of the coroutine
         std::suspend_never initial_suspend() { return {}; }
 
+        // Never suspend at the end of the coroutine (thanks to this, the coroutine will clean up after itself)
         std::suspend_never final_suspend() noexcept {
-            if (VL_LIKELY(task)) task->promise = nullptr;
-            if (VL_UNLIKELY(continuation)) continuation.resume();
+            // Indicate to the return object that the coroutine has finished
+            if (m_coro) m_coro->m_promise = nullptr;
+            // If there is a continuation, resume it
+            if (m_continuation) m_continuation();
             return {};
         }
 
-        void unhandled_exception() { std::terminate(); }
-
+        void unhandled_exception() { std::abort(); }
         void return_void() const {}
 
-        std::coroutine_handle<> continuation;
-        CoroutineTask* task = nullptr;
+        std::coroutine_handle<> m_continuation;  // Coroutine that should be resumed after this one finishes
+        VerilatedCoroutine* m_coro = nullptr;  // Pointer to the coroutine return object
     };
 
-    CoroutineTask(promise_type* p)
-        : promise(p) {
-        promise->task = this;
+    // MEMBERS
+    VerilatedPromise* m_promise;  // The promise created for this coroutine
+
+public:
+    // TYPES
+    using promise_type = VerilatedPromise; // promise_type has to be public
+
+    // CONSTRUCTORS
+    // Construct
+    VerilatedCoroutine(VerilatedPromise* p)
+        : m_promise(p) {
+        m_promise->m_coro = this;
     }
 
-    CoroutineTask(CoroutineTask&& other)
-        : promise(std::exchange(other.promise, nullptr)) {
-        if (VL_LIKELY(promise)) promise->task = this;
+    // Move. Update the pointers each time the return object is moved
+    VerilatedCoroutine(VerilatedCoroutine&& other)
+        : m_promise(std::exchange(other.m_promise, nullptr)) {
+        if (m_promise) m_promise->m_coro = this;
     }
 
-    ~CoroutineTask() {
-        if (VL_UNLIKELY(promise)) promise->task = nullptr;
+    // Indicate to the promise that the return object is gone
+    ~VerilatedCoroutine() {
+        if (m_promise) m_promise->m_coro = nullptr;
     }
 
-    bool await_ready() const noexcept { return !promise; }
+    // METHODS
+    // Suspend the awaiter if the coroutine is suspended (the promise exists)
+    bool await_ready() const noexcept { return !m_promise; }
 
-    void await_suspend(std::coroutine_handle<> coro) { promise->continuation = coro; }
+    // Set the awaiting coroutine as the continuation of the current coroutine
+    void await_suspend(std::coroutine_handle<> coro) { m_promise->m_continuation = coro; }
 
     void await_resume() const noexcept {}
-
-    promise_type* promise;
 };
 
 #endif  // Guard

@@ -2208,7 +2208,7 @@ public:
 class AstNodeProcedure VL_NOT_FINAL : public AstNode {
     // IEEE procedure: initial, final, always
 private:
-    bool m_dynamic = false;
+    bool m_dynamic = false;  // Is dynamically scheduled
 
 protected:
     AstNodeProcedure(AstType t, FileLine* fl, AstNode* bodysp)

@@ -119,14 +119,11 @@ static AstVarScope* getCreateEvent(AstVarScope* vscp, VEdgeType edgeType) {
 }
 
 //######################################################################
+// Mark nodes affected by dynamic scheduling
 
 class DynamicSchedulerMarkDynamicVisitor final : public AstNVisitor {
 private:
-    // NODE STATE
-    //  AstCFunc::user1()      -> bool.  Set true if node has been processed
-    AstUser1InUse m_inuser1;
-
-    // STATE
+    // TYPES
     struct Overrides {
         std::unordered_set<AstCFunc*> nodes;
 
@@ -135,20 +132,28 @@ private:
         bool operator[](AstCFunc* nodep) const { return nodes.find(nodep) != nodes.end(); }
         void insert(AstCFunc* nodep) { nodes.insert(nodep); }
     };
-    std::unordered_map<AstCFunc*, Overrides> m_overrides;
-    AstClass* m_classp = nullptr;
-    bool m_dynamic = false;
-    bool m_repeat = false;
+
+    // NODE STATE
+    //  AstCFunc::user1()      -> bool.  Set true if node has been processed
+    AstUser1InUse m_inuser1;
+
+    // STATE
+    std::unordered_map<AstCFunc*, Overrides> m_overrides;  // Maps CFuncs to CFuncs overriding them/overridden by them
+    AstClass* m_classp = nullptr;  // Current class
+    bool m_dynamic = false;  // Are we in a dynamically scheduled process/function?
+    bool m_repeat = false;  // Re-run this visitor?
 
     // METHODS
     VL_DEBUG_FUNC;  // Declare debug()
 
+    // If we mark the current process/function as dynamically scheduled, we will need to repeat the whole process
     void setDynamic() {
         if (!m_dynamic) m_repeat = true;
         m_dynamic = true;
     }
+    // Extract class member of a given name (it's needed as this is after V3Class)
     static AstNode* findMember(AstClass* classp, const std::string& name) {
-        for (AstNode* itemp = VN_CAST(classp->membersp(), Scope)->blocksp(); itemp;
+        for (AstNode* itemp = VN_CAST(classp->membersp(), Scope)->blocksp(); itemp; // TODO: CHANGE THIS! FIRST MEMBER IS NOT NECESSARILY SCOPE
              itemp = itemp->nextp()) {
             if (itemp->name() == name) return itemp;
         }
@@ -219,10 +224,10 @@ private:
             }
         }
         if (!m_dynamic) return;
-        nodep->rtnType("CoroutineTask");
+        nodep->rtnType("VerilatedCoroutine");
         for (auto cfuncp : m_overrides[nodep]) {
             if (cfuncp->isCoroutine()) continue;
-            cfuncp->rtnType("CoroutineTask");
+            cfuncp->rtnType("VerilatedCoroutine");
             m_repeat = true;
         }
     }
@@ -243,6 +248,7 @@ private:
         iterateChildren(nodep);
     }
     virtual void visit(AstFork* nodep) override {
+        // If we're waiting for child processes, we're dynamic
         if (!nodep->joinType().joinNone()) setDynamic();
         iterateChildren(nodep);
     }
@@ -343,6 +349,7 @@ public:
 };
 
 //######################################################################
+// Transform forks
 
 class DynamicSchedulerForkVisitor final : public AstNVisitor {
 private:
@@ -411,7 +418,7 @@ private:
             AstCFunc* const cfuncp = new AstCFunc{stmtp->fileline(),
                                                   "__Vfork__" + std::to_string(m_count++) + "__"
                                                       + std::to_string(joinCount++),
-                                                  m_scopep, "CoroutineTask"};
+                                                  m_scopep, "VerilatedCoroutine"};
             m_scopep->addActivep(cfuncp);
 
             // Create list of arguments and move to function
@@ -532,6 +539,7 @@ public:
 };
 
 //######################################################################
+// Transform delayed/non-blocking assignments
 
 class DynamicSchedulerAssignDlyVisitor final : public AstNVisitor {
 private:
@@ -619,6 +627,7 @@ public:
 };
 
 //######################################################################
+// Create edge events
 
 class DynamicSchedulerCreateEventsVisitor final : public AstNVisitor {
 private:
@@ -626,8 +635,9 @@ private:
     using VarScopeSet = std::set<AstVarScope*>;
     VarScopeSet m_waitVars;
 
-    bool m_inTimingControlSens = false;
-    bool m_inWait = false;
+    bool m_inTimingControlSens = false;  // Are we under a timing control sens list?
+    bool m_inWait = false;  // Are we under a wait statement?
+    AstSenItem* m_senItemp = nullptr;  // The senitem we're under
 
     // METHODS
     VL_DEBUG_FUNC;  // Declare debug()
@@ -644,7 +654,7 @@ private:
         VL_RESTORER(m_inWait);
         m_inWait = true;
         iterateAndNextNull(nodep->condp());
-        if (m_waitVars.empty()) {
+        if (m_waitVars.empty()) {  // There are no vars to wait on
             if (nodep->bodysp())
                 nodep->replaceWith(nodep->bodysp()->unlinkFrBackWithNext());
             else
@@ -652,6 +662,7 @@ private:
         } else {
             auto fl = nodep->fileline();
             AstNode* senitemsp = nullptr;
+            // Wait on anyedge events related to the vars in the wait statement
             for (auto* vscp : m_waitVars) {
                 AstVarScope* eventp = vscp->varp()->isEventValue()
                                           ? vscp
@@ -663,6 +674,7 @@ private:
             auto* condp = nodep->condp()->unlinkFrBack();
             auto* timingControlp = new AstTimingControl{
                 fl, new AstSenTree{fl, VN_CAST(senitemsp, SenItem)}, nullptr};
+            // Put the timing control in a while loop with the wait statement as condition
             auto* whilep = new AstWhile{fl, new AstLogNot{fl, condp}, timingControlp};
             if (nodep->bodysp()) whilep->addNext(nodep->bodysp()->unlinkFrBackWithNext());
             nodep->replaceWith(whilep);
@@ -674,6 +686,7 @@ private:
         VL_RESTORER(m_senItemp);
         m_senItemp = nodep;
         if (m_inTimingControlSens) {
+            // Split bothedge into posedge and negedge, to react to those triggers
             if (nodep->edgeType() == VEdgeType::ET_BOTHEDGE) {
                 nodep->addNextHere(nodep->cloneTree(false));
                 nodep->edgeType(VEdgeType::ET_POSEDGE);
@@ -682,7 +695,6 @@ private:
         }
         iterateChildren(nodep);
     }
-    AstSenItem* m_senItemp = nullptr;
     virtual void visit(AstVarRef* nodep) override {
         if (m_inWait) {
             m_waitVars.insert(nodep->varScopep());
@@ -722,6 +734,7 @@ public:
 };
 
 //######################################################################
+// Add triggers for edge events
 
 class DynamicSchedulerAddTriggersVisitor final : public AstNVisitor {
 private:
@@ -774,26 +787,29 @@ private:
                                "__Vprevval" + std::to_string(m_count++) + "__" + varrefp->name());
             AstNode* stmtspAfter = nullptr;
 
+            // Trigger posedge event if (~prevval && currentval)
             if (auto* eventp = varrefp->varp()->edgeEvent(VEdgeType::ET_POSEDGE)) {
                 stmtspAfter = AstNode::addNext(
                     stmtspAfter,
                     new AstIf{fl,
                               new AstAnd{
-                                  fl, new AstLogNot{fl, new AstVarRef{fl, newvscp, VAccess::READ}},
+                                  fl, new AstNot{fl, new AstVarRef{fl, newvscp, VAccess::READ}},
                                   new AstVarRef{fl, varrefp->varScopep(), VAccess::READ}},
                               new AstEventTrigger{fl, new AstVarRef{fl, eventp, VAccess::WRITE}}});
             }
 
+            // Trigger negedge event if (prevval && ~currentval)
             if (auto* eventp = varrefp->varp()->edgeEvent(VEdgeType::ET_NEGEDGE)) {
                 stmtspAfter = AstNode::addNext(
                     stmtspAfter,
                     new AstIf{fl,
                               new AstAnd{fl, new AstVarRef{fl, newvscp, VAccess::READ},
-                                         new AstLogNot{fl, new AstVarRef{fl, varrefp->varScopep(),
+                                         new AstNot{fl, new AstVarRef{fl, varrefp->varScopep(),
                                                                          VAccess::READ}}},
                               new AstEventTrigger{fl, new AstVarRef{fl, eventp, VAccess::WRITE}}});
             }
 
+            // Trigger anyedge event if (prevval != currentval)
             if (auto* eventp = varrefp->varp()->edgeEvent(VEdgeType::ET_ANYEDGE)) {
                 stmtspAfter = AstNode::addNext(
                     stmtspAfter,
@@ -813,11 +829,11 @@ private:
     }
     virtual void visit(AstVarScope* nodep) override {
         AstVar* varp = nodep->varp();
+        // If a var has edge events and could've been written to from the outside (e.g. the main function), create a clocked Active that triggers the edge events
         if (varp->hasEdgeEvents() && (varp->isUsedClock() || varp->isSigPublic())) {
             auto fl = nodep->fileline();
             for (auto edgeType :
                  {VEdgeType::ET_POSEDGE, VEdgeType::ET_NEGEDGE, VEdgeType::ET_ANYEDGE}) {
-                // TODO: make sure ANYEDGE is checked before the others
                 if (auto* eventp = varp->edgeEvent(edgeType)) {
                     auto* activep = new AstActive{
                         fl, "",
@@ -825,12 +841,10 @@ private:
                                        new AstSenItem{fl,
                                                       edgeType == VEdgeType::ET_ANYEDGE
                                                           ? VEdgeType::ET_BOTHEDGE
-                                                          : edgeType,
+                                                          : edgeType, // Use bothedge as anyedge is not clocked
                                                       new AstVarRef{fl, nodep, VAccess::READ}}}};
                     m_topScopep->addSenTreep(activep->sensesp());
-                    auto* ifp = new AstIf{
-                        fl, new AstLogNot{fl, new AstVarRef{fl, eventp, VAccess::READ}},
-                        new AstEventTrigger{fl, new AstVarRef{fl, eventp, VAccess::WRITE}}};
+                    auto* ifp = new AstEventTrigger{fl, new AstVarRef{fl, eventp, VAccess::WRITE}};
                     auto* alwaysp
                         = new AstAlways{nodep->fileline(), VAlwaysKwd::ALWAYS, nullptr, ifp};
                     activep->addStmtsp(alwaysp);

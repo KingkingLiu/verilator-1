@@ -1956,7 +1956,7 @@ private:
     bool m_overridenParam : 1;  // Overridden parameter by #(...) or defparam
     bool m_trace : 1;  // Trace this variable
     bool m_isLatched : 1;  // Not assigned in all control paths of combo always
-    bool m_isDynamic : 1;  // Assigned to by a dynamic process
+    bool m_isDynamic : 1;  // Assigned to by a dynamically scheduled process
 
     void init() {
         m_ansi = false;
@@ -8965,7 +8965,7 @@ public:
     void dpiImportWrapper(bool flag) { m_dpiImportWrapper = flag; }
     void dpiTraceInit(bool flag) { m_dpiTraceInit = flag; }
     bool dpiTraceInit() const { return m_dpiTraceInit; }
-    bool isCoroutine() const { return !isConstructor() && rtnTypeVoid() == "CoroutineTask"; }
+    bool isCoroutine() const { return rtnTypeVoid() == "VerilatedCoroutine"; }
     //
     // If adding node accessors, see below emptyBody
     AstNode* argsp() const { return op1p(); }
