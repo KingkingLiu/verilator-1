@@ -282,6 +282,7 @@ public:
 };
 
 //######################################################################
+// Transform intra assignment delays
 
 class DynamicSchedulerIntraAssignDelayVisitor final : public AstNVisitor {
 private:
