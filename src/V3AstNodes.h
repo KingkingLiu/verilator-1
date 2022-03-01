@@ -3312,19 +3312,26 @@ public:
     AstVar* varp() const {
         auto* nodep = sensp();
         while (nodep != nullptr && !VN_IS(nodep, Var)) {
-            if (auto* memberSelp = VN_CAST(nodep, MemberSel)) nodep = memberSelp->varp();
-            else if (auto* selp = VN_CAST(nodep, NodeSel)) nodep = selp->fromp();
-            else if (auto* varrefp = VN_CAST(nodep, NodeVarRef)) nodep = varrefp->varp();
-            else nodep = nullptr;
+            if (auto* memberSelp = VN_CAST(nodep, MemberSel))
+                nodep = memberSelp->varp();
+            else if (auto* selp = VN_CAST(nodep, NodeSel))
+                nodep = selp->fromp();
+            else if (auto* varrefp = VN_CAST(nodep, NodeVarRef))
+                nodep = varrefp->varp();
+            else
+                nodep = nullptr;
         }
         return VN_CAST(nodep, Var);
     }
     AstVarScope* varScopep() const {
         auto* nodep = sensp();
         while (nodep != nullptr && !VN_IS(nodep, NodeVarRef)) {
-            if (auto* memberSelp = VN_CAST(nodep, MemberSel)) nodep = memberSelp->fromp();
-            else if (auto* selp = VN_CAST(nodep, NodeSel)) nodep = selp->fromp();
-            else nodep = nullptr;
+            if (auto* memberSelp = VN_CAST(nodep, MemberSel))
+                nodep = memberSelp->fromp();
+            else if (auto* selp = VN_CAST(nodep, NodeSel))
+                nodep = selp->fromp();
+            else
+                nodep = nullptr;
         }
         return VN_CAST(nodep, NodeVarRef)->varScopep();
     }

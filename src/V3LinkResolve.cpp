@@ -210,8 +210,7 @@ private:
                 }
             }
         }
-        if (!v3Global.opt.dynamicScheduler()
-            && !VN_IS(nodep->sensp(), NodeVarRef)
+        if (!v3Global.opt.dynamicScheduler() && !VN_IS(nodep->sensp(), NodeVarRef)
             && !VN_IS(nodep->sensp(), EnumItemRef)  // V3Const will cleanup
             && !nodep->isIllegal()) {
             if (debug()) nodep->dumpTree(cout, "-tree: ");

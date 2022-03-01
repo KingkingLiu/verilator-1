@@ -141,7 +141,8 @@ private:
     AstUser1InUse m_inuser1;
 
     // STATE
-    std::unordered_map<AstCFunc*, Overrides> m_overrides;  // Maps CFuncs to CFuncs overriding them/overridden by them
+    std::unordered_map<AstCFunc*, Overrides>
+        m_overrides;  // Maps CFuncs to CFuncs overriding them/overridden by them
     AstClass* m_classp = nullptr;  // Current class
     bool m_dynamic = false;  // Are we in a dynamically scheduled process/function?
     bool m_repeat = false;  // Re-run this visitor?
@@ -149,12 +150,14 @@ private:
     // METHODS
     VL_DEBUG_FUNC;  // Declare debug()
 
-    // If we mark the current process/function as dynamically scheduled, we will need to repeat the whole process
+    // If we mark the current process/function as dynamically scheduled, we will need to repeat the
+    // whole process
     void setDynamic() {
         if (!m_dynamic) m_repeat = true;
         m_dynamic = true;
     }
-    // Extract class member of a given name (it's needed as this is after V3Class, methods are under scope)
+    // Extract class member of a given name (it's needed as this is after V3Class, methods are
+    // under scope)
     static AstNode* findMethod(AstClass* classp, const std::string& name) {
         for (AstNode* nodep = classp->membersp(); nodep; nodep = nodep->nextp()) {
             if (auto* scopep = VN_CAST(nodep, Scope)) {
@@ -714,9 +717,7 @@ private:
             }
         }
     }
-    virtual void visit(AstNodeSel* nodep) override {
-        iterate(nodep->fromp());
-    }
+    virtual void visit(AstNodeSel* nodep) override { iterate(nodep->fromp()); }
     virtual void visit(AstMemberSel* nodep) override {
         if (m_inWait) {
             m_waitVars.insert(VN_CAST(nodep->fromp(), VarRef)->varScopep());
@@ -800,9 +801,9 @@ private:
                 stmtspAfter = AstNode::addNext(
                     stmtspAfter,
                     new AstIf{fl,
-                              new AstAnd{
-                                  fl, new AstNot{fl, new AstVarRef{fl, newvscp, VAccess::READ}},
-                                  new AstVarRef{fl, varrefp->varScopep(), VAccess::READ}},
+                              new AstAnd{fl,
+                                         new AstNot{fl, new AstVarRef{fl, newvscp, VAccess::READ}},
+                                         new AstVarRef{fl, varrefp->varScopep(), VAccess::READ}},
                               new AstEventTrigger{fl, new AstVarRef{fl, eventp, VAccess::WRITE}}});
             }
 
@@ -813,7 +814,7 @@ private:
                     new AstIf{fl,
                               new AstAnd{fl, new AstVarRef{fl, newvscp, VAccess::READ},
                                          new AstNot{fl, new AstVarRef{fl, varrefp->varScopep(),
-                                                                         VAccess::READ}}},
+                                                                      VAccess::READ}}},
                               new AstEventTrigger{fl, new AstVarRef{fl, eventp, VAccess::WRITE}}});
             }
 
@@ -837,7 +838,8 @@ private:
     }
     virtual void visit(AstVarScope* nodep) override {
         AstVar* varp = nodep->varp();
-        // If a var has edge events and could've been written to from the outside (e.g. the main function), create a clocked Active that triggers the edge events
+        // If a var has edge events and could've been written to from the outside (e.g. the main
+        // function), create a clocked Active that triggers the edge events
         if (varp->hasEdgeEvents() && (varp->isUsedClock() || varp->isSigPublic())) {
             auto fl = nodep->fileline();
             for (auto edgeType :
@@ -845,12 +847,13 @@ private:
                 if (auto* eventp = varp->edgeEvent(edgeType)) {
                     auto* activep = new AstActive{
                         fl, "",
-                        new AstSenTree{fl,
-                                       new AstSenItem{fl,
-                                                      edgeType == VEdgeType::ET_ANYEDGE
-                                                          ? VEdgeType::ET_BOTHEDGE
-                                                          : edgeType, // Use bothedge as anyedge is not clocked
-                                                      new AstVarRef{fl, nodep, VAccess::READ}}}};
+                        new AstSenTree{
+                            fl, new AstSenItem{
+                                    fl,
+                                    edgeType == VEdgeType::ET_ANYEDGE
+                                        ? VEdgeType::ET_BOTHEDGE
+                                        : edgeType,  // Use bothedge as anyedge is not clocked
+                                    new AstVarRef{fl, nodep, VAccess::READ}}}};
                     m_topScopep->addSenTreep(activep->sensesp());
                     auto* ifp = new AstEventTrigger{fl, new AstVarRef{fl, eventp, VAccess::WRITE}};
                     auto* alwaysp
