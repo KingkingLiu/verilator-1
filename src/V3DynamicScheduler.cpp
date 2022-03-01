@@ -154,11 +154,15 @@ private:
         if (!m_dynamic) m_repeat = true;
         m_dynamic = true;
     }
-    // Extract class member of a given name (it's needed as this is after V3Class)
-    static AstNode* findMember(AstClass* classp, const std::string& name) {
-        for (AstNode* itemp = VN_CAST(classp->membersp(), Scope)->blocksp(); itemp; // TODO: CHANGE THIS! FIRST MEMBER IS NOT NECESSARILY SCOPE
-             itemp = itemp->nextp()) {
-            if (itemp->name() == name) return itemp;
+    // Extract class member of a given name (it's needed as this is after V3Class, methods are under scope)
+    static AstNode* findMethod(AstClass* classp, const std::string& name) {
+        for (AstNode* nodep = classp->membersp(); nodep; nodep = nodep->nextp()) {
+            if (auto* scopep = VN_CAST(nodep, Scope)) {
+                for (AstNode* nodep = scopep->blocksp(); nodep; nodep = nodep->nextp()) {
+                    if (nodep->name() == name) return nodep;
+                }
+                break;
+            }
         }
         return nullptr;
     }
@@ -220,7 +224,7 @@ private:
         if (nodep->isVirtual() && !nodep->user1SetOnce()) {
             for (auto* cextp = m_classp->extendsp(); cextp;
                  cextp = VN_CAST(cextp->nextp(), ClassExtends)) {
-                auto* cfuncp = VN_CAST(findMember(cextp->classp(), nodep->name()), CFunc);
+                auto* cfuncp = VN_CAST(findMethod(cextp->classp(), nodep->name()), CFunc);
                 if (!cfuncp) continue;
                 m_overrides[nodep].insert(cfuncp);
                 m_overrides[cfuncp].insert(nodep);
