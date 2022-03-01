@@ -505,6 +505,10 @@ static void process() {
         V3CCtors::cctorsAll();
     }
 
+    if (v3Global.opt.dynamicScheduler() && !v3Global.opt.xmlOnly() && !v3Global.opt.lintOnly()) {
+        V3DynamicScheduler::classes(v3Global.rootp());
+    }
+
     if (!v3Global.opt.xmlOnly() && v3Global.opt.mtasks()) {
         // Finalize our MTask cost estimates and pack the mtasks into
         // threads. Must happen pre-EmitC which relies on the packing

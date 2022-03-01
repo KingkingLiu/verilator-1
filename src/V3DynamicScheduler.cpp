@@ -89,6 +89,9 @@
 //          If there is an edge event variable associated with it:
 //              Create a new Active for this edge with an EventTrigger for this event variable
 //
+//      Each class with an event member:
+//          In the destructor, notify the dispatcher that the event var doesn't exist anymore.
+//
 //*************************************************************************
 
 #include "config_build.h"
@@ -864,6 +867,62 @@ public:
 };
 
 //######################################################################
+// Manage the lifetime of class member events
+
+class DynamicSchedulerClassEventVisitor final : public AstNVisitor {
+private:
+    // STATE
+    AstClass* m_classp = nullptr;  // Current class
+    AstNode* m_resetStmtsp = nullptr;
+    AstCFunc* m_constructor = nullptr;
+    AstCFunc* m_destructor = nullptr;
+
+    // METHODS
+    VL_DEBUG_FUNC;  // Declare debug()
+
+    // VISITORS
+    virtual void visit(AstClass* nodep) override {
+        VL_RESTORER(m_classp);
+        VL_RESTORER(m_resetStmtsp);
+        VL_RESTORER(m_destructor);
+        m_classp = nodep;
+        iterateChildren(nodep);
+        if (m_resetStmtsp) {
+            UASSERT_OBJ(m_constructor, nodep, "Class has no constructor");
+            UASSERT_OBJ(m_destructor, nodep, "Class has no destructor");
+            nodep->addMembersp(new AstVar{nodep->fileline(), AstVarType::MEMBER, "vlSymsp",
+                                          nodep->findBasicDType(AstBasicDTypeKwd::SYMSPTR)});
+            m_constructor->addStmtsp(
+                new AstCStmt{nodep->fileline(), "this->vlSymsp = vlSymsp;\n"});
+            m_destructor->addStmtsp(m_resetStmtsp);
+        }
+    }
+    virtual void visit(AstVar* nodep) override {
+        if (!m_classp) return;
+        if (nodep->dtypep()->basicp() && nodep->dtypep()->basicp()->isEventValue()) {
+            m_resetStmtsp = AstNode::addNext(
+                m_resetStmtsp,
+                new AstCStmt{nodep->fileline(), "vlSymsp->__Vm_eventDispatcher.cancel("
+                                                    + nodep->nameProtect() + ");\n"});
+        }
+    }
+    virtual void visit(AstCFunc* nodep) override {
+        if (nodep->isDestructor())
+            m_destructor = nodep;
+        else if (nodep->isConstructor())
+            m_constructor = nodep;
+    }
+
+    //--------------------
+    virtual void visit(AstNode* nodep) override { iterateChildren(nodep); }
+
+public:
+    // CONSTRUCTORS
+    explicit DynamicSchedulerClassEventVisitor(AstNetlist* nodep) { iterate(nodep); }
+    virtual ~DynamicSchedulerClassEventVisitor() override {}
+};
+
+//######################################################################
 // DynamicScheduler class functions
 
 void V3DynamicScheduler::processes(AstNetlist* nodep) {
@@ -906,4 +965,9 @@ void V3DynamicScheduler::events(AstNetlist* nodep) {
                                   v3Global.opt.dumpTreeLevel(__FILE__) >= 6);
     UINFO(2, "  Done.\n");
     V3Global::dumpCheckGlobalTree("dsch_events", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 3);
+}
+
+void V3DynamicScheduler::classes(AstNetlist* nodep) {
+    { DynamicSchedulerClassEventVisitor visitor(nodep); }
+    V3Global::dumpCheckGlobalTree("dsch_classes", 0, v3Global.opt.dumpTreeLevel(__FILE__) >= 3);
 }

@@ -256,11 +256,6 @@ private:
         m_initFuncp = makeTopFunction("_eval_initial", /* slow: */ true);
         m_settleFuncp = makeTopFunction("_eval_settle", /* slow: */ true);
         m_finalFuncp = makeTopFunction("_final", /* slow: */ true);
-
-        if (v3Global.opt.dynamicScheduler())
-            m_evalFuncp->addStmtsp(new AstCStmt{
-                m_evalFuncp->fileline(), "vlSymsp->__Vm_delayedQueue.resume(VL_TIME_D());\n"});
-
         // Process the activates
         iterateChildren(nodep);
         UINFO(4, " TOPSCOPE iter done " << nodep << endl);

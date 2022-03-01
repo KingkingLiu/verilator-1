@@ -158,6 +158,12 @@ public:
         for (auto event : events) m_eventsToEventSets.insert(std::make_pair(event, events));
         m_eventSetsToCoros.insert(std::make_pair(events, coro));
     }
+
+    // Erase all coroutines waiting on the given event
+    void erase(VerilatedEvent* event) {
+        auto range = m_eventsToEventSets.equal_range(event);
+        for (auto it = range.first; it != range.second; ++it) m_eventSetsToCoros.erase(it->second);
+    }
 };
 
 //=============================================================================
@@ -168,6 +174,7 @@ private:
     // MEMBERS
     VerilatedEventToCoroMap m_eventsToCoros;  // Mapping of events to coroutines
     std::vector<VerilatedEvent*> m_triggeredEvents;  // Events triggered in the current time slot
+    VerilatedEventSet m_eventsToReset;  // Events to be reset at the start of a time slot
     VerilatedCoroutineArray m_primedCoros;  // Coroutines primed for resumption in the current time slot
     VerilatedMutex m_mutex;  // Protects m_eventSetsToCoros, m_triggeredEvents, and m_primedCoros
 
@@ -222,10 +229,28 @@ public:
         }
     }
 
+    // Reset all events triggered in the previous time slot
+    void resetTriggered() {
+        const VerilatedLockGuard guard{m_mutex};
+        for (auto event : m_eventsToReset) *event = 0;
+        m_eventsToReset.clear();
+    }
+
+    // Stop waiting on the given event
+    void cancel(VerilatedEvent& event) {
+        const VerilatedLockGuard guard{m_mutex};
+        m_eventsToCoros.erase(&event);
+        m_eventsToReset.erase(&event);
+    }
+    template<size_t depth> void cancel(VlUnpacked<VerilatedEvent, depth>& events) {
+        for (size_t i = 0; i < depth; i++) cancel(events[i]);
+    }
+
     // Move the given event to the triggered event queue
     void trigger(VerilatedEvent& event) {
         event = 1;
         const VerilatedLockGuard guard{m_mutex};
+        m_eventsToReset.insert(&event);
         m_triggeredEvents.push_back(&event);
     }
 

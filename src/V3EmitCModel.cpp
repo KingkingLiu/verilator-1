@@ -434,13 +434,9 @@ class EmitCModel final : public EmitCFunc {
         puts("if (VL_UNLIKELY(!vlSymsp->__Vm_didInit)) " + protect("_eval_initial_loop")
              + "(vlSymsp);\n");
 
-        for (auto* nodep = modp->stmtsp(); nodep; nodep = nodep->nextp()) {
-            if (VN_IS(nodep, Var) && nodep->dtypep()->basicp()
-                && nodep->dtypep()->basicp()->isEventValue()) {
-                // TODO: Handle arrays and classes
-                if (VN_IS(nodep->dtypep(), NodeArrayDType)) continue;
-                puts("vlSymsp->TOP." + nodep->nameProtect() + " = 0;\n");
-            }
+        if (v3Global.opt.dynamicScheduler()) {
+            puts("vlSymsp->__Vm_eventDispatcher.resetTriggered();\n");
+            puts("vlSymsp->__Vm_delayedQueue.resume(VL_TIME_D());\n");
         }
 
         if (v3Global.opt.threads() == 1) {

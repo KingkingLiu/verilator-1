@@ -436,6 +436,7 @@ public:
         // Internal types for mid-steps
         SCOPEPTR,
         CHARPTR,
+        SYMSPTR,
         MTASKSTATE,
         // Unsigned and two state; fundamental types
         UINT32,
@@ -451,7 +452,8 @@ public:
             = {"%E-unk",       "bit",     "byte",   "chandle",         "event",
                "int",          "integer", "logic",  "longint",         "real",
                "shortint",     "time",    "string", "VerilatedScope*", "char*",
-               "VlMTaskState", "IData",   "QData",  "LOGIC_IMPLICIT",  " MAX"};
+               "Syms*", "VlMTaskState", "IData",   "QData",  "LOGIC_IMPLICIT",
+               " MAX"};
         return names[m_e];
     }
     const char* dpiType() const {
@@ -459,7 +461,8 @@ public:
             = {"%E-unk",        "svBit",      "char",        "void*",           "char",
                "int",           "%E-integer", "svLogic",     "long long",       "double",
                "short",         "%E-time",    "const char*", "dpiScope",        "const char*",
-               "%E-mtaskstate", "IData",      "QData",       "%E-logic-implct", " MAX"};
+               "Syms*", "%E-mtaskstate", "IData",      "QData",       "%E-logic-implct",
+               " MAX"};
         return names[m_e];
     }
     static void selfTest() {
@@ -492,6 +495,7 @@ public:
         case STRING: return 64;  // opaque  // Just the pointer, for today
         case SCOPEPTR: return 0;  // opaque
         case CHARPTR: return 0;  // opaque
+        case SYMSPTR: return 0;  // opaque
         case MTASKSTATE: return 0;  // opaque
         case UINT32: return 32;
         case UINT64: return 64;
@@ -504,8 +508,8 @@ public:
     }
     bool isUnsigned() const {
         return m_e == CHANDLE || m_e == EVENTVALUE || m_e == STRING || m_e == SCOPEPTR
-               || m_e == CHARPTR || m_e == UINT32 || m_e == UINT64 || m_e == BIT || m_e == LOGIC
-               || m_e == TIME;
+               || m_e == CHARPTR || m_e == SYMSPTR || m_e == UINT32 || m_e == UINT64
+               || m_e == BIT || m_e == LOGIC || m_e == TIME;
     }
     bool isFourstate() const {
         return m_e == INTEGER || m_e == LOGIC || m_e == LOGIC_IMPLICIT || m_e == TIME;
@@ -529,8 +533,8 @@ public:
                 || m_e == DOUBLE || m_e == SHORTINT || m_e == UINT32 || m_e == UINT64);
     }
     bool isOpaque() const {  // IE not a simple number we can bit optimize
-        return (m_e == STRING || m_e == SCOPEPTR || m_e == CHARPTR || m_e == MTASKSTATE
-                || m_e == DOUBLE);
+        return (m_e == STRING || m_e == SCOPEPTR || m_e == CHARPTR || m_e == SYMSPTR
+                || m_e == MTASKSTATE || m_e == DOUBLE);
     }
     bool isDouble() const { return m_e == DOUBLE; }
     bool isEventValue() const { return m_e == EVENTVALUE; }
@@ -550,6 +554,7 @@ public:
         case SHORTINT:
         case SCOPEPTR:
         case CHARPTR:
+        case SYMSPTR:
         case UINT32:
         case UINT64: return true;
         default: return false;
