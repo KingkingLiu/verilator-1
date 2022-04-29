@@ -10,8 +10,13 @@ if (!$::Driver) { use FindBin; exec("$FindBin::Bin/bootstrap.pl", @ARGV, $0); di
 
 scenarios(vlt_all => 1);
 
-compile(
-    );
+if (!$Self->have_coroutines) {
+    skip("No coroutine support");
+}
+else {
+    compile(
+        );
+}
 # No execute
 ok(1);
 1;

@@ -392,6 +392,7 @@ void EmitCSyms::emitSymHdr() {
     puts("\n");
     ofp()->putsIntTopInclude();
     puts("#include \"verilated.h\"\n");
+    if (v3Global.timing()) puts("#include \"verilated_timing.h\"\n");
     if (v3Global.needTraceDumper()) {
         puts("#include \"" + v3Global.opt.traceSourceLang() + ".h\"\n");
     }
@@ -448,6 +449,12 @@ void EmitCSyms::emitSymHdr() {
     if (v3Global.opt.profExec()) {
         puts("\n// EXECUTION PROFILING\n");
         puts("VlExecutionProfiler __Vm_executionProfiler;\n");
+    }
+
+    if (v3Global.timing()) {
+        puts("\n// TIMING\n");
+        puts("VerilatedDelayedQueue __Vm_delayedQueue;\n");
+        puts("VerilatedEventDispatcher __Vm_eventDispatcher;\n");
     }
 
     if (v3Global.opt.mtasks()) {

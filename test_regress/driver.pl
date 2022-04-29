@@ -44,16 +44,16 @@ $SIG{TERM} = sub { $Fork->kill_tree_all('TERM') if $Fork; die "Quitting...\n"; }
 
 # Map of all scenarios, with the names used to enable them
 our %All_Scenarios
-    = (dist  => [                                       "dist"],
-       atsim => [          "simulator", "simulator_st", "atsim"],
-       ghdl  => ["linter", "simulator", "simulator_st", "ghdl"],
-       iv    => [          "simulator", "simulator_st", "iv"],
-       ms    => ["linter", "simulator", "simulator_st", "ms"],
-       nc    => ["linter", "simulator", "simulator_st", "nc"],
-       vcs   => ["linter", "simulator", "simulator_st", "vcs"],
-       xsim  => ["linter", "simulator", "simulator_st", "xsim"],
-       vlt   => ["linter", "simulator", "simulator_st", "vlt_all", "vlt"],
-       vltmt => [          "simulator",                 "vlt_all", "vltmt"],
+    = (dist     => [                                       "dist"],
+       atsim    => [          "simulator", "simulator_st", "atsim"],
+       ghdl     => ["linter", "simulator", "simulator_st", "ghdl"],
+       iv       => [          "simulator", "simulator_st", "iv"],
+       ms       => ["linter", "simulator", "simulator_st", "ms"],
+       nc       => ["linter", "simulator", "simulator_st", "nc"],
+       vcs      => ["linter", "simulator", "simulator_st", "vcs"],
+       xsim     => ["linter", "simulator", "simulator_st", "xsim"],
+       vlt      => ["linter", "simulator", "simulator_st", "vlt_all", "vlt"],
+       vltmt    => [          "simulator",                 "vlt_all", "vltmt"]
     );
 
 #======================================================================
@@ -1137,7 +1137,7 @@ sub compile {
         }
 
         if (!$param{fails} && $param{make_main}) {
-            $self->_make_main();
+            $self->_make_main($param{delayed_queue});
         }
 
         if ($param{verilator_make_gmake}
@@ -1492,6 +1492,12 @@ sub have_sc {
     return 0;
 }
 
+sub have_coroutines {
+    my $self = (ref $_[0] ? shift : $Self);
+    return 1 if $self->verilator_version =~ /coroutine support *= *1/i;
+    return 0;
+}
+
 sub make_version {
     my $ver = `$ENV{MAKE} --version`;
     if ($ver =~ /make ([0-9]+\.[0-9]+)/i) {
@@ -1743,6 +1749,7 @@ sub _try_regex {
 
 sub _make_main {
     my $self = shift;
+    my $delayed_queue = shift;
 
     if ($self->vhdl) {
         $self->_read_inputs_vhdl();
@@ -1870,32 +1877,61 @@ sub _make_main {
     }
     print $fh "        ${set}fastclk = false;\n" if $self->{inputs}{fastclk};
     print $fh "        ${set}clk = false;\n" if $self->{inputs}{clk};
-    _print_advance_time($self, $fh, 10);
+    if (!$delayed_queue) {
+        _print_advance_time($self, $fh, 10);
+    }
     print $fh "    }\n";
 
     my $time = $self->sc ? "sc_time_stamp()" : "contextp->time()";
 
-    print $fh "    while ((${time} < sim_time * MAIN_TIME_MULTIPLIER)\n";
+    print $fh "    while (";
+    if ($delayed_queue && !$self->{inputs}{clk}) {
+        print $fh "topp->eventsPending()\n";
+    } else {
+        print $fh "(${time} < sim_time * MAIN_TIME_MULTIPLIER)\n";
+    }
     print $fh "           && !contextp->gotFinish()) {\n";
 
-    for (my $i = 0; $i < 5; $i++) {
-        my $action = 0;
-        if ($self->{inputs}{fastclk}) {
-            print $fh "        ${set}fastclk = !${set}fastclk;\n";
-            $action = 1;
+    if ($delayed_queue) {
+        print $fh "        ${set}eval();\n";
+        if ($self->{trace} && !$self->sc) {
+            $fh->print("#if VM_TRACE\n");
+            $fh->print("        if (tfp) tfp->dump(contextp->time());\n");
+            $fh->print("#endif  // VM_TRACE\n");
         }
-        if ($i == 0 && $self->{inputs}{clk}) {
-            print $fh "        ${set}clk = !${set}clk;\n";
-            $action = 1;
+        if ($self->{inputs}{clk}) {
+            print $fh "        auto newTime = topp->nextTimeSlot();\n";
+            print $fh "        if (newTime == contextp->time() ||\n";
+            print $fh "            newTime - contextp->time() > MAIN_TIME_MULTIPLIER) {\n";
+            print $fh "            newTime = contextp->time() + MAIN_TIME_MULTIPLIER;\n";
+            print $fh "        }\n";
+            print $fh "        if (newTime % MAIN_TIME_MULTIPLIER == 0) {\n";
+            print $fh "            ${set}clk = !${set}clk;\n";
+            print $fh "        }\n";
+            print $fh "        contextp->time(newTime);\n";
+        } else {
+            print $fh "        contextp->time(topp->nextTimeSlot());\n";
         }
-        if ($self->{savable}) {
-            $fh->print("        if (save_time && ${time} == save_time) {\n");
-            $fh->print("            save_model(\"$self->{obj_dir}/saved.vltsv\");\n");
-            $fh->print("            printf(\"Exiting after save_model\\n\");\n");
-            $fh->print("            return 0;\n");
-            $fh->print("        }\n");
+    } else {
+        for (my $i = 0; $i < 5; $i++) {
+            my $action = 0;
+            if ($self->{inputs}{fastclk}) {
+                print $fh "        ${set}fastclk = !${set}fastclk;\n";
+                $action = 1;
+            }
+            if ($i == 0 && $self->{inputs}{clk}) {
+                print $fh "        ${set}clk = !${set}clk;\n";
+                $action = 1;
+            }
+            if ($self->{savable}) {
+                $fh->print("        if (save_time && ${time} == save_time) {\n");
+                $fh->print("            save_model(\"$self->{obj_dir}/saved.vltsv\");\n");
+                $fh->print("            printf(\"Exiting after save_model\\n\");\n");
+                $fh->print("            return 0;\n");
+                $fh->print("        }\n");
+            }
+            _print_advance_time($self, $fh, 1, $action);
         }
-        _print_advance_time($self, $fh, 1, $action);
     }
     if ($self->{benchmarksim}) {
         $fh->print("        if (VL_UNLIKELY(!warm)) {\n");

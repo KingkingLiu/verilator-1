@@ -173,6 +173,7 @@ public:
         for (const auto& vrp : m_outputs) {
             LatchDetectGraphVertex* const vertp = castVertexp(vrp->varp()->user1p());
             vertp->user(true);  // Identify the output vertex we are checking paths _to_
+            if (vrp->varp()->isEventValue()) continue;  // Named events shouldn't cause a latch
             if (!latchCheckInternal(castVertexp(verticesBeginp()))) latch_detected = true;
             if (latch_detected && !latch_expected) {
                 nodep->v3warn(
@@ -562,9 +563,13 @@ private:
         // if (debug() >= 9) nodep->dumpTree(cout, "  Alw: ");
         visitAlways(nodep, nodep->sensesp(), VAlwaysKwd::ALWAYS);
     }
+    virtual void visit(AstEventControl* nodep) override {
+        // Do not visit SenItems in an event control
+        iterateNull(nodep->stmtsp());
+    }
     virtual void visit(AstSenItem* nodep) override {
-        if (nodep->varrefp()) {
-            if (const AstBasicDType* const basicp = nodep->varrefp()->dtypep()->basicp()) {
+        if (nodep->sensp()) {
+            if (const AstBasicDType* const basicp = nodep->sensp()->dtypep()->basicp()) {
                 if (basicp->isEventValue()) {
                     // Events need to be treated as active high so we only activate on event being
                     // 1
@@ -578,15 +583,15 @@ private:
             // Delete the sensitivity
             // We'll add it as a generic COMBO SenItem in a moment.
             VL_DO_DANGLING(nodep->unlinkFrBack()->deleteTree(), nodep);
-        } else if (nodep->varrefp()) {
+        } else if (nodep->sensp()) {
             // V3LinkResolve should have cleaned most of these up
-            if (!nodep->varrefp()->width1()) {
+            if (!nodep->sensp()->width1()) {
                 nodep->v3warn(E_UNSUPPORTED,
                               "Unsupported: Non-single bit wide signal pos/negedge sensitivity: "
                                   << nodep->varrefp()->prettyNameQ());
             }
             m_itemSequent = true;
-            nodep->varrefp()->varp()->usedClock(true);
+            AstNode::findVarp(nodep->sensp())->usedClock(true);
         }
     }
 

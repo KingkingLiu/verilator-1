@@ -120,6 +120,22 @@ class EmitCGatherDependencies final : VNVisitor {
         if (nodep->text().find("vlSymsp") != string::npos) addSymsDependency();
         iterateChildrenConst(nodep);
     }
+    virtual void visit(AstEventTrigger* nodep) override {
+        addSymsDependency();
+        iterateChildrenConst(nodep);
+    }
+    virtual void visit(AstResumeTriggered* nodep) override {
+        addSymsDependency();
+        iterateChildrenConst(nodep);
+    }
+    virtual void visit(AstEventControl* nodep) override {
+        addSymsDependency();
+        iterateChildrenConst(nodep);
+    }
+    virtual void visit(AstDelay* nodep) override {
+        addSymsDependency();
+        iterateChildrenConst(nodep);
+    }
     virtual void visit(AstNode* nodep) override { iterateChildrenConst(nodep); }
 
     // CONSTRUCTOR
@@ -181,6 +197,7 @@ class EmitCImp final : EmitCFunc {
         // Include files
         puts("\n#include \"verilated.h\"\n");
         if (v3Global.dpi()) puts("#include \"verilated_dpi.h\"\n");
+        if (v3Global.timing()) puts("#include \"verilated_timing.h\"\n");
         puts("\n");
         for (const string& name : headers) puts("#include \"" + name + ".h\"\n");
 
@@ -433,9 +450,9 @@ class EmitCImp final : EmitCFunc {
                 emitCtorImp(modp);
                 emitConfigureImp(modp);
                 emitDestructorImp(modp);
+                emitSavableImp(modp);
+                emitCoverageImp();
             }
-            emitSavableImp(modp);
-            emitCoverageImp();
         } else {
             // From `systemc_implementation
             emitTextSection(modp, VNType::atScImp);

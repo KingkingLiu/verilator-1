@@ -1,0 +1,8 @@
+in main process
+forked process 1
+forked process 2
+forked process 3
+forked process 2 again
+forked process 1 again
+forked process 3 again
+*-* All Finished *-*

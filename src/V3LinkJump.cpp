@@ -175,7 +175,15 @@ private:
         VL_DO_DANGLING(nodep->deleteTree(), nodep);
     }
     virtual void visit(AstWait* nodep) override {
-        nodep->v3warn(E_UNSUPPORTED, "Unsupported: wait statements");
+        if (nodep->fileline()->timingOn()) {
+            if (v3Global.opt.timing()) {
+                iterateChildren(nodep);
+                return;
+            } else {
+                nodep->v3warn(E_UNSUPPORTED, "Unsupported: wait statements");
+            }
+        }
+        // If we ignore timing:
         // Statements we'll just execute immediately; equivalent to if they followed this
         if (AstNode* const bodysp = nodep->bodysp()) {
             bodysp->unlinkFrBackWithNext();

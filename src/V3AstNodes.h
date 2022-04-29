@@ -1962,6 +1962,7 @@ private:
     VLifetime m_lifetime;  // Lifetime
     VVarAttrClocker m_attrClocker;
     MTaskIdSet m_mtaskIds;  // MTaskID's that read or write this var
+    AstNode* m_delayp = nullptr;  // Delay on variable
     int m_pinNum = 0;  // For XML, if non-zero the connection pin number
     bool m_ansi : 1;  // ANSI port list variable (for dedup check)
     bool m_declTyped : 1;  // Declared as type (for dedup check)
@@ -2001,6 +2002,7 @@ private:
     bool m_trace : 1;  // Trace this variable
     bool m_isLatched : 1;  // Not assigned in all control paths of combo always
     bool m_isForceable : 1;  // May be forced/released externally from user C code
+    bool m_writtenBySuspendable : 1;  // Written to by a suspendable process
 
     void init() {
         m_ansi = false;
@@ -2041,6 +2043,7 @@ private:
         m_trace = false;
         m_isLatched = false;
         m_isForceable = false;
+        m_writtenBySuspendable = false;
         m_attrClocker = VVarAttrClocker::CLOCKER_UNKNOWN;
     }
 
@@ -2155,6 +2158,7 @@ public:
     AstNode* attrsp() const { return op4p(); }  // op4 = Attributes during early parse
     void childDTypep(AstNodeDType* nodep) { setOp1p(nodep); }
     virtual AstNodeDType* subDTypep() const { return dtypep() ? dtypep() : childDTypep(); }
+    void delayp(AstNode* delayp) { m_delayp = delayp; }
     void ansi(bool flag) { m_ansi = flag; }
     void declTyped(bool flag) { m_declTyped = flag; }
     void attrClockEn(bool flag) { m_attrClockEn = flag; }
@@ -2204,10 +2208,12 @@ public:
     void isLatched(bool flag) { m_isLatched = flag; }
     bool isForceable() const { return m_isForceable; }
     void setForceable() { m_isForceable = true; }
+    void isWrittenBySuspendable(bool flag) { m_writtenBySuspendable = flag; }
     // METHODS
     virtual void name(const string& name) override { m_name = name; }
     virtual void tag(const string& text) override { m_tag = text; }
     virtual string tag() const override { return m_tag; }
+    AstNode* delayp() const { return m_delayp; }
     bool isAnsi() const { return m_ansi; }
     bool isContinuously() const { return m_isContinuously; }
     bool isDeclTyped() const { return m_declTyped; }
@@ -2258,6 +2264,7 @@ public:
     bool isConst() const { return m_isConst; }
     bool isStatic() const { return m_isStatic; }
     bool isLatched() const { return m_isLatched; }
+    bool isWrittenBySuspendable() const { return m_writtenBySuspendable; }
     bool isFuncLocal() const { return m_funcLocal; }
     bool isFuncReturn() const { return m_funcReturn; }
     bool isPullup() const { return m_isPullup; }
@@ -2270,6 +2277,7 @@ public:
     bool attrSplitVar() const { return m_attrSplitVar; }
     bool attrIsolateAssign() const { return m_attrIsolateAssign; }
     VVarAttrClocker attrClocker() const { return m_attrClocker; }
+    bool isEventValue() const { return basicp() && basicp()->isEventValue(); }
     virtual string verilogKwd() const override;
     void lifetime(const VLifetime& flag) { m_lifetime = flag; }
     VLifetime lifetime() const { return m_lifetime; }
@@ -3481,8 +3489,8 @@ public:
 
 class AstAssign final : public AstNodeAssign {
 public:
-    AstAssign(FileLine* fl, AstNode* lhsp, AstNode* rhsp)
-        : ASTGEN_SUPER_Assign(fl, lhsp, rhsp) {
+    AstAssign(FileLine* fl, AstNode* lhsp, AstNode* rhsp, AstNode* delayp = nullptr)
+        : ASTGEN_SUPER_Assign(fl, lhsp, rhsp, delayp) {
         dtypeFrom(lhsp);
     }
     ASTNODE_NODE_FUNCS(Assign)
@@ -3507,8 +3515,8 @@ public:
 
 class AstAssignDly final : public AstNodeAssign {
 public:
-    AstAssignDly(FileLine* fl, AstNode* lhsp, AstNode* rhsp)
-        : ASTGEN_SUPER_AssignDly(fl, lhsp, rhsp) {}
+    AstAssignDly(FileLine* fl, AstNode* lhsp, AstNode* rhsp, AstNode* delayp = nullptr)
+        : ASTGEN_SUPER_AssignDly(fl, lhsp, rhsp, delayp) {}
     ASTNODE_NODE_FUNCS(AssignDly)
     virtual AstNode* cloneType(AstNode* lhsp, AstNode* rhsp) override {
         return new AstAssignDly(this->fileline(), lhsp, rhsp);
@@ -3817,15 +3825,19 @@ public:
 class AstDelay final : public AstNodeStmt {
     // Delay statement
 public:
-    AstDelay(FileLine* fl, AstNode* lhsp)
+    AstDelay(FileLine* fl, AstNode* lhsp, AstNode* stmtsp)
         : ASTGEN_SUPER_Delay(fl) {
         setOp1p(lhsp);
+        setNOp2p(stmtsp);
     }
     ASTNODE_NODE_FUNCS(Delay)
     virtual bool same(const AstNode* samep) const override { return true; }
     //
     AstNode* lhsp() const { return op1p(); }  // op2 = Statements to evaluate
     void lhsp(AstNode* nodep) { setOp1p(nodep); }
+    void stmtsp(AstNode* nodep) { setOp2p(nodep); }
+    AstNode* stmtsp() const { return op2p(); }
+    virtual bool isGateOptimizable() const override { return false; }
 };
 
 class AstGenCase final : public AstNodeCase {
@@ -4614,7 +4626,8 @@ public:
         addNOp3p(bodysp);
     }
     ASTNODE_NODE_FUNCS(Wait)
-    AstNode* bodysp() const { return op3p(); }  // op3 = body of loop
+    AstNode* condp() const { return op2p(); }
+    AstNode* bodysp() const { return op3p(); }
 };
 
 class AstWhile final : public AstNodeStmt {
@@ -4708,6 +4721,40 @@ public:
     virtual bool isBrancher() const override {
         return true;  // SPECIAL: We don't process code after breaks
     }
+};
+
+class AstEventTrigger final : public AstNodeStmt {
+    // The '->' operator for triggering named events
+    // Parents: {statement list}
+    // Children: VarRef|Sel|NodeSel|MemberSel
+    bool m_delayed;  // Delayed/non blocking event trigger (->>)
+public:
+    explicit AstEventTrigger(FileLine* fl, AstNode* trigp = nullptr, bool delayed = false)
+        : ASTGEN_SUPER_EventTrigger(fl) {
+        setOp1p(trigp);
+        m_delayed = delayed;
+    }
+    ASTNODE_NODE_FUNCS(EventTrigger)
+    AstNode* trigp() const { return op1p(); }
+    bool delayed() const { return m_delayed; }
+};
+
+class AstResumeTriggered final : public AstNodeStmt {
+public:
+    // Represents the point when suspended processes that have been triggered in the current time
+    // slot should be resumed. Triggers the "dlyEvent" which causes AssignDlys from suspendable
+    // processes to happen.
+    // Parents: {statement list}
+    // Children: VarRef
+    explicit AstResumeTriggered(FileLine* fl, AstNode* dlyEventVarscp)
+        : ASTGEN_SUPER_ResumeTriggered(fl) {
+        setNOp1p(dlyEventVarscp);
+    }
+    ASTNODE_NODE_FUNCS(ResumeTriggered)
+    AstNode* dlyEventVarscp() const { return op1p(); }
+    virtual bool isGateOptimizable() const override { return false; }
+    virtual bool isPredictOptimizable() const override { return false; }
+    virtual bool isSubstOptimizable() const override { return false; }
 };
 
 class AstGenIf final : public AstNodeIf {
@@ -5243,15 +5290,15 @@ public:
     }
 };
 
-class AstTimingControl final : public AstNodeStmt {
+class AstEventControl final : public AstNodeStmt {
     // Parents: stmtlist
 public:
-    AstTimingControl(FileLine* fl, AstSenTree* sensesp, AstNode* stmtsp)
-        : ASTGEN_SUPER_TimingControl(fl) {
+    AstEventControl(FileLine* fl, AstSenTree* sensesp, AstNode* stmtsp)
+        : ASTGEN_SUPER_EventControl(fl) {
         setNOp1p(sensesp);
         setNOp2p(stmtsp);
     }
-    ASTNODE_NODE_FUNCS(TimingControl)
+    ASTNODE_NODE_FUNCS(EventControl)
     virtual string verilogKwd() const override { return "@(%l) %r"; }
     virtual bool isGateOptimizable() const override { return false; }
     virtual bool isPredictOptimizable() const override { return false; }
@@ -5260,6 +5307,7 @@ public:
     virtual int instrCount() const override { return 0; }
     AstSenTree* sensesp() const { return VN_AS(op1p(), SenTree); }
     AstNode* stmtsp() const { return op2p(); }
+    void stmtsp(AstNode* stmtsp) { setNOp2p(stmtsp); }
 };
 
 class AstTimeFormat final : public AstNodeStmt {
@@ -8966,6 +9014,7 @@ public:
     AstScope* scopep() const { return m_scopep; }
     void scopep(AstScope* nodep) { m_scopep = nodep; }
     string rtnTypeVoid() const { return ((m_rtnType == "") ? "void" : m_rtnType); }
+    void rtnType(const string& rtnType) { m_rtnType = rtnType; }
     bool dontCombine() const { return m_dontCombine || isTrace() || entryPoint(); }
     void dontCombine(bool flag) { m_dontCombine = flag; }
     bool dontInline() const { return dontCombine() || slow() || funcPublic(); }
@@ -9012,6 +9061,7 @@ public:
     void dpiImportWrapper(bool flag) { m_dpiImportWrapper = flag; }
     void dpiTraceInit(bool flag) { m_dpiTraceInit = flag; }
     bool dpiTraceInit() const { return m_dpiTraceInit; }
+    bool isCoroutine() const { return rtnTypeVoid() == "VerilatedCoroutine"; }
     //
     // If adding node accessors, see below emptyBody
     AstNode* argsp() const { return op1p(); }

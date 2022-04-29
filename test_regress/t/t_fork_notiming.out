@@ -1,4 +1,4 @@
-%Error-UNSUPPORTED: t/t_fork.v:10:14: Unsupported: fork statements
+%Error-UNSUPPORTED: t/t_fork.v:10:14: Unsupported: fork statements with --no-timing
                                     : ... In instance t
    10 |       fork : fblk
       |              ^~~~

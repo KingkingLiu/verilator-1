@@ -300,6 +300,28 @@ public:
     virtual bool domainMatters() override { return false; }
 };
 
+class OrderTimingVertex final : public OrderEitherVertex {
+    std::string m_name;
+
+    OrderTimingVertex(V3Graph* graphp, const OrderTimingVertex& old)
+        : OrderEitherVertex{graphp, old}
+        , m_name(old.m_name) {}
+
+public:
+    OrderTimingVertex(V3Graph* graphp, AstScope* scopep, const std::string& name)
+        : OrderEitherVertex{graphp, scopep, nullptr}
+        , m_name(name) {}
+    virtual ~OrderTimingVertex() override {}
+    virtual OrderTimingVertex* clone(V3Graph* graphp) const override {
+        return new OrderTimingVertex(graphp, *this);
+    }
+    virtual OrderVEdgeType type() const override { return OrderVEdgeType::VERTEX_LOGIC; }
+    virtual string name() const override { return m_name; }
+    virtual string dotColor() const override { return "purple"; }
+    virtual string dotName() const override { return ""; }
+    virtual bool domainMatters() override { return false; }
+};
+
 //######################################################################
 //--- Following only under the move graph, not the main graph
 

@@ -43,6 +43,7 @@
 #include "V3Depth.h"
 #include "V3DepthBlock.h"
 #include "V3Descope.h"
+#include "V3Timing.h"
 #include "V3EmitC.h"
 #include "V3EmitCMain.h"
 #include "V3EmitCMake.h"
@@ -294,6 +295,12 @@ static void process() {
     if (!(v3Global.opt.xmlOnly() && !v3Global.opt.flatten())) {
         // Inline all tasks
         V3Task::taskAll(v3Global.rootp());
+    }
+
+    if (v3Global.opt.timing()) {
+        // Convert AST for timing if needed; mark processes and tasks as suspendable; generate
+        // signal edge events
+        V3Timing::timingAll(v3Global.rootp());
     }
 
     if (!v3Global.opt.xmlOnly()) {

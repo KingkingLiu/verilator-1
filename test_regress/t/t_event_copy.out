@@ -7,4 +7,9 @@
                                            : ... In instance t
   101 |          e3 = e2;   
       |             ^
+%Warning-TRIGGERDLY: t/t_event_copy.v:107:10: Unsupported: Non-blocking event trigger. Treating as blocking event trigger.
+                                            : ... In instance t
+  107 |          ->> e3;   
+      |          ^~~
+                     ... Use "/* verilator lint_off TRIGGERDLY */" and lint_on around source to disable this message.
 %Error: Exiting due to

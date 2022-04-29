@@ -393,6 +393,7 @@ detailed descriptions of these arguments.
     --threads <threads>         Enable multithreading
     --threads-dpi <mode>        Enable multithreaded DPI
     --threads-max-mtasks <mtasks>  Tune maximum mtask partitioning
+    --timing-off                Disable timing control support
     --timescale <timescale>     Sets default timescale
     --timescale-override <timescale>  Overrides all timescales
     --top <topname>             Alias of --top-module

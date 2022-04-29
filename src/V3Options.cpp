@@ -706,6 +706,14 @@ bool V3Options::systemCFound() {
             || (!getenvSYSTEMC_INCLUDE().empty() && !getenvSYSTEMC_LIBDIR().empty()));
 }
 
+bool V3Options::coroutineSupport() {
+#ifdef HAVE_COROUTINES
+    return true;
+#else
+    return false;
+#endif
+}
+
 //######################################################################
 // V3 Options notification methods
 
@@ -1305,6 +1313,7 @@ void V3Options::parseOptsList(FileLine* fl, const string& optdir, int argc, char
         m_threadsMaxMTasks = std::atoi(valp);
         if (m_threadsMaxMTasks < 1) fl->v3fatal("--threads-max-mtasks must be >= 1: " << valp);
     });
+    DECL_OPTION("-timing", OnOff, &m_timing);
     DECL_OPTION("-timescale", CbVal, [this, fl](const char* valp) {
         VTimescale unit;
         VTimescale prec;
@@ -1698,6 +1707,7 @@ void V3Options::showVersion(bool verbose) {
     cout << endl;
     cout << "Features (based on environment or compiled-in support):\n";
     cout << "    SystemC found      = " << cvtToStr(systemCFound()) << endl;
+    cout << "    Coroutine support  = " << cvtToStr(coroutineSupport()) << endl;
 }
 
 //======================================================================

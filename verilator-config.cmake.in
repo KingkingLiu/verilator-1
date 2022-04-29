@@ -90,6 +90,12 @@ define_property(TARGET
 )
 
 define_property(TARGET
+  PROPERTY VERILATOR_TIMING
+  BRIEF_DOCS "Verilator timing enabled"
+  FULL_DOCS "Verilator timing enabled"
+)
+
+define_property(TARGET
   PROPERTY VERILATOR_COVERAGE
   BRIEF_DOCS "Verilator coverage enabled"
   FULL_DOCS "Verilator coverage enabled"
@@ -266,6 +272,10 @@ function(verilate TARGET)
     set_property(TARGET ${TARGET} PROPERTY VERILATOR_TRACE_THREADED ON)
   endif()
 
+  if (${VERILATE_PREFIX}_TIMING)
+    set_property(TARGET ${TARGET} PROPERTY VERILATOR_TIMING ON)
+  endif()
+
   if (${VERILATE_PREFIX}_COVERAGE)
     # If any verilate() call specifies COVERAGE, define VM_COVERAGE in the final build
     set_property(TARGET ${TARGET} PROPERTY VERILATOR_COVERAGE ON)
@@ -338,6 +348,12 @@ function(verilate TARGET)
   )
 
   target_compile_features(${TARGET} PRIVATE cxx_std_11)
+
+  get_target_property(VERILATOR_TIMING ${TARGET} VERILATOR_TIMING)
+  if (${VERILATOR_TIMING})
+    check_cxx_compiler_flag(-fcoroutines-ts COROUTINES_TS_FLAG)
+    target_compile_options(${TARGET} PRIVATE $<IF:$<BOOL:${COROUTINES_TS_FLAG}>,-fcoroutines-ts,-fcoroutines>)
+  endif()
 endfunction()
 
 function(_verilator_find_systemc)

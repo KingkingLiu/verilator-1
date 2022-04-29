@@ -251,6 +251,7 @@ public:
         }
         // this->lifeDump();
     }
+    void clear() { m_map.clear(); }
     // DEBUG
     void lifeDump() {
         UINFO(5, "  LifeMap:" << endl);
@@ -398,6 +399,18 @@ private:
         // For the next assignments, clear any variables that were read or written in the block
         bodyLifep->lifeToAbove();
         VL_DO_DANGLING(delete bodyLifep, bodyLifep);
+    }
+    virtual void visit(AstDelay* nodep) override {
+        // V3Life doesn't understand time sense - don't optimize
+        m_lifep->clear();
+        m_noopt = true;
+        iterateChildren(nodep);
+    }
+    virtual void visit(AstEventControl* nodep) override {
+        // V3Life doesn't understand time sense - don't optimize
+        m_lifep->clear();
+        m_noopt = true;
+        iterateChildren(nodep);
     }
     virtual void visit(AstNodeCCall* nodep) override {
         // UINFO(4, "  CCALL " << nodep << endl);

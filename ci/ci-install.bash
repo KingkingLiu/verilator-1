@@ -56,7 +56,7 @@ if [ "$CI_BUILD_STAGE_NAME" = "build" ]; then
     sudo apt-get update
     sudo apt-get install libfl-dev libgoogle-perftools-dev ccache
     if [ "$CI_RUNS_ON" = "ubuntu-20.04" ]; then
-      sudo apt-get install libsystemc libsystemc-dev
+      sudo apt-get install libsystemc libsystemc-dev libstdc++-10-dev
     fi
     if [ "$COVERAGE" = 1 ]; then
       yes yes | sudo cpan -fi Parallel::Forker
@@ -86,7 +86,7 @@ elif [ "$CI_BUILD_STAGE_NAME" = "test" ]; then
     # libfl-dev needed for internal coverage's test runs
     sudo apt-get install gdb gtkwave lcov libfl-dev ccache
     if [ "$CI_RUNS_ON" = "ubuntu-20.04" ]; then
-      sudo apt-get install libsystemc-dev
+      sudo apt-get install libsystemc-dev libstdc++-10-dev
     fi
     if [ "$CI_M32" = 1 ]; then
       sudo apt-get install lib32z1-dev gcc-multilib g++-multilib

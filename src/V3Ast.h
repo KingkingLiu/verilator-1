@@ -440,6 +440,7 @@ public:
         // Internal types for mid-steps
         SCOPEPTR,
         CHARPTR,
+        SYMSPTR,
         MTASKSTATE,
         // Unsigned and two state; fundamental types
         UINT32,
@@ -452,18 +453,20 @@ public:
     enum en m_e;
     const char* ascii() const {
         static const char* const names[]
-            = {"%E-unk",       "bit",     "byte",   "chandle",         "event",
-               "int",          "integer", "logic",  "longint",         "real",
-               "shortint",     "time",    "string", "VerilatedScope*", "char*",
-               "VlMTaskState", "IData",   "QData",  "LOGIC_IMPLICIT",  " MAX"};
+            = {"%E-unk",   "bit",          "byte",   "chandle",         "event",
+               "int",      "integer",      "logic",  "longint",         "real",
+               "shortint", "time",         "string", "VerilatedScope*", "char*",
+               "Syms*",    "VlMTaskState", "IData",  "QData",           "LOGIC_IMPLICIT",
+               " MAX"};
         return names[m_e];
     }
     const char* dpiType() const {
         static const char* const names[]
-            = {"%E-unk",        "svBit",      "char",        "void*",           "char",
-               "int",           "%E-integer", "svLogic",     "long long",       "double",
-               "short",         "%E-time",    "const char*", "dpiScope",        "const char*",
-               "%E-mtaskstate", "IData",      "QData",       "%E-logic-implct", " MAX"};
+            = {"%E-unk",   "svBit",         "char",        "void*",     "char",
+               "int",      "%E-integer",    "svLogic",     "long long", "double",
+               "short",    "%E-time",       "const char*", "dpiScope",  "const char*",
+               "%E-Syms*", "%E-mtaskstate", "IData",       "QData",     "%E-logic-implct",
+               " MAX"};
         return names[m_e];
     }
     static void selfTest() {
@@ -495,6 +498,7 @@ public:
         case STRING: return 64;  // opaque  // Just the pointer, for today
         case SCOPEPTR: return 0;  // opaque
         case CHARPTR: return 0;  // opaque
+        case SYMSPTR: return 0;  // opaque
         case MTASKSTATE: return 0;  // opaque
         case UINT32: return 32;
         case UINT64: return 64;
@@ -507,8 +511,8 @@ public:
     }
     bool isUnsigned() const {
         return m_e == CHANDLE || m_e == EVENTVALUE || m_e == STRING || m_e == SCOPEPTR
-               || m_e == CHARPTR || m_e == UINT32 || m_e == UINT64 || m_e == BIT || m_e == LOGIC
-               || m_e == TIME;
+               || m_e == CHARPTR || m_e == SYMSPTR || m_e == UINT32 || m_e == UINT64 || m_e == BIT
+               || m_e == LOGIC || m_e == TIME;
     }
     bool isFourstate() const {
         return m_e == INTEGER || m_e == LOGIC || m_e == LOGIC_IMPLICIT || m_e == TIME;
@@ -532,8 +536,8 @@ public:
                 || m_e == DOUBLE || m_e == SHORTINT || m_e == UINT32 || m_e == UINT64);
     }
     bool isOpaque() const {  // IE not a simple number we can bit optimize
-        return (m_e == STRING || m_e == SCOPEPTR || m_e == CHARPTR || m_e == MTASKSTATE
-                || m_e == DOUBLE);
+        return (m_e == STRING || m_e == SCOPEPTR || m_e == CHARPTR || m_e == SYMSPTR
+                || m_e == MTASKSTATE || m_e == DOUBLE);
     }
     bool isDouble() const { return m_e == DOUBLE; }
     bool isEventValue() const { return m_e == EVENTVALUE; }
@@ -553,6 +557,7 @@ public:
         case SHORTINT:
         case SCOPEPTR:
         case CHARPTR:
+        case SYMSPTR:
         case UINT32:
         case UINT64: return true;
         default: return false;
@@ -1735,6 +1740,10 @@ public:
     AstNodeDType* findBasicDType(VBasicDTypeKwd kwd) const;
     static AstBasicDType* findInsertSameDType(AstBasicDType* nodep);
 
+    static AstNodeVarRef* findVarRefp(AstNode* nodep);
+    static AstVar* findVarp(AstNode* nodep);
+    static AstVarScope* findVarScopep(AstNode* nodep);
+
     // METHODS - dump and error
     void v3errorEnd(std::ostringstream& str) const;
     void v3errorEndFatal(std::ostringstream& str) const VL_ATTR_NORETURN;
@@ -2451,6 +2460,9 @@ public:
 
 class AstNodeProcedure VL_NOT_FINAL : public AstNode {
     // IEEE procedure: initial, final, always
+private:
+    bool m_suspendable = false;  // Is suspendable by a Delay, EventControl, etc.
+
 protected:
     AstNodeProcedure(VNType t, FileLine* fl, AstNode* bodysp)
         : AstNode{t, fl} {
@@ -2464,6 +2476,8 @@ public:
     AstNode* bodysp() const { return op2p(); }  // op2 = Statements to evaluate
     void addStmtp(AstNode* nodep) { addOp2p(nodep); }
     bool isJustOneBodyStmt() const { return bodysp() && !bodysp()->nextp(); }
+    bool isSuspendable() const { return m_suspendable; }
+    void isSuspendable(bool flag) { m_suspendable = flag; }
 };
 
 class AstNodeStmt VL_NOT_FINAL : public AstNode {
@@ -2488,10 +2502,11 @@ public:
 
 class AstNodeAssign VL_NOT_FINAL : public AstNodeStmt {
 protected:
-    AstNodeAssign(VNType t, FileLine* fl, AstNode* lhsp, AstNode* rhsp)
+    AstNodeAssign(VNType t, FileLine* fl, AstNode* lhsp, AstNode* rhsp, AstNode* delayp = nullptr)
         : AstNodeStmt{t, fl} {
         setOp1p(rhsp);
         setOp2p(lhsp);
+        setNOp3p(delayp);
         dtypeFrom(lhsp);
     }
 
@@ -2502,8 +2517,10 @@ public:
     // So iteration hits the RHS which is "earlier" in execution order, it's op1, not op2
     AstNode* rhsp() const { return op1p(); }  // op1 = Assign from
     AstNode* lhsp() const { return op2p(); }  // op2 = Assign to
+    AstNode* timingControlp() const { return op3p(); }  // op3 = Intra assign timing control
     void rhsp(AstNode* np) { setOp1p(np); }
     void lhsp(AstNode* np) { setOp2p(np); }
+    void delayp(AstNode* np) { setNOp3p(np); }
     virtual bool hasDType() const override { return true; }
     virtual bool cleanRhs() const { return true; }
     virtual int instrCount() const override { return widthInstrs(); }

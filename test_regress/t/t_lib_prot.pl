@@ -28,6 +28,7 @@ while (1) {
     run(logfile => "$secret_dir/vlt_compile.log",
         cmd => ["perl",
                 "$ENV{VERILATOR_ROOT}/bin/verilator",
+                ($Self->have_coroutines ? '' : '--no-timing'),
                 "--prefix",
                 "Vt_lib_prot_secret",
                 "-cc",
@@ -52,6 +53,7 @@ while (1) {
 
     compile(
         verilator_flags2 => ["$secret_dir/secret.sv",
+                             ($Self->have_coroutines ? '' : '--no-timing'),
                              "-LDFLAGS",
                              "$secret_prefix/libsecret.a"],
         xsim_flags2 => ["$secret_dir/secret.sv"],

@@ -51,6 +51,7 @@ public:
         I_TRACING,      // Tracing is on/off from /*verilator tracing_on/off*/
         I_LINT,         // All lint messages
         I_DEF_NETTYPE_WIRE,  // `default_nettype is WIRE (false=NONE)
+        I_TIMING_ON,  // Enable timing from /*verilator timing_on/off*/
         // Error codes:
         E_DETECTARRAY,  // Error: Unsupported: Can't detect changes on arrayed variable
         E_ENCAPSULATED, // Error: local/protected violation
@@ -123,6 +124,7 @@ public:
         SYNCASYNCNET,   // Mixed sync + async reset
         TICKCOUNT,      // Too large tick count
         TIMESCALEMOD,   // Need timescale for module
+        TRIGGERDLY,     // Unsupported: '->>' converted to '->'
         UNDRIVEN,       // No drivers
         UNOPT,          // Unoptimizable block
         UNOPTFLAT,      // Unoptimizable block after flattening
@@ -157,7 +159,7 @@ public:
             // Leading spaces indicate it can't be disabled.
             " MIN", " INFO", " FATAL", " FATALEXIT", " FATALSRC", " ERROR", " FIRST_NAMED",
             // Boolean
-            " I_CELLDEFINE", " I_COVERAGE", " I_TRACING", " I_LINT", " I_DEF_NETTYPE_WIRE",
+            " I_CELLDEFINE", " I_COVERAGE", " I_TRACING", " I_LINT", " I_DEF_NETTYPE_WIRE", " I_TIMING_ON",
             // Errors
             "DETECTARRAY", "ENCAPSULATED", "PORTSHORT", "UNSUPPORTED", "TASKNSVAR",
             // Warnings
@@ -176,7 +178,7 @@ public:
             "PINMISSING", "PINNOCONNECT",  "PINNOTFOUND", "PKGNODECL", "PROCASSWIRE",
             "PROFOUTOFDATE", "PROTECTED", "RANDC", "REALCVT", "REDEFMACRO",
             "SELRANGE", "SHORTREAL", "SPLITVAR", "STMTDLY", "SYMRSVDWORD", "SYNCASYNCNET",
-            "TICKCOUNT", "TIMESCALEMOD",
+            "TICKCOUNT", "TIMESCALEMOD", "TRIGGERDLY",
             "UNDRIVEN", "UNOPT", "UNOPTFLAT", "UNOPTTHREADS",
             "UNPACKED", "UNSIGNED", "UNUSED",
             "USERERROR", "USERFATAL", "USERINFO", "USERWARN",

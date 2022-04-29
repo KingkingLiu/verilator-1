@@ -10,14 +10,15 @@ if (!$::Driver) { use FindBin; exec("$FindBin::Bin/bootstrap.pl", @ARGV, $0); di
 
 scenarios(simulator => 1);
 
+top_filename("t/t_event.v");
+
 compile(
-    fails => $Self->{vlt_all},
-    expect_filename => $Self->{golden_filename},
+    verilator_flags2 => ['--no-timing'],
     );
 
 execute(
     check_finished => 1,
-    ) if !$Self->{vlt_all};
+    );
 
 ok(1);
 1;

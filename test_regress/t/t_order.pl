@@ -10,12 +10,21 @@ if (!$::Driver) { use FindBin; exec("$FindBin::Bin/bootstrap.pl", @ARGV, $0); di
 
 scenarios(simulator => 1);
 
-compile(
-    );
+$Self->{main_time_multiplier} = 1e-8 / 1e-9;
 
-execute(
-    check_finished => 1,
-    );
+if (!$Self->have_coroutines) {
+    skip("No coroutine support");
+}
+else {
+    compile(
+        delayed_queue => 1,
+        verilator_flags2 => ["--timescale 10ns/1ns"],
+        );
+
+    execute(
+        check_finished => 1,
+        );
+}
 
 ok(1);
 1;

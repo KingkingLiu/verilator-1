@@ -1,0 +1,5 @@
+POS sig1 or e
+POS sig2 or e
+POS sig1 or NEG sig2
+NEG sig1 or POS sig2
+*-* All Finished *-*

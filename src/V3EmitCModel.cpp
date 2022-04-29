@@ -183,6 +183,11 @@ class EmitCModel final : public EmitCFunc {
         ofp()->putsPrivate(false);  // public:
         puts("void final();\n");
 
+        puts("/// Are there scheduled events to handle?\n");
+        puts("bool eventsPending();\n");
+        puts("/// Returns time at next time slot (current time if no pending events)\n");
+        puts("uint64_t nextTimeSlot();\n");
+
         if (v3Global.opt.trace()) {
             puts("/// Trace signals in the model; called by application code\n");
             puts("void trace(" + v3Global.opt.traceClassBase()
@@ -420,6 +425,11 @@ class EmitCModel final : public EmitCFunc {
         puts("if (VL_UNLIKELY(!vlSymsp->__Vm_didInit)) " + protect("_eval_initial_loop")
              + "(vlSymsp);\n");
 
+        if (v3Global.timing()) {
+            puts("vlSymsp->__Vm_eventDispatcher.resetTriggered();\n");
+            puts("vlSymsp->__Vm_delayedQueue.resume(VL_TIME_Q());\n");
+        }
+
         if (v3Global.opt.threads() == 1) {
             const uint32_t mtaskId = 0;
             putsDecoration("// MTask " + cvtToStr(mtaskId) + " start\n");
@@ -458,6 +468,14 @@ class EmitCModel final : public EmitCFunc {
             puts("#endif  // VM_TRACE\n");
             puts("}\n");
         }
+
+        putSectionDelimiter("Events and timing");
+        puts("bool " + topClassName() + "::eventsPending() { return "
+             + (v3Global.timing() ? "!vlSymsp->__Vm_delayedQueue.empty()" : "false") + "; }\n");
+        puts("uint64_t " + topClassName() + "::nextTimeSlot() { return "
+             + (v3Global.timing() ? "vlSymsp->__Vm_delayedQueue.nextTimeSlot()"
+                                  : "contextp()->time() + 1")
+             + "; }\n");
 
         putSectionDelimiter("Utilities");
         // ::contextp
@@ -593,6 +611,9 @@ class EmitCModel final : public EmitCFunc {
         }
         if (v3Global.dpi()) {  //
             puts("#include \"verilated_dpi.h\"\n");
+        }
+        if (v3Global.timing()) {  //
+            puts("#include \"verilated_timing.h\"\n");
         }
 
         emitConstructorImplementation(modp);

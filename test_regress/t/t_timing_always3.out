@@ -1,0 +1,11 @@
+[3] b <= 0
+[5] a <= 1
+[6] Checking if b == 0
+[7] b <= 1
+[8] Checking if b == 1
+[9] b <= 0
+[11] a <= 1
+[13] b <= 1
+[15] b <= 0
+[17] a <= 1
+*-* All Finished *-*

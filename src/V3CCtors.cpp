@@ -201,7 +201,7 @@ void V3CCtors::cctorsAll() {
                 }
             }
         }
-        if (const AstClass* const classp = VN_CAST(modp, Class)) {
+        if (AstClass* const classp = VN_CAST(modp, Class)) {
             AstCFunc* const funcp = new AstCFunc{modp->fileline(), "~", nullptr, ""};
             funcp->isDestructor(true);
             funcp->isStatic(false);
@@ -209,6 +209,14 @@ void V3CCtors::cctorsAll() {
             funcp->isVirtual(classp->isExtended());
             funcp->slow(false);
             modp->addStmtp(funcp);
+            // Cancel class member events, as they will never get triggered
+            if (classp->findMember("_cancel_events")) {
+                auto* const newp = VN_AS(classp->findMember("new"), CFunc);
+                newp->addStmtsp(new AstCStmt{modp->fileline(), "this->vlSymsp = vlSymsp;\n"});
+                classp->addMembersp(new AstVar{modp->fileline(), VVarType::MEMBER, "vlSymsp",
+                                               classp->findBasicDType(VBasicDTypeKwd::SYMSPTR)});
+                funcp->addStmtsp(new AstCStmt{modp->fileline(), "_cancel_events(vlSymsp);\n"});
+            }
         }
     }
 }

@@ -158,6 +158,8 @@ private:
         iterateChildren(nodep);
         m_insStmtp = nullptr;  // Next thing should be new statement
     }
+    virtual void visit(AstDelay* nodep) override { iterateChildren(nodep); }
+    virtual void visit(AstEventControl* nodep) override { iterateChildren(nodep); }
     void unsupported_visit(AstNode* nodep) {
         VL_RESTORER(m_unsupportedHere);
         m_unsupportedHere = true;
