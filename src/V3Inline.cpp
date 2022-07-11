@@ -323,6 +323,7 @@ private:
             } else {
                 // Do to inlining child's variable now within the same
                 // module, so a AstVarRef not AstVarXRef below
+                UINFO(9, "assign alias: " << nodep << exprvarrefp->varp() << endl);
                 m_modp->addStmtp(
                     new AstAssignAlias(flp, new AstVarRef(flp, nodep, VAccess::WRITE),
                                        new AstVarRef(flp, exprvarrefp->varp(), VAccess::READ)));

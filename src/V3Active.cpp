@@ -207,7 +207,8 @@ private:
     // STATE
     AstScope* m_scopep = nullptr;  // Current scope to add statement to
     AstActive* m_iActivep = nullptr;  // For current scope, the IActive we're building
-    AstActive* m_cActivep = nullptr;  // For current scope, the SActive(combo) we're building
+    AstActive* m_cActivep = nullptr;  // For current scope, the CActive(combo) we're building
+    AstActive* m_rActivep = nullptr;  // For current scope, the RActive(reference) we're building
 
     // Map from AstSenTree (equivalence) to the corresponding AstActive created.
     std::unordered_map<VNRef<AstSenTree>, AstActive*> m_activeMap;
@@ -222,6 +223,7 @@ private:
         m_scopep = nodep;
         m_iActivep = nullptr;
         m_cActivep = nullptr;
+        m_rActivep = nullptr;
         m_activeMap.clear();
         iterateChildren(nodep);
         // Don't clear scopep, the namer persists beyond this visit
@@ -254,6 +256,15 @@ public:
             addActive(m_iActivep);
         }
         return m_iActivep;
+    }
+    AstActive* getRActive(FileLine* fl) {
+        if (!m_rActivep) {
+            m_rActivep = new AstActive(
+                fl, "reference", new AstSenTree(fl, new AstSenItem(fl, AstSenItem::Reference())));
+            m_rActivep->sensesStorep(m_rActivep->sensesp());
+            addActive(m_rActivep);
+        }
+        return m_rActivep;
     }
 
     // Return an AstActive that is sensitive to a SenTree equivalent to the given sentreep.
@@ -433,17 +444,43 @@ private:
         nodep->unlinkFrBack();
         wantactivep->addStmtsp(nodep);
     }
+
+    bool filterTopLevelIO(AstNodeAssign* nodep) {
+        if (const AstVarRef* lhsp = VN_CAST(nodep->lhsp(), VarRef)) {
+            if (const AstVarRef* rhsp = VN_CAST(nodep->rhsp(), VarRef)) {
+                if ((rhsp->varp()->isTopLevelIOTainted()
+                     && lhsp->varp()->isTopLevelIO())
+                    ||
+                    (lhsp->varp()->isTopLevelIOTainted()
+                     && rhsp->varp()->isTopLevelIO())) {
+                    UINFO(9, "    Top Level Signal Ref1 " << lhsp << endl \
+                          << "                     Ref2 " << rhsp << endl);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     virtual void visit(AstAssignAlias* nodep) override {
         // Relink to CACTIVE, unless already under it
-        UINFO(4, "    ASSIGNW " << nodep << endl);
-        AstActive* const wantactivep = m_namer.getCActive(nodep->fileline());
+        UINFO(4, "    ASSIGNALIAS " << nodep << endl);
+        // For now only Top Level IO, but could be expanded in future
+        // for other references
+        bool topLevelIO = filterTopLevelIO(nodep);
+        AstActive* const wantactivep = topLevelIO ? m_namer.getRActive(nodep->fileline())
+                                                  : m_namer.getCActive(nodep->fileline());
         nodep->unlinkFrBack();
         wantactivep->addStmtsp(nodep);
     }
     virtual void visit(AstAssignW* nodep) override {
         // Relink to CACTIVE, unless already under it
         UINFO(4, "    ASSIGNW " << nodep << endl);
-        AstActive* const wantactivep = m_namer.getCActive(nodep->fileline());
+        // For now only Top Level IO, but could be expanded in future
+        // for other references
+        bool topLevelIO = filterTopLevelIO(nodep);
+        AstActive* const wantactivep = topLevelIO ? m_namer.getRActive(nodep->fileline())
+                                                  : m_namer.getCActive(nodep->fileline());
         nodep->unlinkFrBack();
         wantactivep->addStmtsp(nodep);
     }

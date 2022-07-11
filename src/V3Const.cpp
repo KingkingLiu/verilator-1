@@ -2643,6 +2643,7 @@ private:
         return (!nodep->nextp() && nodep->backp()->nextp() != nodep);
     }
     virtual void visit(AstSenItem* nodep) override {
+        UINFO(4, "AstSenItem " << nodep << endl);
         iterateChildren(nodep);
         if (m_doNConst
             && (VN_IS(nodep->sensp(), Const) || VN_IS(nodep->sensp(), EnumItemRef)
@@ -2677,6 +2678,7 @@ private:
         } else if (!m_doNConst  // Deal with later when doNConst missing
                    && (VN_IS(nodep->sensp(), EnumItemRef) || VN_IS(nodep->sensp(), Const))) {
         } else if (nodep->isIllegal()) {  // Deal with later
+        } else if (nodep->isReference()) {  // Deal with in emit stage
         } else {
             UASSERT_OBJ(!(nodep->hasVar() && !nodep->varrefp()), nodep,
                         "Null sensitivity variable");
@@ -2710,6 +2712,7 @@ private:
     };
 
     virtual void visit(AstSenTree* nodep) override {
+        UINFO(4, "AstSenTree " << nodep << endl);
         iterateChildren(nodep);
         if (m_doExpensive) {
             // cout<<endl; nodep->dumpTree(cout, "ssin: ");

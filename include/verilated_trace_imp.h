@@ -536,10 +536,12 @@ void VerilatedTrace<VL_SUB_T, VL_BUF_T>::dump(uint64_t timeui) VL_MT_SAFE_EXCLUD
     // This does get the mutex, but if multiple threads are trying to dump
     // chances are the data being dumped will have other problems
     const VerilatedLockGuard lock{m_mutex};
-    if (VL_UNCOVERABLE(m_timeLastDump && timeui <= m_timeLastDump)) {  // LCOV_EXCL_START
-        VL_PRINTF_MT("%%Warning: previous dump at t=%" PRIu64 ", requesting t=%" PRIu64
-                     ", dump call ignored\n",
-                     m_timeLastDump, timeui);
+    if (m_timeLastDump && timeui <= m_timeLastDump) {
+        if (Verilated::debug() >= 9) {  // LCOV_EXCL_START
+            VL_PRINTF_MT("%%Warning: previous dump at t=%" PRIu64 ", requesting t=%" PRIu64
+                         ", dump call ignored\n",
+                         m_timeLastDump, timeui);
+        }
         return;
     }  // LCOV_EXCL_STOP
     m_timeLastDump = timeui;

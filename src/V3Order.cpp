@@ -1119,11 +1119,12 @@ class OrderProcess final : VNDeleter {
 
     string cfuncName(AstNodeModule* modp, AstSenTree* domainp, AstScope* scopep,
                      AstNode* forWhatp) {
-        string name = domainp->hasCombo()     ? "_combo"
-                      : domainp->hasInitial() ? "_initial"
-                      : domainp->hasSettle()  ? "_settle"
-                      : domainp->isMulti()    ? "_multiclk"
-                                              : "_sequent";
+        string name = domainp->hasCombo()       ? "_combo"
+                      : domainp->hasInitial()   ? "_initial"
+                      : domainp->hasSettle()    ? "_settle"
+                      : domainp->isMulti()      ? "_multiclk"
+                      : domainp->hasReference() ? "_reference"
+                                                : "_sequent";
         name = name + "__" + scopep->nameDotless();
         const unsigned funcnum = m_funcNums.emplace(std::make_pair(modp, name), 0).first->second++;
         name = name + "__" + cvtToStr(funcnum);
@@ -1849,6 +1850,16 @@ AstActive* OrderProcess::processMoveOneLogic(const OrderLogicVertex* lvertexp,
                 VL_DO_DANGLING(pushDeletep(nodep), nodep);
             } else {
                 newFuncpr->addStmtsp(nodep);
+                if (const AstNodeAssign* exprp = VN_CAST(nodep, NodeAssign))
+                    if(const AstVarRef* rrefp = VN_CAST(exprp->rhsp(), VarRef))
+                        if(const AstVarRef* lrefp = VN_CAST(exprp->lhsp(), VarRef)) {
+                            if (rrefp->varp()->isTopLevelIOTainted()
+                                && lrefp->varp()->isTopLevelIO())
+                                newFuncpr->setTopLevelIO();
+                            if (lrefp->varp()->isTopLevelIOTainted()
+                                && rrefp->varp()->isTopLevelIO())
+                                newFuncpr->setTopLevelIO();
+                        }
                 if (v3Global.opt.outputSplitCFuncs()) {
                     // Add in the number of nodes we're adding
                     newStmtsr += nodep->nodeCount();

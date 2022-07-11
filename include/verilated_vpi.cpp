@@ -520,8 +520,10 @@ class VerilatedVpiImp final {
 
     // All only medium-speed, so use singleton function
     VpioCbList m_cbObjLists[CB_ENUM_MAX_VALUE];  // Callbacks for each supported reason
-    VpioTimedCbs m_timedCbs, m_readWriteCbs, m_readOnlyCbs,
-        m_nextSimTimeCbs;  // Time based callbacks
+    VpioTimedCbs m_timedCbs;        // Time based callbacks
+    VpioTimedCbs m_readWriteCbs;    // Time based callbacks
+    VpioTimedCbs m_readOnlyCbs;     // Time based callbacks
+    VpioTimedCbs m_nextSimTimeCbs;  // Time based callbacks
     VerilatedVpiError* m_errorInfop = nullptr;  // Container for vpi error info
     VerilatedAssertOneThread m_assertOne;  // Assert only called from single thread
     uint64_t m_nextCallbackId = 1;  // Id to identify callback
@@ -586,13 +588,13 @@ public:
     static void cbTimedRemove(uint64_t id, QData time) {
         // Id might no longer exist, if already removed due to call after event, or teardown
         auto it = s().m_timedCbs.find(std::make_pair(time, id));
-        if (VL_LIKELY(it != s().m_timedCbs.end())) it->second.invalidate();
+        if (it != s().m_timedCbs.end()) it->second.invalidate();
         it = s().m_readWriteCbs.find(std::make_pair(time, id));
-        if (VL_LIKELY(it != s().m_readWriteCbs.end())) it->second.invalidate();
+        if (it != s().m_readWriteCbs.end()) it->second.invalidate();
         it = s().m_readOnlyCbs.find(std::make_pair(time, id));
-        if (VL_LIKELY(it != s().m_readOnlyCbs.end())) it->second.invalidate();
+        if (it != s().m_readOnlyCbs.end()) it->second.invalidate();
         it = s().m_nextSimTimeCbs.find(std::make_pair(time, id));
-        if (VL_LIKELY(it != s().m_nextSimTimeCbs.end())) it->second.invalidate();
+        if (it != s().m_nextSimTimeCbs.end()) it->second.invalidate();
     }
     static void callTimedCbs() VL_MT_UNSAFE_ONE {
         assertOneCheck();
@@ -634,8 +636,10 @@ public:
             vec = &s().m_nextSimTimeCbs;
         } else if (reason == cbReadWriteSynch) {
             vec = &s().m_readWriteCbs;
-        } else {
+        } else if (reason == cbReadOnlySynch) {
             vec = &s().m_readOnlyCbs;
+        } else {
+            assert(0);
         }
         for (auto it = vec->begin(); it != vec->end();) {
             if (VL_UNLIKELY(it->first.first <= time)) {
@@ -1383,10 +1387,9 @@ vpiHandle vpi_register_cb(p_cb_data cb_data_p) {
         return vop->castVpiHandle();
     }
     case cbNextSimTime: {
-        const QData abstime = VL_TIME_Q() + 1;
         const uint64_t id = VerilatedVpiImp::nextCallbackId();
-        VerilatedVpioTimedCb* const vop = new VerilatedVpioTimedCb{id, abstime};
-        VerilatedVpiImp::cbTimedAdd(id, cb_data_p, abstime);
+        VerilatedVpioTimedCb* const vop = new VerilatedVpioTimedCb{id, VL_TIME_Q() + 1};
+        VerilatedVpiImp::cbTimedAdd(id, cb_data_p, VL_TIME_Q() + 1);
         return vop->castVpiHandle();
     }
     case cbStartOfSimulation:  // FALLTHRU // Supported via vlt_main.cpp
@@ -1460,11 +1463,12 @@ vpiHandle vpi_handle_by_name(PLI_BYTE8* namep, vpiHandle scope) {
             scopename = std::string{namep, len};
         }
 
-        if (scopename.find('.') == std::string::npos) {
+        // We are no longer using TOP as hierarchy root
+/*        if (scopename.find('.') == std::string::npos) {
             // This is a toplevel, hence search in our TOP ports first.
             scopep = Verilated::threadContextp()->scopeFind("TOP");
             if (scopep) varp = scopep->varFind(baseNamep);
-        }
+        }*/
         if (!varp) {
             scopep = Verilated::threadContextp()->scopeFind(scopename.c_str());
             if (!scopep) return nullptr;

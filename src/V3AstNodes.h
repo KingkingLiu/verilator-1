@@ -2001,6 +2001,8 @@ private:
     bool m_trace : 1;  // Trace this variable
     bool m_isLatched : 1;  // Not assigned in all control paths of combo always
     bool m_isForceable : 1;  // May be forced/released externally from user C code
+    bool m_isTopLevelIO : 1;  // Is from toplevel IO
+    bool m_isTopLevelIOTainted : 1;  // At some point was top level IO
 
     void init() {
         m_ansi = false;
@@ -2041,6 +2043,8 @@ private:
         m_trace = false;
         m_isLatched = false;
         m_isForceable = false;
+        m_isTopLevelIO = false;
+        m_isTopLevelIOTainted = false;
         m_attrClocker = VVarAttrClocker::CLOCKER_UNKNOWN;
     }
 
@@ -2207,6 +2211,14 @@ public:
     void isLatched(bool flag) { m_isLatched = flag; }
     bool isForceable() const { return m_isForceable; }
     void setForceable() { m_isForceable = true; }
+    bool isTopLevelIO() const { return m_isTopLevelIO; }
+    bool isTopLevelIOTainted() const { return m_isTopLevelIOTainted; }
+    void setTopLevelIO() { m_isTopLevelIO = true; }
+    void mvTopLevelIO(AstVar* nodep) {
+            m_isTopLevelIOTainted = m_isTopLevelIO;
+            nodep->setTopLevelIO();
+            m_isTopLevelIO = false;
+    }
     // METHODS
     virtual void name(const string& name) override { m_name = name; }
     virtual void tag(const string& text) override { m_tag = text; }
@@ -3325,6 +3337,7 @@ public:
     class Initial {};  // for creator type-overload selection
     class Settle {};  // for creator type-overload selection
     class Never {};  // for creator type-overload selection
+    class Reference {};  // for creator type-overload selection
     AstSenItem(FileLine* fl, VEdgeType edgeType, AstNode* varrefp)
         : ASTGEN_SUPER_SenItem(fl)
         , m_edgeType{edgeType} {
@@ -3345,6 +3358,9 @@ public:
     AstSenItem(FileLine* fl, Never)
         : ASTGEN_SUPER_SenItem(fl)
         , m_edgeType{VEdgeType::ET_NEVER} {}
+    AstSenItem(FileLine* fl, Reference)
+        : ASTGEN_SUPER_SenItem(fl)
+        , m_edgeType{VEdgeType::ET_REFERENCE} {}
     ASTNODE_NODE_FUNCS(SenItem)
     virtual void dump(std::ostream& str) const override;
     virtual bool same(const AstNode* samep) const override {
@@ -3366,6 +3382,7 @@ public:
     bool isIllegal() const { return edgeType() == VEdgeType::ET_ILLEGAL; }
     bool isSettle() const { return edgeType() == VEdgeType::ET_SETTLE; }
     bool isNever() const { return edgeType() == VEdgeType::ET_NEVER; }
+    bool isReference() const { return edgeType() == VEdgeType::ET_REFERENCE; }
     bool hasVar() const { return !(isCombo() || isInitial() || isSettle() || isNever()); }
 };
 
@@ -3393,6 +3410,7 @@ public:
     bool hasSettle() const;  // Includes a SETTLE SenItem
     bool hasInitial() const;  // Includes a INITIAL SenItem
     bool hasCombo() const;  // Includes a COMBO SenItem
+    bool hasReference() const; // Includes a Reference (assignalias)
 };
 
 class AstFinal final : public AstNodeProcedure {
@@ -8909,6 +8927,9 @@ private:
     bool m_dpiImportPrototype : 1;  // This is the DPI import prototype (i.e.: provided by user)
     bool m_dpiImportWrapper : 1;  // Wrapper for invoking DPI import prototype from generated code
     bool m_dpiTraceInit : 1;  // DPI trace_init
+    bool m_hasTopLevelIO : 1;  // Function has AstNodeAssign between AstVar with TopLevelIO set
+                               // and AstVar with TopLevelIOTainted
+
 public:
     AstCFunc(FileLine* fl, const string& name, AstScope* scopep, const string& rtnType = "")
         : ASTGEN_SUPER_CFunc(fl) {
@@ -8937,6 +8958,7 @@ public:
         m_dpiImportPrototype = false;
         m_dpiImportWrapper = false;
         m_dpiTraceInit = false;
+        m_hasTopLevelIO = false;
     }
     ASTNODE_NODE_FUNCS(CFunc)
     virtual string name() const override { return m_name; }
@@ -9019,6 +9041,8 @@ public:
     void dpiImportWrapper(bool flag) { m_dpiImportWrapper = flag; }
     void dpiTraceInit(bool flag) { m_dpiTraceInit = flag; }
     bool dpiTraceInit() const { return m_dpiTraceInit; }
+    void setTopLevelIO() { m_hasTopLevelIO = true; }
+    bool hasTopLevelIO() const { return m_hasTopLevelIO; }
     //
     // If adding node accessors, see below emptyBody
     AstNode* argsp() const { return op1p(); }

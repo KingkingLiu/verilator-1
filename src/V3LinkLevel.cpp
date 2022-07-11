@@ -232,6 +232,7 @@ void V3LinkLevel::wrapTopCell(AstNetlist* rootp) {
                     AstVar* const varp = oldvarp->cloneTree(false);
                     varp->name(name);
                     varp->protect(false);
+                    oldvarp->mvTopLevelIO(varp);
                     newmodp->addStmtp(varp);
                     varp->sigPublic(true);  // User needs to be able to get to it...
                     if (oldvarp->isIO()) {

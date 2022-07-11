@@ -340,7 +340,7 @@ string AstVar::vlArgType(bool named, bool forReturn, bool forFunc, const string&
     string ostatic;
     if (isStatic() && namespc.empty()) ostatic = "static ";
 
-    const bool isRef = isDpiOpenArray()
+    const bool isRef = isDpiOpenArray() || isTopLevelIOTainted()
                        || (forFunc && (isWritable() || direction().isRefOrConstRef())) || asRef;
 
     if (forFunc && isReadOnly() && isRef) ostatic = ostatic + "const ";
@@ -904,6 +904,13 @@ bool AstSenTree::hasCombo() const {
     UASSERT_OBJ(sensesp(), this, "SENTREE without any SENITEMs under it");
     for (AstSenItem* senp = sensesp(); senp; senp = VN_AS(senp->nextp(), SenItem)) {
         if (senp->isCombo()) return true;
+    }
+    return false;
+}
+bool AstSenTree::hasReference() const {
+    UASSERT_OBJ(sensesp(), this, "SENTREE without any SENITEMs under it");
+    for (AstSenItem* senp = sensesp(); senp; senp = VN_AS(senp->nextp(), SenItem)) {
+        if (senp->isReference()) return true;
     }
     return false;
 }
@@ -1757,6 +1764,8 @@ void AstVar::dump(std::ostream& str) const {
     if (isDpiOpenArray()) str << " [DPIOPENA]";
     if (!attrClocker().unknown()) str << " [" << attrClocker().ascii() << "] ";
     if (!lifetime().isNone()) str << " [" << lifetime().ascii() << "] ";
+    if (isTopLevelIO()) str << "Top module IO";
+    else if (isTopLevelIOTainted()) str << "Connects directly to Top module IO";
     str << " " << varType();
 }
 void AstScope::dump(std::ostream& str) const {
@@ -1898,6 +1907,7 @@ void AstCFunc::dump(std::ostream& str) const {
     this->AstNode::dump(str);
     if (slow()) str << " [SLOW]";
     if (pure()) str << " [PURE]";
+    if (hasTopLevelIO()) str << " [Has TOP level IO]";
     if (isStatic()) str << " [STATIC]";
     if (dpiExportDispatcher()) str << " [DPIED]";
     if (dpiExportImpl()) str << " [DPIEI]";

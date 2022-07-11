@@ -248,6 +248,12 @@ private:
             m_modp->modTrace(false);
             nodep->trace(false);
         }
+
+        if (m_modp && m_modp->level() == 2  // TOP is on level 1, proper design tops are on level 2
+            && nodep->isIO()) {
+            nodep->setTopLevelIO();
+        }
+
         m_varp = nodep;
 
         iterateChildren(nodep);
