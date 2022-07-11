@@ -520,9 +520,9 @@ class VerilatedVpiImp final {
 
     // All only medium-speed, so use singleton function
     VpioCbList m_cbObjLists[CB_ENUM_MAX_VALUE];  // Callbacks for each supported reason
-    VpioTimedCbs m_timedCbs;        // Time based callbacks
-    VpioTimedCbs m_readWriteCbs;    // Time based callbacks
-    VpioTimedCbs m_readOnlyCbs;     // Time based callbacks
+    VpioTimedCbs m_timedCbs;  // Time based callbacks
+    VpioTimedCbs m_readWriteCbs;  // Time based callbacks
+    VpioTimedCbs m_readOnlyCbs;  // Time based callbacks
     VpioTimedCbs m_nextSimTimeCbs;  // Time based callbacks
     VerilatedVpiError* m_errorInfop = nullptr;  // Container for vpi error info
     VerilatedAssertOneThread m_assertOne;  // Assert only called from single thread
@@ -1464,11 +1464,11 @@ vpiHandle vpi_handle_by_name(PLI_BYTE8* namep, vpiHandle scope) {
         }
 
         // We are no longer using TOP as hierarchy root
-/*        if (scopename.find('.') == std::string::npos) {
-            // This is a toplevel, hence search in our TOP ports first.
-            scopep = Verilated::threadContextp()->scopeFind("TOP");
-            if (scopep) varp = scopep->varFind(baseNamep);
-        }*/
+        /*        if (scopename.find('.') == std::string::npos) {
+                    // This is a toplevel, hence search in our TOP ports first.
+                    scopep = Verilated::threadContextp()->scopeFind("TOP");
+                    if (scopep) varp = scopep->varFind(baseNamep);
+                }*/
         if (!varp) {
             scopep = Verilated::threadContextp()->scopeFind(scopename.c_str());
             if (!scopep) return nullptr;

@@ -2215,9 +2215,9 @@ public:
     bool isTopLevelIOTainted() const { return m_isTopLevelIOTainted; }
     void setTopLevelIO() { m_isTopLevelIO = true; }
     void mvTopLevelIO(AstVar* nodep) {
-            m_isTopLevelIOTainted = m_isTopLevelIO;
-            nodep->setTopLevelIO();
-            m_isTopLevelIO = false;
+        m_isTopLevelIOTainted = m_isTopLevelIO;
+        nodep->setTopLevelIO();
+        m_isTopLevelIO = false;
     }
     // METHODS
     virtual void name(const string& name) override { m_name = name; }
@@ -3410,7 +3410,7 @@ public:
     bool hasSettle() const;  // Includes a SETTLE SenItem
     bool hasInitial() const;  // Includes a INITIAL SenItem
     bool hasCombo() const;  // Includes a COMBO SenItem
-    bool hasReference() const; // Includes a Reference (assignalias)
+    bool hasReference() const;  // Includes a Reference (assignalias)
 };
 
 class AstFinal final : public AstNodeProcedure {

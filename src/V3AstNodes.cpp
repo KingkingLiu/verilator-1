@@ -1764,8 +1764,10 @@ void AstVar::dump(std::ostream& str) const {
     if (isDpiOpenArray()) str << " [DPIOPENA]";
     if (!attrClocker().unknown()) str << " [" << attrClocker().ascii() << "] ";
     if (!lifetime().isNone()) str << " [" << lifetime().ascii() << "] ";
-    if (isTopLevelIO()) str << "Top module IO";
-    else if (isTopLevelIOTainted()) str << "Connects directly to Top module IO";
+    if (isTopLevelIO())
+        str << "Top module IO";
+    else if (isTopLevelIOTainted())
+        str << "Connects directly to Top module IO";
     str << " " << varType();
 }
 void AstScope::dump(std::ostream& str) const {

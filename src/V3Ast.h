@@ -294,7 +294,7 @@ public:
     }
     const char* ascii() const {
         static const char* const names[]
-            = {"%E-edge", "ANY",   "BOTH",    "POS",    "NEG",  "HIGH",
+            = {"%E-edge", "ANY",   "BOTH",    "POS",    "NEG",   "HIGH",
                "LOW",     "COMBO", "INITIAL", "SETTLE", "NEVER", "REFERENCE"};
         return names[m_e];
     }

@@ -244,14 +244,16 @@ class EmitCImp final : EmitCFunc {
     }
     void emitRefConstrImp(const AstNodeModule* modp, const AstCFunc* funcp) {
         for (const AstNodeAssign* assignp = VN_AS(funcp->stmtsp(), NodeAssign); assignp;
-                assignp = VN_AS(assignp->nextp(), NodeAssign)) {
+             assignp = VN_AS(assignp->nextp(), NodeAssign)) {
             if (const AstVarRef* lhsp = VN_CAST(assignp->lhsp(), VarRef)) {
                 if (const AstVarRef* rhsp = VN_CAST(assignp->rhsp(), VarRef)) {
-                    if (!variableInScope(modp, lhsp->varp()) ||
-                        !variableInScope(modp, rhsp->varp())) return;
+                    if (!variableInScope(modp, lhsp->varp())
+                        || !variableInScope(modp, rhsp->varp()))
+                        return;
                     if (lhsp->varp()->isTopLevelIOTainted() && rhsp->varp()->isTopLevelIO()) {
                         emitVariable(lhsp->varp()->name(), rhsp->varp()->name());
-                    } else if (rhsp->varp()->isTopLevelIOTainted() && lhsp->varp()->isTopLevelIO()) {
+                    } else if (rhsp->varp()->isTopLevelIOTainted()
+                               && lhsp->varp()->isTopLevelIO()) {
                         emitVariable(rhsp->varp()->name(), lhsp->varp()->name());
                     }
                 }
@@ -289,7 +291,8 @@ class EmitCImp final : EmitCFunc {
                     }
                 }
             } else if (const AstCFunc* const varp = VN_CAST(nodep, CFunc)) {
-                if (varp->hasTopLevelIO()) {    // Handle AssignAlias for top level io in class constructor
+                if (varp->hasTopLevelIO()) {  // Handle AssignAlias for top level io in class
+                                              // constructor
                     emitRefConstrImp(modp, varp);
                 }
             }

@@ -320,7 +320,7 @@ protected:
         bool m_fatalOnVpiError = true;  // Fatal on vpi error/unsupported
         bool m_gotError = false;  // A $finish statement executed
         bool m_gotFinish = false;  // A $finish or $stop statement executed
-        bool m_gotEvalInTime = false; // A eval was executed in this timestamp
+        bool m_gotEvalInTime = false;  // A eval was executed in this timestamp
         uint64_t m_time = 0;  // Current $time (unscaled), 0=at zero, or legacy
         // Slow path
         int8_t m_timeunit;  // Time unit as 0..15
