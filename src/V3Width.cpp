@@ -4906,6 +4906,10 @@ private:
         UINFO(5, "   CONSTRAINT " << nodep << endl);
         userIterateChildren(nodep, WidthVP(SELF, BOTH).p());
     }
+    virtual void visit(AstSoftCond* nodep) override {
+        UINFO(5, "   SOFT " << nodep << endl);
+        userIterateChildren(nodep, WidthVP(SELF, BOTH).p());
+    }
     virtual void visit(AstNodeFTask* nodep) override {
         // Grab width from the output variable (if it's a function)
         if (nodep->didWidth()) return;
