@@ -278,6 +278,43 @@ public:
     virtual bool same(const AstNode* samep) const override { return true; }
 };
 
+class AstStrengthValue final : public AstNode {
+public:
+    enum Strength {
+        HIGHZ, SMALL, MEDIUM, WEAK, LARGE, PULL, STRONG, SUPPLY
+    };
+private:
+    const Strength strength;
+    const bool val;
+public:
+    ASTNODE_NODE_FUNCS(Strength)
+    virtual string name() const override {
+        string strengthString;
+        switch(strength) {
+        case HIGHZ: strengthString = "highz";
+            break;
+        case SMALL: strengthString = "small";
+            break;
+        case MEDIUM: strengthString = "medium";
+            break;
+        case WEAK: strengthString = "weak";
+            break;
+        case LARGE: strengthString = "large";
+            break;
+        case PULL: strengthString = "pull";
+            break;
+        case STRONG: strengthString = "strong";
+            break;
+        case SUPPLY: strengthString = "supply";
+        }
+        strengthString += atoi(val);
+        return strengthString;
+    }
+};
+
+class AstStrength final : public AstNode {
+};
+
 class AstGatePin final : public AstNodeMath {
     // Possibly expand a gate primitive input pin value to match the range of the gate primitive
 public:
@@ -3538,6 +3575,8 @@ public:
                                               new AstAssign(fileline(), lhs1p, rhs1p));
         replaceWith(newp);  // User expected to then deleteTree();
         return newp;
+    }
+    virtual void setStrength(AstStrength* strengthp) {
     }
 };
 
