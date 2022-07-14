@@ -280,31 +280,24 @@ public:
 
 class AstStrengthValue final : public AstNode {
 public:
-    enum Strength {
-        HIGHZ, SMALL, MEDIUM, WEAK, LARGE, PULL, STRONG, SUPPLY
-    };
+    enum Strength { HIGHZ, SMALL, MEDIUM, WEAK, LARGE, PULL, STRONG, SUPPLY };
+
 private:
     const Strength strength;
     const bool val;
+
 public:
     ASTNODE_NODE_FUNCS(Strength)
     virtual string name() const override {
         string strengthString;
-        switch(strength) {
-        case HIGHZ: strengthString = "highz";
-            break;
-        case SMALL: strengthString = "small";
-            break;
-        case MEDIUM: strengthString = "medium";
-            break;
-        case WEAK: strengthString = "weak";
-            break;
-        case LARGE: strengthString = "large";
-            break;
-        case PULL: strengthString = "pull";
-            break;
-        case STRONG: strengthString = "strong";
-            break;
+        switch (strength) {
+        case HIGHZ: strengthString = "highz"; break;
+        case SMALL: strengthString = "small"; break;
+        case MEDIUM: strengthString = "medium"; break;
+        case WEAK: strengthString = "weak"; break;
+        case LARGE: strengthString = "large"; break;
+        case PULL: strengthString = "pull"; break;
+        case STRONG: strengthString = "strong"; break;
         case SUPPLY: strengthString = "supply";
         }
         strengthString += atoi(val);
@@ -312,8 +305,7 @@ public:
     }
 };
 
-class AstStrength final : public AstNode {
-};
+class AstStrength final : public AstNode {};
 
 class AstGatePin final : public AstNodeMath {
     // Possibly expand a gate primitive input pin value to match the range of the gate primitive
@@ -3576,8 +3568,7 @@ public:
         replaceWith(newp);  // User expected to then deleteTree();
         return newp;
     }
-    virtual void setStrength(AstStrength* strengthp) {
-    }
+    virtual void setStrength(AstStrength* strengthp) {}
 };
 
 class AstAssignVarScope final : public AstNodeAssign {
