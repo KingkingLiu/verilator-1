@@ -2433,6 +2433,7 @@ continuous_assign<nodep>:       // IEEE: continuous_assign
                     if ($3)
                         for (auto* nodep = $$; nodep; nodep = nodep->nextp()) {
                             auto* const assignp = VN_AS(nodep, NodeAssign);
+                            assignp->addStrenghSpecp(nodep == $$ ? $2 : $2->cloneTree(false));
                             assignp->addTimingControlp(nodep == $$ ? $3 : $3->cloneTree(false));
                         }
                 }
@@ -4917,8 +4918,8 @@ strengthSpecE:                  // IEEE: drive_strength + pullup_strength + pull
         ;
 
 strengthSpec:                   // IEEE: drive_strength + pullup_strength + pulldown_strength + charge_strength - plus empty
-                yP_PAR__STRENGTH strength ')'                   { }
-        |       yP_PAR__STRENGTH strength ',' strength ')'      { }
+yP_PAR__STRENGTH strength ')'                   { }
+|       yP_PAR__STRENGTH strength ',' strength ')'      { $$ = new AstStrengthSpec($1, $2, $4); }
         ;
 
 //************************************************

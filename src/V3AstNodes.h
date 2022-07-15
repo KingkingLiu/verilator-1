@@ -278,19 +278,16 @@ public:
     virtual bool same(const AstNode* samep) const override { return true; }
 };
 
-class AstStrengthValue final : public AstNode {
+class AstStrength final : public AstNode {
+  enum StrengthLevel { HIGHZ, SMALL, MEDIUM, WEAK, LARGE, PULL, STRONG, SUPPLY };
+  const StrengthLevel strengthLevel;
+  const bool val;
 public:
-    enum Strength { HIGHZ, SMALL, MEDIUM, WEAK, LARGE, PULL, STRONG, SUPPLY };
-
-private:
-    const Strength strength;
-    const bool val;
-
-public:
-    ASTNODE_NODE_FUNCS(Strength)
-    virtual string name() const override {
+  AstStrength(FileLine* fl, StrengthLevel strengthLevel, bool val):
+    ASTGEN_SUPER_Strength(fl), strengthLevel(strengthLevel), val(val) {}
+  virtual string name() const override {
         string strengthString;
-        switch (strength) {
+        switch (strengthLevel) {
         case HIGHZ: strengthString = "highz"; break;
         case SMALL: strengthString = "small"; break;
         case MEDIUM: strengthString = "medium"; break;
@@ -300,12 +297,18 @@ public:
         case STRONG: strengthString = "strong"; break;
         case SUPPLY: strengthString = "supply";
         }
-        strengthString += atoi(val);
+        strengthString += val ? '1' : '0';
         return strengthString;
     }
 };
 
-class AstStrength final : public AstNode {};
+class AstStrengthSpec final : public AstNode {
+  AstStrength* strength0p;
+  AstStrength* strength1p;
+public:
+  AstStrengthSpec(FileLine* fl, AstStrength* strength0p, AstStrength* strength1p):
+    ASTGEN_SUPER_StrengthSpec(fl), strength0p(strength0p), strength1p(strength1p) {}
+};
 
 class AstGatePin final : public AstNodeMath {
     // Possibly expand a gate primitive input pin value to match the range of the gate primitive
@@ -3553,7 +3556,7 @@ public:
 class AstAssignW final : public AstNodeAssign {
     // Like assign, but wire/assign's in verilog, the only setting of the specified variable
 public:
-    AstAssignW(FileLine* fl, AstNode* lhsp, AstNode* rhsp)
+  AstAssignW(FileLine* fl, AstNode* lhsp, AstNode* rhsp)
         : ASTGEN_SUPER_AssignW(fl, lhsp, rhsp) {}
     ASTNODE_NODE_FUNCS(AssignW)
     virtual AstNode* cloneType(AstNode* lhsp, AstNode* rhsp) override {
