@@ -282,13 +282,15 @@ enum StrengthLevel { HIGHZ, SMALL, MEDIUM, WEAK, LARGE, PULL, STRONG, SUPPLY };
 
 class AstStrength final : public AstNode {
 public:
-  StrengthLevel strengthLevel;
-  bool val;
-  AstStrength(FileLine* fl, StrengthLevel strengthLevel, bool val):
-    ASTGEN_SUPER_Strength(fl), strengthLevel(strengthLevel), val(val) {}
-  AstStrength(FileLine* fl, const string& strengthLevelValue);
-  ASTNODE_NODE_FUNCS(Strength)
-  virtual string name() const override {
+    StrengthLevel strengthLevel;
+    bool val;
+    AstStrength(FileLine* fl, StrengthLevel strengthLevel, bool val)
+        : ASTGEN_SUPER_Strength(fl)
+        , strengthLevel(strengthLevel)
+        , val(val) {}
+    AstStrength(FileLine* fl, const string& strengthLevelValue);
+    ASTNODE_NODE_FUNCS(Strength)
+    virtual string name() const override {
         string strengthString;
         switch (strengthLevel) {
         case HIGHZ: strengthString = "highz"; break;
@@ -307,10 +309,10 @@ public:
 
 class AstStrengthSpec final : public AstNode {
 public:
-  AstStrengthSpec(FileLine* fl, AstStrength* strength0p, AstStrength* strength1p);
-  ASTNODE_NODE_FUNCS(StrengthSpec)
-  AstStrength* strength1p() { return VN_AS(op1p(), Strength); }
-  AstStrength* strength2p() { return VN_AS(op2p(), Strength); }
+    AstStrengthSpec(FileLine* fl, AstStrength* strength0p, AstStrength* strength1p);
+    ASTNODE_NODE_FUNCS(StrengthSpec)
+    AstStrength* strength1p() { return VN_AS(op1p(), Strength); }
+    AstStrength* strength2p() { return VN_AS(op2p(), Strength); }
 };
 
 class AstGatePin final : public AstNodeMath {
@@ -3559,7 +3561,7 @@ public:
 class AstAssignW final : public AstNodeAssign {
     // Like assign, but wire/assign's in verilog, the only setting of the specified variable
 public:
-  AstAssignW(FileLine* fl, AstNode* lhsp, AstNode* rhsp)
+    AstAssignW(FileLine* fl, AstNode* lhsp, AstNode* rhsp)
         : ASTGEN_SUPER_AssignW(fl, lhsp, rhsp) {}
     ASTNODE_NODE_FUNCS(AssignW)
     virtual AstNode* cloneType(AstNode* lhsp, AstNode* rhsp) override {

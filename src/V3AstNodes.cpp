@@ -1280,26 +1280,25 @@ string AstBasicDType::prettyDTypeName() const {
 void AstNodeMath::dump(std::ostream& str) const { this->AstNode::dump(str); }
 void AstNodeUniop::dump(std::ostream& str) const { this->AstNodeMath::dump(str); }
 
-AstStrength::AstStrength(FileLine *fl, const std::string& strengthLevelValue) :
-  ASTGEN_SUPER_Strength(fl) {
-  this->val = strengthLevelValue.back() == '1' ? 1 : 0;
-  std::unordered_map<std::string, StrengthLevel> string2StrengthLevel;
-  string2StrengthLevel["supply"] = SUPPLY;
-  string2StrengthLevel["strong"] = STRONG;
-  string2StrengthLevel["pull"] = PULL;
-  string2StrengthLevel["large"] = LARGE;
-  string2StrengthLevel["weak"] = WEAK;
-  string2StrengthLevel["medium"] = MEDIUM;
-  string2StrengthLevel["small"] = SMALL;
-  string2StrengthLevel["highz"] = HIGHZ;
-  this->strengthLevel = string2StrengthLevel[strengthLevelValue.substr(strengthLevelValue.size() - 1)];
+AstStrength::AstStrength(FileLine* fl, const std::string& strengthLevelValue)
+    : ASTGEN_SUPER_Strength(fl) {
+    this->val = strengthLevelValue.back() == '1' ? 1 : 0;
+    std::unordered_map<std::string, StrengthLevel> string2StrengthLevel;
+    string2StrengthLevel["supply"] = SUPPLY;
+    string2StrengthLevel["strong"] = STRONG;
+    string2StrengthLevel["pull"] = PULL;
+    string2StrengthLevel["large"] = LARGE;
+    string2StrengthLevel["weak"] = WEAK;
+    string2StrengthLevel["medium"] = MEDIUM;
+    string2StrengthLevel["small"] = SMALL;
+    string2StrengthLevel["highz"] = HIGHZ;
+    this->strengthLevel
+        = string2StrengthLevel[strengthLevelValue.substr(strengthLevelValue.size() - 1)];
 }
 
-AstStrengthSpec::AstStrengthSpec(FileLine* fl, AstStrength* strength0p, AstStrength* strength1p):
-    ASTGEN_SUPER_StrengthSpec(fl) {
-  if(strength0p->val) {
-    std::swap(strength0p, strength1p);
-  }
+AstStrengthSpec::AstStrengthSpec(FileLine* fl, AstStrength* strength0p, AstStrength* strength1p)
+    : ASTGEN_SUPER_StrengthSpec(fl) {
+    if (strength0p->val) { std::swap(strength0p, strength1p); }
     setOp1p(strength0p);
     setOp2p(strength1p);
 }
