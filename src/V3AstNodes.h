@@ -278,13 +278,16 @@ public:
     virtual bool same(const AstNode* samep) const override { return true; }
 };
 
+enum StrengthLevel { HIGHZ, SMALL, MEDIUM, WEAK, LARGE, PULL, STRONG, SUPPLY };
+
 class AstStrength final : public AstNode {
-  enum StrengthLevel { HIGHZ, SMALL, MEDIUM, WEAK, LARGE, PULL, STRONG, SUPPLY };
-  const StrengthLevel strengthLevel;
-  const bool val;
 public:
+  StrengthLevel strengthLevel;
+  bool val;
   AstStrength(FileLine* fl, StrengthLevel strengthLevel, bool val):
     ASTGEN_SUPER_Strength(fl), strengthLevel(strengthLevel), val(val) {}
+  AstStrength(FileLine* fl, const string& strengthLevelValue);
+  ASTNODE_NODE_FUNCS(Strength)
   virtual string name() const override {
         string strengthString;
         switch (strengthLevel) {
@@ -303,11 +306,11 @@ public:
 };
 
 class AstStrengthSpec final : public AstNode {
-  AstStrength* strength0p;
-  AstStrength* strength1p;
 public:
-  AstStrengthSpec(FileLine* fl, AstStrength* strength0p, AstStrength* strength1p):
-    ASTGEN_SUPER_StrengthSpec(fl), strength0p(strength0p), strength1p(strength1p) {}
+  AstStrengthSpec(FileLine* fl, AstStrength* strength0p, AstStrength* strength1p);
+  ASTNODE_NODE_FUNCS(StrengthSpec)
+  AstStrength* strength1p() { return VN_AS(op1p(), Strength); }
+  AstStrength* strength2p() { return VN_AS(op2p(), Strength); }
 };
 
 class AstGatePin final : public AstNodeMath {
@@ -3571,7 +3574,6 @@ public:
         replaceWith(newp);  // User expected to then deleteTree();
         return newp;
     }
-    virtual void setStrength(AstStrength* strengthp) {}
 };
 
 class AstAssignVarScope final : public AstNodeAssign {

@@ -358,7 +358,7 @@ BISONPRE_VERSION(3.7,%define api.header.include {"V3ParseBison.h"})
 
 %token<fl>              yaTIMINGSPEC    "TIMING SPEC ELEMENT"
 
-%token<fl>              ygenSTRENGTH    "STRENGTH keyword (strong1/etc)"
+%token<strp>              ygenSTRENGTH    "STRENGTH keyword (strong1/etc)"
 
 %token<strp>            yaTABLELINE     "TABLE LINE"
 
@@ -2433,7 +2433,7 @@ continuous_assign<nodep>:       // IEEE: continuous_assign
                     if ($3)
                         for (auto* nodep = $$; nodep; nodep = nodep->nextp()) {
                             auto* const assignp = VN_AS(nodep, NodeAssign);
-                            assignp->addStrenghSpecp(nodep == $$ ? $2 : $2->cloneTree(false));
+                            assignp->addStrengthSpecp(nodep == $$ ? $2 : $2->cloneTree(false));
                             assignp->addTimingControlp(nodep == $$ ? $3 : $3->cloneTree(false));
                         }
                 }
@@ -4906,20 +4906,20 @@ gatePinExpr<nodep>:
         ;
 
 // This list is also hardcoded in VParseLex.l
-strength:                       // IEEE: strength0+strength1 - plus HIGHZ/SMALL/MEDIUM/LARGE
-                ygenSTRENGTH                            { BBUNSUP($1, "Unsupported: Verilog 1995 strength specifiers"); }
-        |       ySUPPLY0                                { BBUNSUP($1, "Unsupported: Verilog 1995 strength specifiers"); }
+strength<nodep>:                       // IEEE: strength0+strength1 - plus HIGHZ/SMALL/MEDIUM/LARGE
+ygenSTRENGTH                            { $$ = new AstStrength($<fl>1, *$1); }
+|       ySUPPLY0                                { $$ = new AstStrength($1, StrengthLevel::SUPPLY, 0); }
         |       ySUPPLY1                                { BBUNSUP($1, "Unsupported: Verilog 1995 strength specifiers"); }
         ;
 
-strengthSpecE:                  // IEEE: drive_strength + pullup_strength + pulldown_strength + charge_strength - plus empty
+strengthSpecE<nodep>:                  // IEEE: drive_strength + pullup_strength + pulldown_strength + charge_strength - plus empty
                 /* empty */                             { }
         |       strengthSpec                            { }
         ;
 
-strengthSpec:                   // IEEE: drive_strength + pullup_strength + pulldown_strength + charge_strength - plus empty
+strengthSpec<nodep>:                   // IEEE: drive_strength + pullup_strength + pulldown_strength + charge_strength - plus empty
 yP_PAR__STRENGTH strength ')'                   { }
-|       yP_PAR__STRENGTH strength ',' strength ')'      { $$ = new AstStrengthSpec($1, $2, $4); }
+|       yP_PAR__STRENGTH strength ',' strength ')'      { $$ = new AstStrengthSpec($1, VN_AS($2, Strength), VN_AS($4, Strength)); }
         ;
 
 //************************************************
