@@ -358,7 +358,7 @@ BISONPRE_VERSION(3.7,%define api.header.include {"V3ParseBison.h"})
 
 %token<fl>              yaTIMINGSPEC    "TIMING SPEC ELEMENT"
 
-%token<strp>              ygenSTRENGTH    "STRENGTH keyword (strong1/etc)"
+%token<fl>              ygenSTRENGTH    "STRENGTH keyword (strong1/etc)"
 
 %token<strp>            yaTABLELINE     "TABLE LINE"
 
@@ -639,6 +639,14 @@ BISONPRE_VERSION(3.7,%define api.header.include {"V3ParseBison.h"})
 %token<fl>              ySUPER          "super"
 %token<fl>              ySUPPLY0        "supply0"
 %token<fl>              ySUPPLY1        "supply1"
+%token<fl>              ySTRONG0        "strong0"
+%token<fl>              ySTRONG1        "strong1"
+%token<fl>              yPULL0          "pull0"
+%token<fl>              yPULL1          "pull1"
+%token<fl>              yWEAK0          "weak0"
+%token<fl>              yWEAK1          "weak1"
+%token<fl>              yHIGHZ0         "highz0"
+%token<fl>              yHIGHZ1         "highz1"
 //UNSUP %token<fl>      ySYNC_ACCEPT_ON "sync_accept_on"
 //UNSUP %token<fl>      ySYNC_REJECT_ON "sync_reject_on"
 //UNSUP %token<fl>      yS_ALWAYS       "s_always"
@@ -2427,13 +2435,18 @@ module_common_item<nodep>:      // ==IEEE: module_common_item
         ;
 
 continuous_assign<nodep>:       // IEEE: continuous_assign
-                yASSIGN strengthSpecE delayE assignList ';'
+                yASSIGN driveStrengthE delayE assignList ';'
                 {
                     $$ = $4;
-                    if ($3)
+
+                    if ($2)
                         for (auto* nodep = $$; nodep; nodep = nodep->nextp()) {
                             auto* const assignp = VN_AS(nodep, NodeAssign);
                             assignp->addStrengthSpecp(nodep == $$ ? $2 : $2->cloneTree(false));
+                        }
+                    if ($3)
+                        for (auto* nodep = $$; nodep; nodep = nodep->nextp()) {
+                            auto* const assignp = VN_AS(nodep, NodeAssign);
                             assignp->addTimingControlp(nodep == $$ ? $3 : $3->cloneTree(false));
                         }
                 }
@@ -4905,21 +4918,55 @@ gatePinExpr<nodep>:
                 expr                                    { $$ = GRAMMARP->createGatePin($1); }
         ;
 
+strength0<nodep>:
+                ySUPPLY0                                { $$ = new AstStrength($1, StrengthLevel::SUPPLY, 0); }
+| ySTRONG0                                { $$ = new AstStrength($1, StrengthLevel::STRONG, 0); }
+| yPULL0                                { $$ = new AstStrength($1, StrengthLevel::PULL, 0); }
+| yWEAK0                                { $$ = new AstStrength($1, StrengthLevel::WEAK, 0); }
+;
+
+strength1<nodep>:
+                ySUPPLY1                                { $$ = new AstStrength($1, StrengthLevel::SUPPLY, 1); }
+| ySTRONG1                                { $$ = new AstStrength($1, StrengthLevel::STRONG, 1); }
+| yPULL1                                { $$ = new AstStrength($1, StrengthLevel::PULL, 1); }
+| yWEAK1                                { $$ = new AstStrength($1, StrengthLevel::WEAK, 1); }
+;
+
+driveStrengthE<nodep>:
+                /* empty */                             { }
+|       driveStrength                            { $$ = $1; }
+        ;
+
+
+driveStrength<nodep>:
+yP_PAR__STRENGTH strength0 ',' strength1 ')' { $$ = new AstStrengthSpec($1, VN_AS($2, Strength), VN_AS($4, Strength)); }
+| yP_PAR__STRENGTH strength1 ',' strength0 ')' { $$ = new AstStrengthSpec($1, VN_AS($4, Strength), VN_AS($2, Strength)); }
+| yP_PAR__STRENGTH strength0 ',' yHIGHZ1 ')' { AstStrength* highz1p = new AstStrength($1, StrengthLevel::HIGHZ, 1);
+    $$ = new AstStrengthSpec($1, VN_AS($2, Strength), highz1p); }
+| yP_PAR__STRENGTH strength1 ',' yHIGHZ0 ')' { AstStrength* highz0p = new AstStrength($1, StrengthLevel::HIGHZ, 0);
+    $$ = new AstStrengthSpec($1, highz0p, VN_AS($2, Strength)); }
+| yP_PAR__STRENGTH yHIGHZ0 ',' strength1 ')' { AstStrength* highz0p = new AstStrength($1, StrengthLevel::HIGHZ, 0);
+    $$ = new AstStrengthSpec($1, highz0p, VN_AS($4, Strength)); }
+| yP_PAR__STRENGTH yHIGHZ1 ',' strength0 ')' { AstStrength* highz1p = new AstStrength($1, StrengthLevel::HIGHZ, 1);
+    $$ = new AstStrengthSpec($1, highz1p,  VN_AS($4, Strength)); }
+;
+
+
 // This list is also hardcoded in VParseLex.l
-strength<nodep>:                       // IEEE: strength0+strength1 - plus HIGHZ/SMALL/MEDIUM/LARGE
-ygenSTRENGTH                            { $$ = new AstStrength($<fl>1, *$1); }
-|       ySUPPLY0                                { $$ = new AstStrength($1, StrengthLevel::SUPPLY, 0); }
+strength:                       // IEEE: strength0+strength1 - plus HIGHZ/SMALL/MEDIUM/LARGE
+                ygenSTRENGTH                            { BBUNSUP($1, "Unsupported: Verilog 1995 strength specifiers"); }
+        |       ySUPPLY0                                { BBUNSUP($1, "Unsupported: Verilog 1995 strength specifiers"); }
         |       ySUPPLY1                                { BBUNSUP($1, "Unsupported: Verilog 1995 strength specifiers"); }
         ;
 
-strengthSpecE<nodep>:                  // IEEE: drive_strength + pullup_strength + pulldown_strength + charge_strength - plus empty
+strengthSpecE:                  // IEEE: drive_strength + pullup_strength + pulldown_strength + charge_strength - plus empty
                 /* empty */                             { }
         |       strengthSpec                            { }
         ;
 
-strengthSpec<nodep>:                   // IEEE: drive_strength + pullup_strength + pulldown_strength + charge_strength - plus empty
-yP_PAR__STRENGTH strength ')'                   { }
-|       yP_PAR__STRENGTH strength ',' strength ')'      { $$ = new AstStrengthSpec($1, VN_AS($2, Strength), VN_AS($4, Strength)); }
+strengthSpec:                   // IEEE: drive_strength + pullup_strength + pulldown_strength + charge_strength - plus empty
+                yP_PAR__STRENGTH strength ')'                   { }
+        |       yP_PAR__STRENGTH strength ',' strength ')'      { }
         ;
 
 //************************************************

@@ -290,21 +290,7 @@ public:
         , val(val) {}
     AstStrength(FileLine* fl, const string& strengthLevelValue);
     ASTNODE_NODE_FUNCS(Strength)
-    virtual string name() const override {
-        string strengthString;
-        switch (strengthLevel) {
-        case HIGHZ: strengthString = "highz"; break;
-        case SMALL: strengthString = "small"; break;
-        case MEDIUM: strengthString = "medium"; break;
-        case WEAK: strengthString = "weak"; break;
-        case LARGE: strengthString = "large"; break;
-        case PULL: strengthString = "pull"; break;
-        case STRONG: strengthString = "strong"; break;
-        case SUPPLY: strengthString = "supply";
-        }
-        strengthString += val ? '1' : '0';
-        return strengthString;
-    }
+    virtual string name() const override;
 };
 
 class AstStrengthSpec final : public AstNode {

@@ -1293,12 +1293,27 @@ AstStrength::AstStrength(FileLine* fl, const std::string& strengthLevelValue)
     string2StrengthLevel["small"] = SMALL;
     string2StrengthLevel["highz"] = HIGHZ;
     this->strengthLevel
-        = string2StrengthLevel[strengthLevelValue.substr(strengthLevelValue.size() - 1)];
+        = string2StrengthLevel.at(strengthLevelValue.substr(strengthLevelValue.size() - 1));
+}
+
+std::string AstStrength::name() const {
+    string strengthString;
+    switch (this->strengthLevel) {
+    case HIGHZ: strengthString = "highz"; break;
+    case SMALL: strengthString = "small"; break;
+    case MEDIUM: strengthString = "medium"; break;
+    case WEAK: strengthString = "weak"; break;
+    case LARGE: strengthString = "large"; break;
+    case PULL: strengthString = "pull"; break;
+    case STRONG: strengthString = "strong"; break;
+    case SUPPLY: strengthString = "supply";
+    }
+    strengthString += val ? '1' : '0';
+    return strengthString;
 }
 
 AstStrengthSpec::AstStrengthSpec(FileLine* fl, AstStrength* strength0p, AstStrength* strength1p)
     : ASTGEN_SUPER_StrengthSpec(fl) {
-    if (strength0p->val) { std::swap(strength0p, strength1p); }
     setOp1p(strength0p);
     setOp2p(strength1p);
 }

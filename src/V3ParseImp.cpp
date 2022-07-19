@@ -399,7 +399,10 @@ void V3ParseImp::tokenPipeline() {
         yylval = curValue;
         // Now potentially munge the current token
         if (token == '('
-            && (nexttok == ygenSTRENGTH || nexttok == ySUPPLY0 || nexttok == ySUPPLY1)) {
+            && (nexttok == ygenSTRENGTH || nexttok == ySUPPLY0 || nexttok == ySUPPLY1
+                || nexttok == ySTRONG0 || nexttok == ySTRONG1 || nexttok == yPULL0
+                || nexttok == yPULL1 || nexttok == yWEAK0 || nexttok == yWEAK1
+                || nexttok == yHIGHZ0 || nexttok == yHIGHZ1)) {
             token = yP_PAR__STRENGTH;
         } else if (token == ':') {
             if (nexttok == yBEGIN) {
