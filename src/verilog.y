@@ -4744,7 +4744,14 @@ gateDecl<nodep>:
         |       yAND  delayE gateAndList ';'            { $$ = $3; PRIMDLYUNSUP($2); }
         |       yNAND delayE gateNandList ';'           { $$ = $3; PRIMDLYUNSUP($2); }
         |       yOR   delayE gateOrList ';'             { $$ = $3; PRIMDLYUNSUP($2); }
-        |       yNOR  delayE gateNorList ';'            { $$ = $3; PRIMDLYUNSUP($2); }
+        |       yNOR  driveStrengthE delayE gateNorList ';'            { $$ = $4;
+    PRIMDLYUNSUP($3);
+                    if ($2)
+                        for (auto* nodep = $$; nodep; nodep = nodep->nextp()) {
+                            auto* const assignp = VN_AS(nodep, NodeAssign);
+                            assignp->addStrengthSpecp(nodep == $$ ? $2 : $2->cloneTree(false));
+                        }
+}
         |       yXOR  delayE gateXorList ';'            { $$ = $3; PRIMDLYUNSUP($2); }
         |       yXNOR delayE gateXnorList ';'           { $$ = $3; PRIMDLYUNSUP($2); }
         |       yPULLUP delayE gatePullupList ';'       { $$ = $3; PRIMDLYUNSUP($2); }
