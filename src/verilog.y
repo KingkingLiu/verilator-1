@@ -4948,7 +4948,7 @@ yP_PAR__STRENGTH strength0 ',' strength1 ')' { $$ = new AstStrengthSpec($1, VN_A
 | yP_PAR__STRENGTH yHIGHZ0 ',' strength1 ')' { AstStrength* highz0p = new AstStrength($1, StrengthLevel::HIGHZ, 0);
     $$ = new AstStrengthSpec($1, highz0p, VN_AS($4, Strength)); }
 | yP_PAR__STRENGTH yHIGHZ1 ',' strength0 ')' { AstStrength* highz1p = new AstStrength($1, StrengthLevel::HIGHZ, 1);
-    $$ = new AstStrengthSpec($1, highz1p,  VN_AS($4, Strength)); }
+    $$ = new AstStrengthSpec($1, VN_AS($4, Strength), highz1p); }
 ;
 
 
