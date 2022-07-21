@@ -283,18 +283,16 @@ private:
                     for (auto* condp = constrp->condsp(); condp; condp = condp->nextp()) {
                         if (auto* softp = VN_CAST(condp, SoftCond)) {
                             static size_t m_softConstraintCount; // Number of soft constraint control variables created
+                            // TODO: Create control variable for relaxing
                             auto* const vardtypep
                                 = nodep->findBitDType(32, 32, VSigning::SIGNED);  // use int return of 0/1
                             AstVar* const varp
-                                = new AstVar(nodep->fileline(), AstVarType::MODULETEMP,
+                                = new AstVar(nodep->fileline(), VVarType::MODULETEMP,
                                              "__Vsoft_" + cvtToStr(m_softConstraintCount++), vardtypep);
-                            varp->isRand(false);
                             nodep = AstNode::addNext(nodep, varp);
                             condp = softp->condsp();
-                            addConstraint(condp, varp);
-                        } else {
-                            addConstraint(condp);
                         }
+                        addConstraint(condp);
                     }
                 }
                 nodep = nodep->nextp();
@@ -409,7 +407,7 @@ private:
             auto fl = nodep->fileline();
             auto* const dtypep
                 = nodep->findBitDType(32, 32, VSigning::SIGNED);  // use int return of 0/1
-            auto* const fvarp = new AstVar(nodep->fileline(), AstVarType::MEMBER, "relax_next", dtypep);
+            auto* const fvarp = new AstVar(nodep->fileline(), VVarType::MEMBER, "relax_next", dtypep);
             fvarp->lifetime(VLifetime::AUTOMATIC);
             fvarp->funcLocal(true);
             fvarp->funcReturn(true);
@@ -498,8 +496,8 @@ private:
                 auto* const memberVarp = VN_CAST(memberp, Var);
                 // TODO: if soft constraint control add relaxing
                 if (!memberVarp) continue;
-                else if (memberVarp->name().find("__Vsoft") != std::string::npos){
-                    continue; // Don't randomize control variables
+                else if (memberVarp->name().find("__Vsoft") == std::string::npos){
+                    newRelaxNextSoft(nodep);
                 }
                 else if (!memberVarp->isRand()) continue;
                 const auto* const dtypep = memberp->dtypep()->skipRefp();
