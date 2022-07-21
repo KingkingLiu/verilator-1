@@ -4948,7 +4948,7 @@ strength1<nodep>:
 ;
 
 driveStrengthE<nodep>:
-                /* empty */                             { }
+/* empty */                             { $$ = nullptr; }
 |       driveStrength                            { $$ = $1; }
         ;
 
@@ -4967,7 +4967,7 @@ yP_PAR__STRENGTH strength0 ',' strength1 ')' { $$ = new AstStrengthSpec($1, VN_A
 ;
 
 pullupStrengthE<nodep>:
-{}
+{ $$ = nullptr; }
 | pullupStrength { $$ = $1; }
 ;
 
