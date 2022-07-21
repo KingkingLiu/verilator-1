@@ -3595,6 +3595,8 @@ public:
     void lhsp(AstNode* np) { setOp1p(np); }
     AstNode* lhsp() const { return op1p(); }  // op1 = Assign to
     uint32_t direction() const { return (uint32_t)m_direction; }
+    void strengthp(AstNode* sp) { setOp2p(sp); }
+    AstNode* strengthp() const { return op2p(); }
 };
 
 class AstAssignForce final : public AstNodeAssign {

@@ -4754,7 +4754,15 @@ gateDecl<nodep>:
 }
         |       yXOR  delayE gateXorList ';'            { $$ = $3; PRIMDLYUNSUP($2); }
         |       yXNOR delayE gateXnorList ';'           { $$ = $3; PRIMDLYUNSUP($2); }
-        |       yPULLUP delayE gatePullupList ';'       { $$ = $3; PRIMDLYUNSUP($2); }
+        |       yPULLUP pullupStrengthE delayE gatePullupList ';'       { $$ = $4;
+    PRIMDLYUNSUP($3);
+                        if ($2)
+                        for (auto* nodep = $$; nodep; nodep = nodep->nextp()) {
+                            auto* const pullp = VN_AS(nodep, Pull);
+                            pullp->strengthp(nodep == $$ ? $2 : $2->cloneTree(false));
+                        }
+
+}
         |       yPULLDOWN delayE gatePulldownList ';'   { $$ = $3; PRIMDLYUNSUP($2); }
         |       yNMOS delayE gateBufif1List ';'         { $$ = $3; PRIMDLYUNSUP($2); }  // ~=bufif1, as don't have strengths yet
         |       yPMOS delayE gateBufif0List ';'         { $$ = $3; PRIMDLYUNSUP($2); }  // ~=bufif0, as don't have strengths yet
@@ -4958,6 +4966,19 @@ yP_PAR__STRENGTH strength0 ',' strength1 ')' { $$ = new AstStrengthSpec($1, VN_A
     $$ = new AstStrengthSpec($1, VN_AS($4, Strength), highz1p); }
 ;
 
+pullupStrengthE<nodep>:
+{}
+| pullupStrength { $$ = $1; }
+;
+
+pullupStrength<nodep>:
+yP_PAR__STRENGTH strength0 ',' strength1 ')' { delete $2;
+    $$ = $4; }
+| yP_PAR__STRENGTH strength1 ',' strength0 ')' { delete $4;
+    $$ = $2; }
+| yP_PAR__STRENGTH strength1 ')' {
+    $$ = $2; }
+;
 
 // This list is also hardcoded in VParseLex.l
 strength:                       // IEEE: strength0+strength1 - plus HIGHZ/SMALL/MEDIUM/LARGE
