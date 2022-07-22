@@ -4839,6 +4839,9 @@ private:
     virtual void visit(AstStrength* nodep) override {
         return;
     }
+    virtual void visit(AstStrengthSpec* nodep) override {
+        return;
+    }
 
     //--------------------
     // Default

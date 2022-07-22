@@ -1314,8 +1314,8 @@ std::string AstStrength::name() const {
 
 AstStrengthSpec::AstStrengthSpec(FileLine* fl, AstStrength* strength0p, AstStrength* strength1p)
     : ASTGEN_SUPER_StrengthSpec(fl) {
-    setOp1p(strength0p);
-    setOp2p(strength1p);
+    setNOp1p(strength0p);
+    setNOp2p(strength1p);
 }
 
 void AstCCast::dump(std::ostream& str) const {

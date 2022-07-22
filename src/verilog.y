@@ -2442,7 +2442,7 @@ continuous_assign<nodep>:       // IEEE: continuous_assign
                     if ($2)
                         for (auto* nodep = $$; nodep; nodep = nodep->nextp()) {
                             auto* const assignp = VN_AS(nodep, NodeAssign);
-                            assignp->addStrengthSpecp(nodep == $$ ? $2 : $2->cloneTree(false));
+                            assignp->strengthSpecp(nodep == $$ ? $2 : $2->cloneTree(false));
                         }
                     if ($3)
                         for (auto* nodep = $$; nodep; nodep = nodep->nextp()) {
@@ -4749,7 +4749,7 @@ gateDecl<nodep>:
                     if ($2)
                         for (auto* nodep = $$; nodep; nodep = nodep->nextp()) {
                             auto* const assignp = VN_AS(nodep, NodeAssign);
-                            assignp->addStrengthSpecp(nodep == $$ ? $2 : $2->cloneTree(false));
+                            assignp->strengthSpecp(nodep == $$ ? $2 : $2->cloneTree(false));
                         }
 }
         |       yXOR  delayE gateXorList ';'            { $$ = $3; PRIMDLYUNSUP($2); }
@@ -4759,7 +4759,7 @@ gateDecl<nodep>:
                         if ($2)
                         for (auto* nodep = $$; nodep; nodep = nodep->nextp()) {
                             auto* const pullp = VN_AS(nodep, Pull);
-                            pullp->strengthp(nodep == $$ ? $2 : $2->cloneTree(false));
+                            pullp->strengthSpecp(nodep == $$ ? $2 : $2->cloneTree(false));
                         }
 
 }
@@ -4973,11 +4973,11 @@ pullupStrengthE<nodep>:
 
 pullupStrength<nodep>:
 yP_PAR__STRENGTH strength0 ',' strength1 ')' { delete $2;
-    $$ = $4; }
+    $$ = new AstStrengthSpec($1, nullptr, VN_AS($4, Strength)); }
 | yP_PAR__STRENGTH strength1 ',' strength0 ')' { delete $4;
-    $$ = $2; }
+    $$ = new AstStrengthSpec($1, nullptr, VN_AS($2, Strength)); }
 | yP_PAR__STRENGTH strength1 ')' {
-    $$ = $2; }
+    $$ = new AstStrengthSpec($1, nullptr, VN_AS($2, Strength)); }
 ;
 
 // This list is also hardcoded in VParseLex.l
