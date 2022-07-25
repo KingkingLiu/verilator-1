@@ -68,6 +68,7 @@ public:
     AstNodeDType* m_varDTypep = nullptr;  // Pointer to data type for next signal declaration
     AstNodeDType* m_memDTypep = nullptr;  // Pointer to data type for next member declaration
     AstNode* m_netDelayp = nullptr;  // Pointer to delay for next signal declaration
+    AstNode* m_netStrengthp = nullptr; // Pointer to strenght for next net declaration
     AstNodeModule* m_modp = nullptr;  // Last module for timeunits
     bool m_pinAnsi = false;  // In ANSI port list
     FileLine* m_instModuleFl = nullptr;  // Fileline of module referenced for instantiations
@@ -172,6 +173,7 @@ public:
         m_varDTypep = dtypep;
     }
     void setNetDelay(AstNode* netDelayp) { m_netDelayp = netDelayp; }
+    void setNetStrength(AstNode* netStrengthp) { m_netStrengthp = netStrengthp; }
     void pinPush() {
         m_pinStack.push(m_pinNum);
         m_pinNum = 1;
@@ -1730,7 +1732,10 @@ net_declaration<nodep>:         // IEEE: net_declaration - excluding implict
         ;
 
 net_declarationFront:           // IEEE: beginning of net_declaration
-                net_declRESET net_type   strengthSpecE net_scalaredE net_dataTypeE { VARDTYPE_NDECL($5); }
+                net_declRESET net_type driveStrengthE net_scalaredE net_dataTypeE { VARDTYPE_NDECL($5);
+                    if ($3)
+                        GRAMMARP->setNetStrength($3);
+                }
         //UNSUP net_declRESET yINTERCONNECT signingE rangeListE { VARNET($2); VARDTYPE(x); }
         ;
 
@@ -2742,6 +2747,7 @@ netSig<varp>:                   // IEEE: net_decl_assignment -  one element from
         |       netId sigAttrListE '=' expr
                         { $$ = VARDONEA($<fl>1, *$1, nullptr, $2);
                           auto* const assignp = new AstAssignW{$3, new AstVarRef{$<fl>1, *$1, VAccess::WRITE}, $4};
+                          if (GRAMMARP->m_netStrengthp) assignp->strengthSpecp(GRAMMARP->m_netStrengthp);
                           if ($$->delayp()) assignp->addTimingControlp($$->delayp()->unlinkFrBack());  // IEEE 1800-2017 10.3.3
                           $$->addNext(assignp); }        |       netId variable_dimensionList sigAttrListE
                         { $$ = VARDONEA($<fl>1,*$1, $2, $3); }
