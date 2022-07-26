@@ -293,6 +293,15 @@ int V3ParseGrammar::s_modTypeImpNum = 0;
         if (nodep) nodep->deleteTree(); \
     }
 
+#define APPLY_STRENGTH_TO_LIST(beginp, strengthSpecNodep, typeToCast) \
+    { \
+        if (strengthSpecNodep) \
+            for (auto* nodep = beginp; nodep; nodep = nodep->nextp()) { \
+                auto* const assignp = VN_AS(nodep, typeToCast); \
+                assignp->strengthSpecp(nodep == beginp ? strengthSpecNodep : strengthSpecNodep->cloneTree(false)); \
+            } \
+    }
+
 static void ERRSVKWD(FileLine* fileline, const string& tokname) {
     static int toldonce = 0;
     fileline->v3error(
@@ -2443,12 +2452,7 @@ continuous_assign<nodep>:       // IEEE: continuous_assign
                 yASSIGN driveStrengthE delayE assignList ';'
                 {
                     $$ = $4;
-
-                    if ($2)
-                        for (auto* nodep = $$; nodep; nodep = nodep->nextp()) {
-                            auto* const assignp = VN_AS(nodep, NodeAssign);
-                            assignp->strengthSpecp(nodep == $$ ? $2 : $2->cloneTree(false));
-                        }
+                    APPLY_STRENGTH_TO_LIST($$, $2, NodeAssign);
                     if ($3)
                         for (auto* nodep = $$; nodep; nodep = nodep->nextp()) {
                             auto* const assignp = VN_AS(nodep, NodeAssign);
@@ -4741,35 +4745,88 @@ stream_expressionOrDataType<nodep>:     // IEEE: from streaming_concatenation
 // Gate declarations
 
 gateDecl<nodep>:
-                yBUF    delayE gateBufList ';'          { $$ = $3; PRIMDLYUNSUP($2); }
-        |       yBUFIF0 delayE gateBufif0List ';'       { $$ = $3; PRIMDLYUNSUP($2); }
-        |       yBUFIF1 delayE gateBufif1List ';'       { $$ = $3; PRIMDLYUNSUP($2); }
-        |       yNOT    delayE gateNotList ';'          { $$ = $3; PRIMDLYUNSUP($2); }
-        |       yNOTIF0 delayE gateNotif0List ';'       { $$ = $3; PRIMDLYUNSUP($2); }
-        |       yNOTIF1 delayE gateNotif1List ';'       { $$ = $3; PRIMDLYUNSUP($2); }
-        |       yAND  delayE gateAndList ';'            { $$ = $3; PRIMDLYUNSUP($2); }
-        |       yNAND delayE gateNandList ';'           { $$ = $3; PRIMDLYUNSUP($2); }
-        |       yOR   delayE gateOrList ';'             { $$ = $3; PRIMDLYUNSUP($2); }
-        |       yNOR  driveStrengthE delayE gateNorList ';'            { $$ = $4;
-    PRIMDLYUNSUP($3);
-                    if ($2)
-                        for (auto* nodep = $$; nodep; nodep = nodep->nextp()) {
-                            auto* const assignp = VN_AS(nodep, NodeAssign);
-                            assignp->strengthSpecp(nodep == $$ ? $2 : $2->cloneTree(false));
-                        }
-}
-        |       yXOR  delayE gateXorList ';'            { $$ = $3; PRIMDLYUNSUP($2); }
-        |       yXNOR delayE gateXnorList ';'           { $$ = $3; PRIMDLYUNSUP($2); }
-        |       yPULLUP pullupStrengthE delayE gatePullupList ';'       { $$ = $4;
-    PRIMDLYUNSUP($3);
-                        if ($2)
-                        for (auto* nodep = $$; nodep; nodep = nodep->nextp()) {
-                            auto* const pullp = VN_AS(nodep, Pull);
-                            pullp->strengthSpecp(nodep == $$ ? $2 : $2->cloneTree(false));
-                        }
-
-}
-        |       yPULLDOWN delayE gatePulldownList ';'   { $$ = $3; PRIMDLYUNSUP($2); }
+                yBUF    driveStrengthE delayE gateBufList ';'
+        {
+            $$ = $4;
+            PRIMDLYUNSUP($3);
+            APPLY_STRENGTH_TO_LIST($$, $2, NodeAssign);
+        }
+        |       yBUFIF0 driveStrengthE delayE gateBufif0List ';'
+        {
+            $$ = $4;
+            PRIMDLYUNSUP($3);
+            APPLY_STRENGTH_TO_LIST($$, $2, NodeAssign);
+        }
+        |       yBUFIF1 driveStrengthE delayE gateBufif1List ';'
+        {
+            $$ = $4;
+            PRIMDLYUNSUP($3);
+            APPLY_STRENGTH_TO_LIST($$, $2, NodeAssign);
+        }
+        |       yNOT    driveStrengthE delayE gateNotList ';'
+        {
+            $$ = $4;
+            PRIMDLYUNSUP($3);
+            APPLY_STRENGTH_TO_LIST($$, $2, NodeAssign);
+        }
+        |       yNOTIF0 driveStrengthE delayE gateNotif0List ';'
+        {
+            $$ = $4;
+            PRIMDLYUNSUP($3);
+            APPLY_STRENGTH_TO_LIST($$, $2, NodeAssign);
+        }
+        |       yNOTIF1 driveStrengthE delayE gateNotif1List ';'
+        {
+            $$ = $4;
+            PRIMDLYUNSUP($3);
+            APPLY_STRENGTH_TO_LIST($$, $2, NodeAssign);
+        }
+        |       yAND  driveStrengthE delayE gateAndList ';'
+        {
+            $$ = $4;
+            PRIMDLYUNSUP($3);
+            APPLY_STRENGTH_TO_LIST($$, $2, NodeAssign);
+        }
+        |       yNAND driveStrengthE delayE gateNandList ';'
+        {
+            $$ = $4;
+            PRIMDLYUNSUP($3);
+            APPLY_STRENGTH_TO_LIST($$, $2, NodeAssign);
+        }
+        |       yOR   driveStrengthE delayE gateOrList ';'
+        {
+            $$ = $4;
+            PRIMDLYUNSUP($3);
+            APPLY_STRENGTH_TO_LIST($$, $2, NodeAssign);
+        }
+        |       yNOR  driveStrengthE delayE gateNorList ';'
+        {
+            $$ = $4;
+            PRIMDLYUNSUP($3);
+            APPLY_STRENGTH_TO_LIST($$, $2, NodeAssign);
+        }
+        |       yXOR  driveStrengthE delayE gateXorList ';'
+        {
+            $$ = $4;
+            PRIMDLYUNSUP($3);
+            APPLY_STRENGTH_TO_LIST($$, $2, NodeAssign);
+        }
+        |       yXNOR driveStrengthE delayE gateXnorList ';'
+        {
+            $$ = $4;
+            PRIMDLYUNSUP($3);
+            APPLY_STRENGTH_TO_LIST($$, $2, NodeAssign);
+        }
+        |       yPULLUP pullupStrengthE gatePullupList ';'
+        {
+            $$ = $3;
+            APPLY_STRENGTH_TO_LIST($$, $2, Pull);
+        }
+        |       yPULLDOWN pulldownStrengthE gatePulldownList ';'
+        {
+            $$ = $3;
+            APPLY_STRENGTH_TO_LIST($$, $2, Pull);
+        }
         |       yNMOS delayE gateBufif1List ';'         { $$ = $3; PRIMDLYUNSUP($2); }  // ~=bufif1, as don't have strengths yet
         |       yPMOS delayE gateBufif0List ';'         { $$ = $3; PRIMDLYUNSUP($2); }  // ~=bufif0, as don't have strengths yet
         //
@@ -4970,6 +5027,20 @@ yP_PAR__STRENGTH strength0 ',' strength1 ')' { $$ = new AstStrengthSpec($1, VN_A
     $$ = new AstStrengthSpec($1, highz0p, VN_AS($4, Strength)); }
 | yP_PAR__STRENGTH yHIGHZ1 ',' strength0 ')' { AstStrength* highz1p = new AstStrength($1, StrengthLevel::HIGHZ, 1);
     $$ = new AstStrengthSpec($1, VN_AS($4, Strength), highz1p); }
+;
+
+pulldownStrengthE<nodep>:
+{ $$ = nullptr; }
+| pulldownStrength { $$ = $1; }
+;
+
+pulldownStrength<nodep>:
+yP_PAR__STRENGTH strength0 ',' strength1 ')' { delete $4;
+    $$ = new AstStrengthSpec($1, VN_AS($2, Strength), nullptr); }
+| yP_PAR__STRENGTH strength1 ',' strength0 ')' { delete $2;
+    $$ = new AstStrengthSpec($1, VN_AS($4, Strength), nullptr); }
+| yP_PAR__STRENGTH strength0 ')' {
+    $$ = new AstStrengthSpec($1, VN_AS($2, Strength), nullptr); }
 ;
 
 pullupStrengthE<nodep>:
