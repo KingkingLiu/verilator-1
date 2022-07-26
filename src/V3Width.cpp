@@ -4836,12 +4836,8 @@ private:
         // Iterate modules backwards, in bottom-up order.  That's faster
         userIterateChildrenBackwards(nodep, nullptr);
     }
-    virtual void visit(AstStrength* nodep) override {
-        return;
-    }
-    virtual void visit(AstStrengthSpec* nodep) override {
-        return;
-    }
+    virtual void visit(AstStrength* nodep) override { return; }
+    virtual void visit(AstStrengthSpec* nodep) override { return; }
 
     //--------------------
     // Default
