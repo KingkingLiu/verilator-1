@@ -4986,23 +4986,6 @@ yP_PAR__STRENGTH strength0 ',' strength1 ')' { delete $2;
     $$ = new AstStrengthSpec($1, nullptr, VN_AS($2, Strength)); }
 ;
 
-// This list is also hardcoded in VParseLex.l
-strength:                       // IEEE: strength0+strength1 - plus HIGHZ/SMALL/MEDIUM/LARGE
-                ygenSTRENGTH                            { BBUNSUP($1, "Unsupported: Verilog 1995 strength specifiers"); }
-        |       ySUPPLY0                                { BBUNSUP($1, "Unsupported: Verilog 1995 strength specifiers"); }
-        |       ySUPPLY1                                { BBUNSUP($1, "Unsupported: Verilog 1995 strength specifiers"); }
-        ;
-
-strengthSpecE:                  // IEEE: drive_strength + pullup_strength + pulldown_strength + charge_strength - plus empty
-                /* empty */                             { }
-        |       strengthSpec                            { }
-        ;
-
-strengthSpec:                   // IEEE: drive_strength + pullup_strength + pulldown_strength + charge_strength - plus empty
-                yP_PAR__STRENGTH strength ')'                   { }
-        |       yP_PAR__STRENGTH strength ',' strength ')'      { }
-        ;
-
 //************************************************
 // Tables
 
