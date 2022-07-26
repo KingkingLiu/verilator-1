@@ -68,7 +68,7 @@ public:
     AstNodeDType* m_varDTypep = nullptr;  // Pointer to data type for next signal declaration
     AstNodeDType* m_memDTypep = nullptr;  // Pointer to data type for next member declaration
     AstNode* m_netDelayp = nullptr;  // Pointer to delay for next signal declaration
-    AstNode* m_netStrengthp = nullptr; // Pointer to strenght for next net declaration
+    AstNode* m_netStrengthp = nullptr;  // Pointer to strenght for next net declaration
     AstNodeModule* m_modp = nullptr;  // Last module for timeunits
     bool m_pinAnsi = false;  // In ANSI port list
     FileLine* m_instModuleFl = nullptr;  // Fileline of module referenced for instantiations
@@ -298,7 +298,8 @@ int V3ParseGrammar::s_modTypeImpNum = 0;
         if (strengthSpecNodep) \
             for (auto* nodep = beginp; nodep; nodep = nodep->nextp()) { \
                 auto* const assignp = VN_AS(nodep, typeToCast); \
-                assignp->strengthSpecp(nodep == beginp ? strengthSpecNodep : strengthSpecNodep->cloneTree(false)); \
+                assignp->strengthSpecp(nodep == beginp ? strengthSpecNodep \
+                                                       : strengthSpecNodep->cloneTree(false)); \
             } \
     }
 
