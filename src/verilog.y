@@ -1728,13 +1728,13 @@ parameter_port_declarationTypeFrontE: // IEEE: parameter_port_declaration w/o as
         ;
 
 net_declaration<nodep>:         // IEEE: net_declaration - excluding implict
-                net_declarationFront netSigList ';'     { $$ = $2; }
+                net_declarationFront netSigList ';'     { $$ = $2;
+    if (GRAMMARP->m_netStrengthp) delete GRAMMARP->m_netStrengthp; }
         ;
 
 net_declarationFront:           // IEEE: beginning of net_declaration
                 net_declRESET net_type driveStrengthE net_scalaredE net_dataTypeE { VARDTYPE_NDECL($5);
-                    if ($3)
-                        GRAMMARP->setNetStrength($3);
+                    GRAMMARP->setNetStrength($3);
                 }
         //UNSUP net_declRESET yINTERCONNECT signingE rangeListE { VARNET($2); VARDTYPE(x); }
         ;
@@ -2747,7 +2747,7 @@ netSig<varp>:                   // IEEE: net_decl_assignment -  one element from
         |       netId sigAttrListE '=' expr
                         { $$ = VARDONEA($<fl>1, *$1, nullptr, $2);
                           auto* const assignp = new AstAssignW{$3, new AstVarRef{$<fl>1, *$1, VAccess::WRITE}, $4};
-                          if (GRAMMARP->m_netStrengthp) assignp->strengthSpecp(GRAMMARP->m_netStrengthp);
+                          if (GRAMMARP->m_netStrengthp) assignp->strengthSpecp(GRAMMARP->m_netStrengthp->cloneTree(false));
                           if ($$->delayp()) assignp->addTimingControlp($$->delayp()->unlinkFrBack());  // IEEE 1800-2017 10.3.3
                           $$->addNext(assignp); }        |       netId variable_dimensionList sigAttrListE
                         { $$ = VARDONEA($<fl>1,*$1, $2, $3); }
