@@ -297,8 +297,8 @@ class AstStrengthSpec final : public AstNode {
 public:
     AstStrengthSpec(FileLine* fl, AstStrength* strength0p, AstStrength* strength1p);
     ASTNODE_NODE_FUNCS(StrengthSpec)
-    AstStrength* strength1p() { return VN_AS(op1p(), Strength); }
-    AstStrength* strength2p() { return VN_AS(op2p(), Strength); }
+    AstStrength* strength0p() { return VN_AS(op1p(), Strength); }
+    AstStrength* strength1p() { return VN_AS(op2p(), Strength); }
 };
 
 class AstGatePin final : public AstNodeMath {
