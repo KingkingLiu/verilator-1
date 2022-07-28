@@ -29,6 +29,7 @@
 //   All variables on the LHS need to become tristate when there is:
 //       CONST-> with Z value on the RHS of an assignment
 //       AstPin with lower connection a tristate
+//       highz strength specifier in an assignment
 //       A tristate signal on the RHS
 //       (this can't generally be determined until that signal is resolved)
 //   When LHS becomes tristate, then mark all RHS nodes as tristate
@@ -884,6 +885,7 @@ class TristateVisitor final : public TristateBaseVisitor {
             if (nodep->user2() & U2_GRAPHING) return;
             VL_RESTORER(m_logicp);
             m_logicp = nodep;
+            if (nodep->strengthSpecp()) m_tgraph.setTristate(nodep);
             nodep->user2(U2_GRAPHING);
             iterateAndNextNull(nodep->rhsp());
             m_alhs = true;
@@ -903,9 +905,18 @@ class TristateVisitor final : public TristateBaseVisitor {
             // then propagate the corresponding output enable assign statement.
             // down the lvalue tree by recursion for eventual attachment to
             // the appropriate output signal's VarRef.
-            if (nodep->rhsp()->user1p()) {
-                nodep->lhsp()->user1p(nodep->rhsp()->user1p());
-                nodep->rhsp()->user1p(nullptr);
+            AstNode* lhsEnp = nullptr;
+            AstStrengthSpec* strengthSpecp = VN_CAST(nodep->strengthSpecp(), StrengthSpec);
+            if (strengthSpecp && (strengthSpecp->strength0p()->val == StrengthLevel::HIGHZ
+                                  || strengthSpecp->strength1p()->val == StrengthLevel::HIGHZ)) {
+                // It may be changed to z due to signal strength
+                lhsEnp = newAllZerosOrOnes(nodep->rhsp(), true);
+            } else {
+                lhsEnp = nodep->rhsp()->user1p();
+            }
+            nodep->rhsp()->user1p(nullptr);
+            if (lhsEnp) {
+                nodep->lhsp()->user1p(lhsEnp);
                 UINFO(9, "   enp<-rhs " << nodep->lhsp()->user1p() << endl);
                 m_tgraph.didProcess(nodep);
             }
