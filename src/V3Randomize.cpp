@@ -117,20 +117,22 @@ public:
 class RandomizeVisitor final : public VNVisitor {
 private:
     struct ConstraintSet {
-        void addMinConstraint(AstNode* nodep, AstVar* varp, AstNode* valp, bool orEqual, AstVar* softp) {
+        void addMinConstraint(AstNode* nodep, AstVar* varp, AstNode* valp, bool orEqual,
+                              AstVar* softp) {
             if (auto* constp = VN_CAST(valp, Const)) {
                 V3Number min = constp->num();
                 if (orEqual) min.opSub(constp->num(), V3Number(nodep, constp->width(), 1));
-                    // Always add separate constraint - needed for relaxing
-                    m_minConstraints.insert(std::make_pair(varp, std::make_pair(min, softp)));
+                // Always add separate constraint - needed for relaxing
+                m_minConstraints.insert(std::make_pair(varp, std::make_pair(min, softp)));
             }
         }
-        void addMaxConstraint(AstNode* nodep, AstVar* varp, AstNode* valp, bool orEqual, AstVar* softp) {
+        void addMaxConstraint(AstNode* nodep, AstVar* varp, AstNode* valp, bool orEqual,
+                              AstVar* softp) {
             if (auto* constp = VN_CAST(valp, Const)) {
                 V3Number max = constp->num();
                 if (orEqual) max.opAdd(constp->num(), V3Number(nodep, constp->width(), 1));
-                    // Always add separate constraint - needed for relaxing
-                    m_maxConstraints.insert(std::make_pair(varp, std::make_pair(max, softp)));
+                // Always add separate constraint - needed for relaxing
+                m_maxConstraints.insert(std::make_pair(varp, std::make_pair(max, softp)));
             }
         }
         void addConstraint(AstNode* nodep, AstVar* softp = nullptr) {
@@ -199,22 +201,25 @@ private:
                 if (it != maxConstraints.end()) {
                     auto max = it->second.first;
                     stmtsp = AstNode::addNext(
-                        stmtsp, new AstAssign(
-                                    fl, createRef(fl, c.first, fromp, VAccess::WRITE),
-                                    new AstCond(fl, controlvarp,
-                                                new AstModDiv(fl, createRef(fl, c.first, fromp, VAccess::READ),
-                                                              new AstSub(fl, new AstConst(fl, max),
-                                                                         new AstConst(fl, min))),
-                                                createRef(fl, c.first, fromp, VAccess::WRITE))));
+                        stmtsp,
+                        new AstAssign(
+                            fl, createRef(fl, c.first, fromp, VAccess::WRITE),
+                            new AstCond(fl, controlvarp,
+                                        new AstModDiv(fl,
+                                                      createRef(fl, c.first, fromp, VAccess::READ),
+                                                      new AstSub(fl, new AstConst(fl, max),
+                                                                 new AstConst(fl, min))),
+                                        createRef(fl, c.first, fromp, VAccess::WRITE))));
                     maxConstraints.erase(it);
                 }
                 stmtsp = AstNode::addNext(
                     stmtsp,
-                    new AstAssign(fl, createRef(fl, c.first, fromp, VAccess::WRITE),
-                                    new AstCond(fl, controlvarp->cloneTree(false),
-                                                new AstAdd(fl, createRef(fl, c.first, fromp, VAccess::READ),
-                                                           new AstConst(fl, min)),
-                                                createRef(fl, c.first, fromp, VAccess::WRITE))));
+                    new AstAssign(
+                        fl, createRef(fl, c.first, fromp, VAccess::WRITE),
+                        new AstCond(fl, controlvarp->cloneTree(false),
+                                    new AstAdd(fl, createRef(fl, c.first, fromp, VAccess::READ),
+                                               new AstConst(fl, min)),
+                                    createRef(fl, c.first, fromp, VAccess::WRITE))));
             }
             for (auto c : maxConstraints) {
                 AstNode* controlvarp = nullptr;
@@ -226,8 +231,9 @@ private:
                     stmtsp,
                     new AstAssign(fl, createRef(fl, c.first, fromp, VAccess::WRITE),
                                   new AstCond(fl, controlvarp,
-                                              new AstModDivS(fl, createRef(fl, c.first, fromp, VAccess::READ),
-                                                             new AstConst(fl, c.second.first)),
+                                              new AstModDivS(
+                                                  fl, createRef(fl, c.first, fromp, VAccess::READ),
+                                                  new AstConst(fl, c.second.first)),
                                               createRef(fl, c.first, fromp, VAccess::WRITE))));
             }
             return stmtsp;
@@ -248,8 +254,7 @@ private:
                                               new AstConst(fl, c.second.first)));
                 if (auto* softp = c.second.second) {
                     auto* softrefp = createRef(fl, softp, fromp, VAccess::READ);
-                    stmtsp = new AstOr(fl, new AstNot(fl, softrefp),
-                                       stmtsp);
+                    stmtsp = new AstOr(fl, new AstNot(fl, softrefp), stmtsp);
                 }
             }
             for (auto c : m_maxConstraints) {
@@ -258,8 +263,7 @@ private:
                                               new AstConst(fl, c.second.first)));
                 if (auto* softp = c.second.second) {
                     auto* softrefp = createRef(fl, softp, fromp, VAccess::READ);
-                    stmtsp = new AstOr(fl, new AstNot(fl, softrefp),
-                                       stmtsp);
+                    stmtsp = new AstOr(fl, new AstNot(fl, softrefp), stmtsp);
                 }
             }
             return stmtsp;
@@ -500,8 +504,8 @@ private:
                 // TODO: if soft constraint control add relaxing
                 if (!memberVarp)
                     continue;
-                else if (memberVarp->name().find("__Vsoft") == std::string::npos) {
-                    newRelaxNextSoft(nodep);
+                else if (memberVarp->name().find("__Vsoft") != std::string::npos) {
+                    continue;  // Don't randomize control variables
                 } else if (!memberVarp->isRand())
                     continue;
                 const auto* const dtypep = memberp->dtypep()->skipRefp();
@@ -582,31 +586,20 @@ private:
         // }
         //
         auto* dtypep = nodep->findBitDType(32, 32, VSigning::SIGNED);
-        auto* const frefp
-            = new AstVarRef(nodep->fileline(), fvarp, VAccess::WRITE);
-        auto* randcallp = new AstFuncRef(fl, "try_rand", nullptr);
-        randcallp->taskp(funcp);
-        randcallp->dtypeFrom(funcp);
-        auto* const rrefp
-            = new AstVarRef(nodep->fileline(), rvarp, VAccess::WRITE);
-        auto* relaxcallp = new AstFuncRef(fl, "relax_next", nullptr);
+        auto* const frefp = new AstVarRef(nodep->fileline(), fvarp, VAccess::READ);
+        auto* randcallp = new AstMethodCall(fl, frefp, "randomize", nullptr);
+        randcallp->dtypep(dtypep);
+        auto* const rrefp = new AstVarRef(nodep->fileline(), rvarp, VAccess::READ);
+        auto* relaxcallp = new AstMethodCall(fl, rrefp, "relax_next", nullptr);
         auto* rdtypep = nodep->findBitDType(32, 32, VSigning::SIGNED);
-        relaxcallp->taskp(relaxp);
-        relaxcallp->dtypeFrom(relaxp);
-        auto* redop = new AstWhile(fl, relaxcallp,
-                                   new AstIf(fl,
-                                             new AstNeq(fl,
-                                       new AstRedOr(fl, randcallp),
-                                                       new AstConst(fl, 0)),
-                                             new AstBreak(fl)));
+        relaxcallp->dtypep(rdtypep);
+        auto* redop = new AstWhile(
+            fl, relaxcallp,
+            new AstIf(fl, new AstEq(fl, randcallp, new AstConst(fl, 1)), new AstBreak(fl)));
 
-        auto* ifp = new AstIf(fl, new AstNeq(fl,
-                                       new AstRedOr(fl, frefp->cloneTree(false)),
-                    new AstConst(fl, 1)),
-                              redop,
-                              nullptr
-                              );
-        parentfuncp->addStmtsp(ifp);
+        auto* ifp = new AstIf(fl, new AstNeq(fl, frefp->cloneTree(false), new AstConst(fl, 1)),
+                              redop, nullptr);
+        funcp->addStmtsp(ifp);
         m_constraints = {};
         nodep->user1(false);
     }
@@ -648,7 +641,7 @@ private:
                 VL_DO_DANGLING(nodep->deleteTree(), nodep);
             }
             m_constraints = {};
-        // TODO: visit relax_next
+            // TODO: visit relax_next
         }
     }
     virtual void visit(AstNodeModule* nodep) override {
