@@ -881,11 +881,16 @@ class TristateVisitor final : public TristateBaseVisitor {
     virtual void visit(AstOr* nodep) override { visitAndOr(nodep, false); }
 
     void visitAssign(AstNodeAssign* nodep) {
+        AstStrengthSpec* strengthSpecp = VN_CAST(nodep->strengthSpecp(), StrengthSpec);
         if (m_graphing) {
             if (nodep->user2() & U2_GRAPHING) return;
             VL_RESTORER(m_logicp);
             m_logicp = nodep;
-            if (nodep->strengthSpecp()) m_tgraph.setTristate(nodep);
+            if (strengthSpecp
+                && (strengthSpecp->strength0p()->strengthLevel == StrengthLevel::HIGHZ
+                    || strengthSpecp->strength1p()->strengthLevel == StrengthLevel::HIGHZ)) {
+                m_tgraph.setTristate(nodep);
+            }
             nodep->user2(U2_GRAPHING);
             iterateAndNextNull(nodep->rhsp());
             m_alhs = true;
@@ -906,11 +911,13 @@ class TristateVisitor final : public TristateBaseVisitor {
             // down the lvalue tree by recursion for eventual attachment to
             // the appropriate output signal's VarRef.
             AstNode* lhsEnp = nullptr;
-            AstStrengthSpec* strengthSpecp = VN_CAST(nodep->strengthSpecp(), StrengthSpec);
-            if (strengthSpecp && (strengthSpecp->strength0p()->val == StrengthLevel::HIGHZ
-                                  || strengthSpecp->strength1p()->val == StrengthLevel::HIGHZ)) {
+            if (strengthSpecp) {
                 // It may be changed to z due to signal strength
-                lhsEnp = newAllZerosOrOnes(nodep->rhsp(), true);
+                if (strengthSpecp->strength0p()->strengthLevel == StrengthLevel::HIGHZ) {
+                    lhsEnp = nodep->rhsp()->cloneTree(false);
+                } else if (strengthSpecp->strength1p()->strengthLevel == StrengthLevel::HIGHZ) {
+                    lhsEnp = new AstNot(nodep->fileline(), nodep->rhsp()->cloneTree(false));
+                }
             } else {
                 lhsEnp = nodep->rhsp()->user1p();
             }
