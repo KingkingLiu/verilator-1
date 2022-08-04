@@ -82,6 +82,7 @@
 #include "V3Reloop.h"
 #include "V3Scope.h"
 #include "V3Scoreboard.h"
+#include "V3SignalStrength.h"
 #include "V3Slice.h"
 #include "V3Split.h"
 #include "V3SplitAs.h"
@@ -168,7 +169,7 @@ static void process() {
             return;
         }
     }
-
+    V3SignalStrength::handleStrength(v3Global.rootp());
     // Calculate and check widths, edit tree to TRUNC/EXTRACT any width mismatches
     V3Width::width(v3Global.rootp());
 
