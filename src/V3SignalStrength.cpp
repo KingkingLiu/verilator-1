@@ -65,20 +65,18 @@ class SignalStrengthVisitor final : public VNVisitor {
         return new AstConst(assignp->fileline(), strength1Level);
     }
 
-    AstAssign* getStrengthAssignmentp(FileLine* fl, AstVar* strengthVarp, AstConst* strengthLevelp, AstNode* assignedValuep, int compareConstp) {
-        return new AstAssign(fl,
-                              new AstVarRef(fl, strengthVarp, VAccess::WRITE),
-                              new AstCond(fl,
-                                          new AstLogAnd(fl,
-                                                        new AstLt(fl,
-                                                                  new AstVarRef(fl, strengthVarp, VAccess::READ),
-                                                                  strengthLevelp),
-                                                        new AstEqCase(fl,
-                                                                      assignedValuep,
-                                                                      new AstConst(fl, AstConst::WidthedValue(), 1, compareConstp))),
-                                          strengthLevelp->cloneTree(false),
-                                          new AstVarRef(fl, strengthVarp, VAccess::READ)));
-
+    AstAssign* getStrengthAssignmentp(FileLine* fl, AstVar* strengthVarp, AstConst* strengthLevelp,
+                                      AstNode* assignedValuep, int compareConstp) {
+        return new AstAssign(
+            fl, new AstVarRef(fl, strengthVarp, VAccess::WRITE),
+            new AstCond(
+                fl,
+                new AstLogAnd(
+                    fl,
+                    new AstLt(fl, new AstVarRef(fl, strengthVarp, VAccess::READ), strengthLevelp),
+                    new AstEqCase(fl, assignedValuep,
+                                  new AstConst(fl, AstConst::WidthedValue(), 1, compareConstp))),
+                strengthLevelp->cloneTree(false), new AstVarRef(fl, strengthVarp, VAccess::READ)));
     }
 
     virtual void visit(AstNodeModule* nodep) override {
@@ -89,24 +87,29 @@ class SignalStrengthVisitor final : public VNVisitor {
             FileLine* varFilelinep = varp->fileline();
             Assigns assigns = varpAssigns.second;
             if (assigns.size() > 1) {
-                AstVar* strength0Varp = new AstVar(varFilelinep, VVarType::MODULETEMP,
-                                                   varp->name() + "__s0",
-                                                   VFlagChildDType(),
-                                                   new AstBasicDType(varFilelinep, VBasicDTypeKwd::INTEGER)); // * varp->width());
-                AstVar* strength1Varp = new AstVar(varFilelinep, VVarType::MODULETEMP,
-                                                   varp->name() + "__s1",
-                                                   VFlagChildDType(),
-                                                   new AstBasicDType(varFilelinep, VBasicDTypeKwd::INTEGER)); // * varp->width());
+                AstVar* strength0Varp = new AstVar(
+                    varFilelinep, VVarType::MODULETEMP, varp->name() + "__s0", VFlagChildDType(),
+                    new AstBasicDType(varFilelinep,
+                                      VBasicDTypeKwd::INTEGER));  // * varp->width());
+                AstVar* strength1Varp = new AstVar(
+                    varFilelinep, VVarType::MODULETEMP, varp->name() + "__s1", VFlagChildDType(),
+                    new AstBasicDType(varFilelinep,
+                                      VBasicDTypeKwd::INTEGER));  // * varp->width());
                 nodep->addStmtp(strength0Varp);
                 nodep->addStmtp(strength1Varp);
-                AstBegin* strengthBlockp = new AstBegin(varFilelinep, "strength_computing_block", nullptr);
+                AstBegin* strengthBlockp
+                    = new AstBegin(varFilelinep, "strength_computing_block", nullptr);
                 for (size_t i = 0; i < assigns.size(); i++) {
                     AstConst* strength0Constp = getStrength0Constp(assigns[i]);
                     AstConst* strength1Constp = getStrength1Constp(assigns[i]);
 
                     FileLine* filelinep = assigns[i]->fileline();
-                    strengthBlockp->addStmtsp(getStrengthAssignmentp(filelinep, strength0Varp, strength0Constp, assigns[i]->rhsp()->cloneTree(false), 0));
-                    strengthBlockp->addStmtsp(getStrengthAssignmentp(filelinep, strength1Varp, strength1Constp, assigns[i]->rhsp()->cloneTree(false), 1));
+                    strengthBlockp->addStmtsp(
+                        getStrengthAssignmentp(filelinep, strength0Varp, strength0Constp,
+                                               assigns[i]->rhsp()->cloneTree(false), 0));
+                    strengthBlockp->addStmtsp(
+                        getStrengthAssignmentp(filelinep, strength1Varp, strength1Constp,
+                                               assigns[i]->rhsp()->cloneTree(false), 1));
 
                     assigns[i]->unlinkFrBack();
                 }
@@ -117,17 +120,15 @@ class SignalStrengthVisitor final : public VNVisitor {
                     varFilelinep, varRefp,
                     new AstCond(
                         varFilelinep,
-                        new AstGt(
-                            varFilelinep,
-                            new AstVarRef(varFilelinep, strength0Varp, VAccess::READ),
-                            new AstVarRef(varFilelinep, strength1Varp, VAccess::READ)),
+                        new AstGt(varFilelinep,
+                                  new AstVarRef(varFilelinep, strength0Varp, VAccess::READ),
+                                  new AstVarRef(varFilelinep, strength1Varp, VAccess::READ)),
                         new AstConst(varFilelinep, AstConst::WidthedValue(), 1, 0),
                         new AstCond(
                             varFilelinep,
-                            new AstEq(
-                                varFilelinep,
-                                new AstVarRef(varFilelinep, strength0Varp, VAccess::READ),
-                                new AstVarRef(varFilelinep, strength1Varp, VAccess::READ)),
+                            new AstEq(varFilelinep,
+                                      new AstVarRef(varFilelinep, strength0Varp, VAccess::READ),
+                                      new AstVarRef(varFilelinep, strength1Varp, VAccess::READ)),
                             new AstConst(varFilelinep, AstConst::StringToParse(), "1'x"),
                             new AstConst(varFilelinep, AstConst::WidthedValue(), 1, 1)))));
             }
