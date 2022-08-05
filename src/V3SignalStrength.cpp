@@ -97,8 +97,6 @@ class SignalStrengthVisitor final : public VNVisitor {
                                                    varp->name() + "__s1",
                                                    VFlagChildDType(),
                                                    new AstBasicDType(varFilelinep, VBasicDTypeKwd::INTEGER)); // * varp->width());
-                strength0Varp->valuep(new AstConst(varFilelinep, 0));
-                strength1Varp->valuep(new AstConst(varFilelinep, 0));
                 nodep->addStmtp(strength0Varp);
                 nodep->addStmtp(strength1Varp);
                 AstBegin* strengthBlockp = new AstBegin(varFilelinep, "strength_computing_block", nullptr);
