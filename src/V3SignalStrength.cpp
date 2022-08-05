@@ -43,40 +43,19 @@ class SignalStrengthVisitor final : public VNVisitor {
             m_assigns[varRefp->varp()].push_back(nodep);
     }
 
-    AstConst* getStrength0Constp(AstAssignW* assignp) {
-        int strength0Level;
-        if (assignp->strengthSpecp()) {
-            strength0Level
-                = VN_CAST(assignp->strengthSpecp(), StrengthSpec)->strength0p()->strengthLevel;
-        } else {
-            strength0Level = 6;  // default strength in strong (6)
-        }
-        return new AstConst(assignp->fileline(), strength0Level);
-    }
-
-    AstConst* getStrength1Constp(AstAssignW* assignp) {
-        int strength1Level;
-        if (assignp->strengthSpecp()) {
-            strength1Level
-                = VN_CAST(assignp->strengthSpecp(), StrengthSpec)->strength1p()->strengthLevel;
-        } else {
-            strength1Level = 6;  // default strength in strong (6)
-        }
-        return new AstConst(assignp->fileline(), strength1Level);
-    }
-
-    AstAssign* getStrengthAssignmentp(FileLine* fl, AstVar* strengthVarp, AstConst* strengthLevelp,
+    AstAssign* getStrengthAssignmentp(FileLine* fl, AstVar* strengthVarp, int strengthLevel,
                                       AstNode* assignedValuep, int compareConstp) {
         return new AstAssign(
             fl, new AstVarRef(fl, strengthVarp, VAccess::WRITE),
-            new AstCond(
-                fl,
-                new AstLogAnd(
-                    fl,
-                    new AstLt(fl, new AstVarRef(fl, strengthVarp, VAccess::READ), strengthLevelp),
-                    new AstEqCase(fl, assignedValuep,
-                                  new AstConst(fl, AstConst::WidthedValue(), 1, compareConstp))),
-                strengthLevelp->cloneTree(false), new AstVarRef(fl, strengthVarp, VAccess::READ)));
+            new AstCond(fl,
+                        new AstLogAnd(fl,
+                                      new AstLt(fl, new AstVarRef(fl, strengthVarp, VAccess::READ),
+                                                new AstConst(fl, strengthLevel)),
+                                      new AstEqCase(fl, assignedValuep,
+                                                    new AstConst(fl, AstConst::WidthedValue(), 1,
+                                                                 compareConstp))),
+                        new AstConst(fl, strengthLevel),
+                        new AstVarRef(fl, strengthVarp, VAccess::READ)));
     }
 
     virtual void visit(AstNodeModule* nodep) override {
@@ -100,16 +79,25 @@ class SignalStrengthVisitor final : public VNVisitor {
                 AstBegin* strengthBlockp
                     = new AstBegin(varFilelinep, "strength_computing_block", nullptr);
                 for (size_t i = 0; i < assigns.size(); i++) {
-                    AstConst* strength0Constp = getStrength0Constp(assigns[i]);
-                    AstConst* strength1Constp = getStrength1Constp(assigns[i]);
+                    int strength0Level, strength1Level;
+                    if (AstStrengthSpec* strengthSpec
+                        = VN_CAST(assigns[i]->strengthSpecp(), StrengthSpec)) {
+                        strength0Level = strengthSpec->strength0p()->strengthLevel;
+                        strength1Level = strengthSpec->strength1p()->strengthLevel;
+                    } else {
+                        strength0Level = 6;  // default strength in strong (6)
+                        strength1Level = 6;
+                    }
 
                     FileLine* filelinep = assigns[i]->fileline();
-                    strengthBlockp->addStmtsp(
-                        getStrengthAssignmentp(filelinep, strength0Varp, strength0Constp,
-                                               assigns[i]->rhsp()->cloneTree(false), 0));
-                    strengthBlockp->addStmtsp(
-                        getStrengthAssignmentp(filelinep, strength1Varp, strength1Constp,
-                                               assigns[i]->rhsp()->cloneTree(false), 1));
+                    if (strength0Level != 0)
+                        strengthBlockp->addStmtsp(
+                            getStrengthAssignmentp(filelinep, strength0Varp, strength0Level,
+                                                   assigns[i]->rhsp()->cloneTree(false), 0));
+                    if (strength1Level != 0)
+                        strengthBlockp->addStmtsp(
+                            getStrengthAssignmentp(filelinep, strength1Varp, strength1Level,
+                                                   assigns[i]->rhsp()->cloneTree(false), 1));
 
                     assigns[i]->unlinkFrBack();
                 }
