@@ -78,8 +78,7 @@ class SignalStrengthVisitor final : public VNVisitor {
                     = new AstBegin(varFilelinep, "strength_computing_block", nullptr);
                 for (size_t i = 0; i < assigns.size(); i++) {
                     int strength0Level, strength1Level;
-                    if (AstStrengthSpec* strengthSpec
-                        = VN_CAST(assigns[i]->strengthSpecp(), StrengthSpec)) {
+                    if (AstStrengthSpec* strengthSpec = assigns[i]->strengthSpecp()) {
                         strength0Level = strengthSpec->strength0p()->strengthLevel;
                         strength1Level = strengthSpec->strength1p()->strengthLevel;
                     } else {

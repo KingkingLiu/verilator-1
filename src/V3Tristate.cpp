@@ -881,7 +881,7 @@ class TristateVisitor final : public TristateBaseVisitor {
     virtual void visit(AstOr* nodep) override { visitAndOr(nodep, false); }
 
     void visitAssign(AstNodeAssign* nodep) {
-        AstStrengthSpec* strengthSpecp = VN_CAST(nodep->strengthSpecp(), StrengthSpec);
+        AstStrengthSpec* strengthSpecp = nodep->strengthSpecp();
         if (m_graphing) {
             if (nodep->user2() & U2_GRAPHING) return;
             VL_RESTORER(m_logicp);

@@ -68,7 +68,7 @@ public:
     AstNodeDType* m_varDTypep = nullptr;  // Pointer to data type for next signal declaration
     AstNodeDType* m_memDTypep = nullptr;  // Pointer to data type for next member declaration
     AstNode* m_netDelayp = nullptr;  // Pointer to delay for next signal declaration
-    AstNode* m_netStrengthp = nullptr;  // Pointer to strenght for next net declaration
+    AstStrengthSpec* m_netStrengthp = nullptr;  // Pointer to strenght for next net declaration
     AstNodeModule* m_modp = nullptr;  // Last module for timeunits
     bool m_pinAnsi = false;  // In ANSI port list
     FileLine* m_instModuleFl = nullptr;  // Fileline of module referenced for instantiations
@@ -173,7 +173,7 @@ public:
         m_varDTypep = dtypep;
     }
     void setNetDelay(AstNode* netDelayp) { m_netDelayp = netDelayp; }
-    void setNetStrength(AstNode* netStrengthp) { m_netStrengthp = netStrengthp; }
+    void setNetStrength(AstStrengthSpec* netStrengthp) { m_netStrengthp = netStrengthp; }
     void pinPush() {
         m_pinStack.push(m_pinNum);
         m_pinNum = 1;
@@ -295,11 +295,10 @@ int V3ParseGrammar::s_modTypeImpNum = 0;
 
 #define APPLY_STRENGTH_TO_LIST(beginp, strengthSpecNodep, typeToCast) \
     { \
-        if (strengthSpecNodep) \
+        if (AstStrengthSpec* specp = VN_CAST(strengthSpecNodep, StrengthSpec)) \
             for (auto* nodep = beginp; nodep; nodep = nodep->nextp()) { \
                 auto* const assignp = VN_AS(nodep, typeToCast); \
-                assignp->strengthSpecp(nodep == beginp ? strengthSpecNodep \
-                                                       : strengthSpecNodep->cloneTree(false)); \
+                assignp->strengthSpecp(nodep == beginp ? specp : specp->cloneTree(false)); \
             } \
     }
 
@@ -1744,7 +1743,7 @@ net_declaration<nodep>:         // IEEE: net_declaration - excluding implict
 
 net_declarationFront:           // IEEE: beginning of net_declaration
                 net_declRESET net_type driveStrengthE net_scalaredE net_dataTypeE { VARDTYPE_NDECL($5);
-                    GRAMMARP->setNetStrength($3);
+                    GRAMMARP->setNetStrength(VN_CAST($3, StrengthSpec));
                 }
         //UNSUP net_declRESET yINTERCONNECT signingE rangeListE { VARNET($2); VARDTYPE(x); }
         ;

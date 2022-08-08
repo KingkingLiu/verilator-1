@@ -2507,8 +2507,8 @@ public:
     // op3 = Timing controls (delays, event controls)
     AstNode* timingControlp() const { return op3p(); }
     void addTimingControlp(AstNode* const np) { addNOp3p(np); }
-    AstNode* strengthSpecp() const { return op4p(); }
-    void strengthSpecp(AstNode* const strengthSpecp) { setOp4p(strengthSpecp); }
+    AstStrengthSpec* strengthSpecp() const { return VN_AS(op4p(), StrengthSpec); }
+    void strengthSpecp(AstStrengthSpec* const strengthSpecp) { setOp4p((AstNode*)strengthSpecp); }
     void rhsp(AstNode* np) { setOp1p(np); }
     void lhsp(AstNode* np) { setOp2p(np); }
     virtual bool hasDType() const override { return true; }
