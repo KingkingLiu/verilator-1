@@ -69,11 +69,11 @@ class SignalStrengthVisitor final : public VNVisitor {
                 AstVar* strength0Varp = new AstVar(
                     varFilelinep, VVarType::MODULETEMP, varp->name() + "__s0", VFlagChildDType(),
                     new AstBasicDType(varFilelinep,
-                                      VBasicDTypeKwd::INTEGER));  // * varp->width());
+                                      VBasicDTypeKwd::INTEGER));
                 AstVar* strength1Varp = new AstVar(
                     varFilelinep, VVarType::MODULETEMP, varp->name() + "__s1", VFlagChildDType(),
                     new AstBasicDType(varFilelinep,
-                                      VBasicDTypeKwd::INTEGER));  // * varp->width());
+                                      VBasicDTypeKwd::INTEGER));
                 nodep->addStmtp(strength0Varp);
                 nodep->addStmtp(strength1Varp);
                 AstBegin* strengthBlockp
