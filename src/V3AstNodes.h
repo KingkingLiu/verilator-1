@@ -288,7 +288,6 @@ public:
         : ASTGEN_SUPER_Strength(fl)
         , strengthLevel(strengthLevel)
         , val(val) {}
-    AstStrength(FileLine* fl, const string& strengthLevelValue);
     ASTNODE_NODE_FUNCS(Strength)
     virtual string name() const override;
 };
