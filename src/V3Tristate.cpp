@@ -918,10 +918,14 @@ class TristateVisitor final : public TristateBaseVisitor {
                 } else if (strengthSpecp->strength1p()->strengthLevel == StrengthLevel::HIGHZ) {
                     lhsEnp = new AstNot(nodep->fileline(), nodep->rhsp()->cloneTree(false));
                 }
-            } else {
-                lhsEnp = nodep->rhsp()->user1p();
             }
-            nodep->rhsp()->user1p(nullptr);
+            if (nodep->rhsp()->user1p()) {
+                if (lhsEnp)
+                    lhsEnp = new AstAnd(nodep->fileline(), lhsEnp, nodep->rhsp()->user1p());
+                else
+                    lhsEnp = nodep->rhsp()->user1p();
+                nodep->rhsp()->user1p(nullptr);
+            }
             if (lhsEnp) {
                 nodep->lhsp()->user1p(lhsEnp);
                 UINFO(9, "   enp<-rhs " << nodep->lhsp()->user1p() << endl);
