@@ -38,7 +38,7 @@ class SignalStrengthVisitor final : public VNVisitor {
     VarToAssignsMap m_assigns;  // Assigns in current module
 
     // VISITORS
-    virtual void visit(AstAssignW* nodep) {
+    virtual void visit(AstAssignW* nodep) override {
         if (AstVarRef* varRefp = VN_CAST(nodep->lhsp(), VarRef))
             m_assigns[varRefp->varp()].push_back(nodep);
     }
