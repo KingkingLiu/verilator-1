@@ -58,6 +58,7 @@ class SignalStrengthVisitor final : public VNVisitor {
 
     virtual void visit(AstNodeModule* nodep) override {
         UINFO(8, nodep << endl);
+        m_assigns = VarToAssignsMap();
         iterateChildren(nodep);
         for (auto& varpAssigns : m_assigns) {
             AstVar* varp = varpAssigns.first;
