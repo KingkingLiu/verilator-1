@@ -74,7 +74,7 @@ class SignalStrengthVisitor final : public VNVisitor {
                 nodep->addStmtp(strength0Varp);
                 nodep->addStmtp(strength1Varp);
                 AstBegin* strengthBlockp
-                    = new AstBegin(varFilelinep, "strength_computing_block", nullptr);
+                    = new AstBegin(varFilelinep, varp->name() + "_strength_computing_block", nullptr);
                 strengthBlockp->addStmtsp(new AstAssign(
                     varFilelinep, new AstVarRef(varFilelinep, strength0Varp, VAccess::WRITE),
                     new AstConst(varFilelinep, 0)));
