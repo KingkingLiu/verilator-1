@@ -64,7 +64,7 @@ class SignalStrengthVisitor final : public VNVisitor {
             AstVar* varp = varpAssigns.first;
             FileLine* varFilelinep = varp->fileline();
             Assigns assigns = varpAssigns.second;
-            if (assigns.size() > 1) {
+            if (assigns.size() > 1 || (assigns.size() == 1 && assigns[0]->strengthSpecp() && (assigns[0]->strengthSpecp()->strength0p()->strengthLevel == 0 || assigns[0]->strengthSpecp()->strength1p()->strengthLevel == 0))) {
                 AstVar* strength0Varp = new AstVar(
                     varFilelinep, VVarType::MODULETEMP, varp->name() + "__s0", VFlagChildDType(),
                     new AstBasicDType(varFilelinep, VBasicDTypeKwd::INTEGER));
@@ -76,10 +76,10 @@ class SignalStrengthVisitor final : public VNVisitor {
                 AstBegin* strengthBlockp
                     = new AstBegin(varFilelinep, "strength_computing_block", nullptr);
                 strengthBlockp->addStmtsp(new AstAssign(
-                    varFilelinep, new AstVarRef(varFilelinep, strength0Varp, VAccess::READ),
+                    varFilelinep, new AstVarRef(varFilelinep, strength0Varp, VAccess::WRITE),
                     new AstConst(varFilelinep, 0)));
                 strengthBlockp->addStmtsp(new AstAssign(
-                    varFilelinep, new AstVarRef(varFilelinep, strength1Varp, VAccess::READ),
+                    varFilelinep, new AstVarRef(varFilelinep, strength1Varp, VAccess::WRITE),
                     new AstConst(varFilelinep, 0)));
 
                 for (size_t i = 0; i < assigns.size(); i++) {

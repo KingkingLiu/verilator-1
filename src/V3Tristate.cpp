@@ -29,7 +29,6 @@
 //   All variables on the LHS need to become tristate when there is:
 //       CONST-> with Z value on the RHS of an assignment
 //       AstPin with lower connection a tristate
-//       highz strength specifier in an assignment
 //       A tristate signal on the RHS
 //       (this can't generally be determined until that signal is resolved)
 //   When LHS becomes tristate, then mark all RHS nodes as tristate
@@ -881,16 +880,10 @@ class TristateVisitor final : public TristateBaseVisitor {
     virtual void visit(AstOr* nodep) override { visitAndOr(nodep, false); }
 
     void visitAssign(AstNodeAssign* nodep) {
-        AstStrengthSpec* strengthSpecp = nodep->strengthSpecp();
         if (m_graphing) {
             if (nodep->user2() & U2_GRAPHING) return;
             VL_RESTORER(m_logicp);
             m_logicp = nodep;
-            if (strengthSpecp
-                && (strengthSpecp->strength0p()->strengthLevel == StrengthLevel::HIGHZ
-                    || strengthSpecp->strength1p()->strengthLevel == StrengthLevel::HIGHZ)) {
-                m_tgraph.setTristate(nodep);
-            }
             nodep->user2(U2_GRAPHING);
             iterateAndNextNull(nodep->rhsp());
             m_alhs = true;
@@ -910,24 +903,9 @@ class TristateVisitor final : public TristateBaseVisitor {
             // then propagate the corresponding output enable assign statement.
             // down the lvalue tree by recursion for eventual attachment to
             // the appropriate output signal's VarRef.
-            AstNode* lhsEnp = nullptr;
-            if (strengthSpecp) {
-                // It may be changed to z due to signal strength
-                if (strengthSpecp->strength0p()->strengthLevel == StrengthLevel::HIGHZ) {
-                    lhsEnp = nodep->rhsp()->cloneTree(false);
-                } else if (strengthSpecp->strength1p()->strengthLevel == StrengthLevel::HIGHZ) {
-                    lhsEnp = new AstNot(nodep->fileline(), nodep->rhsp()->cloneTree(false));
-                }
-            }
             if (nodep->rhsp()->user1p()) {
-                if (lhsEnp)
-                    lhsEnp = new AstAnd(nodep->fileline(), lhsEnp, nodep->rhsp()->user1p());
-                else
-                    lhsEnp = nodep->rhsp()->user1p();
+                nodep->lhsp()->user1p(nodep->rhsp()->user1p());
                 nodep->rhsp()->user1p(nullptr);
-            }
-            if (lhsEnp) {
-                nodep->lhsp()->user1p(lhsEnp);
                 UINFO(9, "   enp<-rhs " << nodep->lhsp()->user1p() << endl);
                 m_tgraph.didProcess(nodep);
             }
