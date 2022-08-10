@@ -75,6 +75,9 @@ class SignalStrengthVisitor final : public VNVisitor {
                 nodep->addStmtp(strength1Varp);
                 AstBegin* strengthBlockp
                     = new AstBegin(varFilelinep, "strength_computing_block", nullptr);
+                strengthBlockp->addStmtsp(new AstAssign(varFilelinep, new AstVarRef(varFilelinep, strength0Varp, VAccess::READ), new AstConst(varFilelinep, 0)));
+                strengthBlockp->addStmtsp(new AstAssign(varFilelinep, new AstVarRef(varFilelinep, strength1Varp, VAccess::READ), new AstConst(varFilelinep, 0)));
+
                 for (size_t i = 0; i < assigns.size(); i++) {
                     int strength0Level, strength1Level;
                     if (AstStrengthSpec* strengthSpec = assigns[i]->strengthSpecp()) {
@@ -109,7 +112,7 @@ class SignalStrengthVisitor final : public VNVisitor {
 
                     assigns[i]->unlinkFrBack();
                 }
-                nodep->addStmtp(new AstInitial(varFilelinep, strengthBlockp));
+                nodep->addStmtp(new AstAlways(varFilelinep, VAlwaysKwd::ALWAYS, nullptr, strengthBlockp));
 
                 AstVarRef* varRefp = new AstVarRef(varFilelinep, varp, VAccess::WRITE);
                 nodep->addStmtp(new AstAssignW(
