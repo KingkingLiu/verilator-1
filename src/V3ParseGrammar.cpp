@@ -87,8 +87,9 @@ AstNode* V3ParseGrammar::createSupplyExpr(FileLine* fileline, const string& name
     AstAssignW* assignp
         = new AstAssignW(fileline, new AstVarRef(fileline, name, VAccess::WRITE),
                          new AstConst(fileline, AstConst::StringToParse(), (value ? "'1" : "'0")));
-    AstStrengthSpec* strengthSpecp = new AstStrengthSpec(fileline, new AstStrength(fileline, StrengthLevel::SUPPLY, 0),
-                                                         new AstStrength(fileline, StrengthLevel::SUPPLY, 1));
+    AstStrengthSpec* strengthSpecp
+        = new AstStrengthSpec(fileline, new AstStrength(fileline, StrengthLevel::SUPPLY, 0),
+                              new AstStrength(fileline, StrengthLevel::SUPPLY, 1));
     assignp->strengthSpecp(strengthSpecp);
     return assignp;
 }
