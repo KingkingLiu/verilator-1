@@ -125,7 +125,13 @@ class SignalStrengthVisitor final : public VNVisitor {
                             new AstEq(varFilelinep,
                                       new AstVarRef(varFilelinep, strength0Varp, VAccess::READ),
                                       new AstVarRef(varFilelinep, strength1Varp, VAccess::READ)),
-                            new AstConst(varFilelinep, AstConst::StringToParse(), "'x"),
+                            new AstCond(
+                                varFilelinep,
+                                new AstEq(varFilelinep,
+                                          new AstVarRef(varFilelinep, strength0Varp, VAccess::READ),
+                                          new AstConst(varFilelinep, AstConst::StringToParse(), "'0")),
+                                new AstConst(varFilelinep, AstConst::StringToParse(), "'z"),
+                                new AstConst(varFilelinep, AstConst::StringToParse(), "'x")),
                             new AstConst(varFilelinep, AstConst::StringToParse(), "'1")))));
             }
         }
