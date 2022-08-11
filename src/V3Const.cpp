@@ -2838,10 +2838,8 @@ private:
             && !VN_AS(nodep->rhsp(), Const)->num().isFourState()
             && varrefp  // Don't do messes with BITREFs/ARRAYREFs
             && !varrefp->varp()->valuep()  // Not already constified
-            && !varrefp
-                    ->varScopep()  // Not scoped (or each scope may have different initial value)
-            && varrefp->varp()->varType()
-                   != VVarType::WIRE) {  // wire assignments may result in four states values
+            && !varrefp->varScopep()) {  // Not scoped (or each scope may have different initial
+                                         // value)
             // ASSIGNW (VARREF, const) -> INITIAL ( ASSIGN (VARREF, const) )
             UINFO(4, "constAssignW " << nodep << endl);
             // Make a initial assignment
