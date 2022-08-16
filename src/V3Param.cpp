@@ -552,7 +552,7 @@ class ParamProcessor final {
         // Recursion may need level cleanups
         if (newmodp->level() <= m_modp->level()) newmodp->level(m_modp->level() + 1);
         if ((newmodp->level() - srcModp->level()) >= (v3Global.opt.moduleRecursionDepth() - 2)) {
-            cellp->v3error("Exceeded maximum --module-recursion-depth of "
+            cellp->v3fatal("Exceeded maximum --module-recursion-depth of "
                            << v3Global.opt.moduleRecursionDepth());
         }
         // Keep tree sorted by level. Note: Different parametrizations of the same recursive module
