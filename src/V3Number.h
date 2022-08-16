@@ -87,6 +87,7 @@ private:
 
     // MEMBERS
     union {
+        double m_double;
         std::array<ValueAndX, INLINE_WORDS> m_inlineNumber;
         std::vector<ValueAndX> m_dynamicNumber;
         std::string m_string;
@@ -127,7 +128,9 @@ public:
         , m_isNull{other.m_isNull}
         , m_fromString{other.m_fromString}
         , m_autoExtend{other.m_autoExtend} {
-        if (other.isInlineNumber()) {
+        if (other.isDouble()) {
+            m_double = other.m_double;
+        } else if (other.isInlineNumber()) {
             initInlineNumber(other.m_inlineNumber);
         } else if (other.isDynamicNumber()) {
             initDynamicNumber(other.m_dynamicNumber);
@@ -137,7 +140,13 @@ public:
     }
 
     V3NumberData& operator=(const V3NumberData& other) {
-        if (other.isInlineNumber()) {
+        if (other.isDouble()) {
+            if (isDynamicNumber())
+                destroyDynamicNumber();
+            else if (isString())
+                destroyString();
+            m_double = other.m_double;
+        } else if (other.isInlineNumber()) {
             if (isDynamicNumber())
                 destroyDynamicNumber();
             else if (isString())
@@ -171,7 +180,9 @@ public:
         , m_isNull{other.m_isNull}
         , m_fromString{other.m_fromString}
         , m_autoExtend{other.m_autoExtend} {
-        if (other.isInlineNumber()) {
+        if (other.isDouble()) {
+            m_double = other.m_double;
+        } else if (other.isInlineNumber()) {
             initInlineNumber(other.m_inlineNumber);
         } else if (other.isDynamicNumber()) {
             initDynamicNumber(std::move(other.m_dynamicNumber));
@@ -182,7 +193,13 @@ public:
     }
 
     V3NumberData& operator=(V3NumberData&& other) {
-        if (other.isInlineNumber()) {
+        if (other.isDouble()) {
+            if (isDynamicNumber())
+                destroyDynamicNumber();
+            else if (isString())
+                destroyString();
+            m_double = other.m_double;
+        } else if (other.isInlineNumber()) {
             if (isDynamicNumber())
                 destroyDynamicNumber();
             else if (isString())
@@ -210,11 +227,21 @@ public:
     }
 
     // ACCESSORS
+    inline double& real() {
+        UASSERT(isDouble(), "`real` member accessed when data type is " << m_type);
+        return m_double;
+    }
+    inline const double real() const {
+        UASSERT(isDouble(), "`real` member accessed when data type is " << m_type);
+        return m_double;
+    }
     inline ValueAndX* num() {
+        assert(isNumber());
         UASSERT(isNumber(), "`num` member accessed when data type is " << m_type);
         return isInlineNumber() ? m_inlineNumber.data() : m_dynamicNumber.data();
     }
     inline const ValueAndX* num() const {
+        assert(isNumber());
         UASSERT(isNumber(), "`num` member accessed when data type is " << m_type);
         return isInlineNumber() ? m_inlineNumber.data() : m_dynamicNumber.data();
     }
@@ -273,12 +300,14 @@ public:
     }
 
     void setDouble() {
+        if (m_type == V3NumberDataType::DOUBLE) return;
+
         if (isString())
             destroyString();
         else if (isDynamicNumber())
             destroyDynamicNumber();
 
-        if (!isInlineNumber()) initInlineNumber();
+        m_double = 0.0;
         m_type = V3NumberDataType::DOUBLE;
         resize(64);
     }
@@ -298,16 +327,10 @@ public:
 private:
     static constexpr int bitsToWords(int bitsCount) { return (bitsCount + 31) / 32; }
 
-    inline bool isNumber() const {
-        return m_type == V3NumberDataType::DOUBLE || m_type == V3NumberDataType::LOGIC;
-    }
-    inline bool isInlineNumber() const {
-        return (m_width <= MAX_INLINE_WIDTH)
-               && (m_type == V3NumberDataType::DOUBLE || m_type == V3NumberDataType::LOGIC);
-    }
-    inline bool isDynamicNumber() const {
-        return (m_width > MAX_INLINE_WIDTH) && (m_type == V3NumberDataType::LOGIC);
-    }
+    inline bool isDouble() const { return m_type == V3NumberDataType::DOUBLE; }
+    inline bool isNumber() const { return m_type == V3NumberDataType::LOGIC; }
+    inline bool isInlineNumber() const { return (m_width <= MAX_INLINE_WIDTH) && (m_type == V3NumberDataType::LOGIC); }
+    inline bool isDynamicNumber() const { return (m_width > MAX_INLINE_WIDTH) && (m_type == V3NumberDataType::LOGIC); }
     inline bool isString() const { return m_type == V3NumberDataType::STRING; }
 
     template <typename... Args>
@@ -594,15 +617,12 @@ public:
     void isSigned(bool ssigned) { m_data.m_signed = ssigned; }
     bool isDouble() const { return dataType() == V3NumberDataType::DOUBLE; }
     bool isString() const { return dataType() == V3NumberDataType::STRING; }
-    bool isNumber() const {
-        return m_data.type() == V3NumberDataType::LOGIC
-               || m_data.type() == V3NumberDataType::DOUBLE;
-    }
+    bool isNumber() const { return m_data.type() == V3NumberDataType::LOGIC; }
     bool isNegative() const { return !isString() && bitIs1(width() - 1); }
     bool isNull() const { return m_data.m_isNull; }
     bool isFourState() const;
     bool hasZ() const {
-        if (isString()) return false;
+        if (!isNumber()) return false;
         for (int i = 0; i < words(); i++) {
             const ValueAndX v = m_data.num()[i];
             if ((~v.m_value) & v.m_valueX) return true;

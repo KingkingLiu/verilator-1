@@ -415,15 +415,7 @@ V3Number& V3Number::setLongS(int32_t value) {
 V3Number& V3Number::setDouble(double value) {
     if (VL_UNCOVERABLE(width() != 64)) v3fatalSrc("Real operation on wrong sized number");
     m_data.setDouble();
-    union {
-        double d;
-        uint32_t u[2];
-    } u;
-    u.d = value;
-    if (u.d != 0.0) {}
-    for (int i = 2; i < words(); i++) m_data.num()[i] = {0, 0};
-    m_data.num()[0].m_value = u.u[0];
-    m_data.num()[1].m_value = u.u[1];
+    m_data.real() = value;
     return *this;
 }
 V3Number& V3Number::setSingleBits(char value) {
@@ -881,13 +873,7 @@ double V3Number::toDouble() const {
     if (VL_UNCOVERABLE(!isDouble() || width() != 64)) {
         v3fatalSrc("Real operation on wrong sized/non-real number");
     }
-    union {
-        double d;
-        uint32_t u[2];
-    } u;
-    u.u[0] = m_data.num()[0].m_value;
-    u.u[1] = m_data.num()[1].m_value;
-    return u.d;
+    return m_data.real();
 }
 
 int32_t V3Number::toSInt() const {
@@ -948,6 +934,14 @@ V3Hash V3Number::toHash() const {
     V3Hash hash(width());
     if (isString()) {
         for (int i = 0; i < words(); ++i) { hash += 0; }
+    } else if (isDouble()) {
+        union {
+            double d;
+            uint32_t u[2];
+        } u;
+        u.d = m_data.real();
+        hash += u.u[0];
+        hash += u.u[1];
     } else {
         for (int i = 0; i < words(); ++i) { hash += m_data.num()[i].m_value; }
     }
@@ -2172,6 +2166,15 @@ V3Number& V3Number::opAssignNonXZ(const V3Number& lhs, bool ignoreXZ) {
             } else {
                 m_data.str() = lhs.m_data.str();
             }
+        } else if (isDouble()) {
+            if (VL_LIKELY(lhs.isDouble())) {
+                // Non-compatible types, erase value.
+                m_data.real() = lhs.m_data.real();
+            } else if (lhs.isNumber()) {
+                opBitsToRealD(lhs);
+            } else {
+                assert(false);
+            }
         } else {
             if (VL_UNLIKELY(lhs.isString())) {
                 // Non-compatible types, erase value.
@@ -2347,16 +2350,28 @@ V3Number& V3Number::opRealToBits(const V3Number& lhs) {
     NUM_ASSERT_DOUBLE_ARGS1(lhs);
     // Conveniently our internal format is identical so we can copy bits...
     if (lhs.width() != 64 || width() != 64) v3fatalSrc("Real operation on wrong sized number");
+    union {
+        double d;
+        uint32_t u[2];
+    } u;
+    u.d = lhs.m_data.real();
     m_data.setLogic();
-    opAssign(lhs);
+    m_data.num()[0] = {u.u[0], 0};
+    m_data.num()[1] = {u.u[1], 0};
     return *this;
 }
 V3Number& V3Number::opBitsToRealD(const V3Number& lhs) {
     NUM_ASSERT_OP_ARGS1(lhs);
     // Conveniently our internal format is identical so we can copy bits...
     if (lhs.width() != 64 || width() != 64) v3fatalSrc("Real operation on wrong sized number");
+    union {
+        double d;
+        uint32_t u[2];
+    } u;
+    u.u[0] = lhs.m_data.num()[0].m_value;
+    u.u[1] = lhs.m_data.num()[1].m_value;
     m_data.setDouble();
-    opAssign(lhs);
+    m_data.real() = u.d;
     return *this;
 }
 V3Number& V3Number::opNegateD(const V3Number& lhs) {
