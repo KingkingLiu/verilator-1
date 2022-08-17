@@ -329,8 +329,12 @@ private:
 
     inline bool isDouble() const { return m_type == V3NumberDataType::DOUBLE; }
     inline bool isNumber() const { return m_type == V3NumberDataType::LOGIC; }
-    inline bool isInlineNumber() const { return (m_width <= MAX_INLINE_WIDTH) && (m_type == V3NumberDataType::LOGIC); }
-    inline bool isDynamicNumber() const { return (m_width > MAX_INLINE_WIDTH) && (m_type == V3NumberDataType::LOGIC); }
+    inline bool isInlineNumber() const {
+        return (m_width <= MAX_INLINE_WIDTH) && (m_type == V3NumberDataType::LOGIC);
+    }
+    inline bool isDynamicNumber() const {
+        return (m_width > MAX_INLINE_WIDTH) && (m_type == V3NumberDataType::LOGIC);
+    }
     inline bool isString() const { return m_type == V3NumberDataType::STRING; }
 
     template <typename... Args>
