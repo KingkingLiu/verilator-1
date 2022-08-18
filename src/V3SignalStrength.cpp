@@ -39,8 +39,10 @@ class SignalStrengthVisitor final : public VNVisitor {
 
     // VISITORS
     virtual void visit(AstAssignW* nodep) override {
-        if (AstVarRef* varRefp = VN_CAST(nodep->lhsp(), VarRef))
-            m_assigns[varRefp->varp()].push_back(nodep);
+        if (AstVarRef* varRefp = VN_CAST(nodep->lhsp(), VarRef)) {
+            if (varRefp->varp()->varType() == VVarType::WIRE && !varRefp->varp()->basicp()->isRanged())
+                m_assigns[varRefp->varp()].push_back(nodep);
+        }
     }
 
     AstAssign* getStrengthAssignmentp(FileLine* fl, AstVar* strengthVarp, int strengthLevel,
