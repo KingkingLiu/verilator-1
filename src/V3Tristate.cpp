@@ -989,10 +989,10 @@ class TristateVisitor final : public TristateBaseVisitor {
                 FileLine* const fl = nodep->fileline();
                 constp->unlinkFrBack();
                 AstNode* rhsp = nodep->rhsp()->unlinkFrBack();
-                AstNode* newp
-                    = new AstLogAnd(fl, new AstEq(fl, newAllZerosOrOnes(constp, false), rhsp->user1p()),
-                                    // Keep the caseeq if there are X's present
-                                    new AstEqCase(fl, constp, rhsp));
+                AstNode* newp = new AstLogAnd(
+                    fl, new AstEq(fl, newAllZerosOrOnes(constp, false), rhsp->user1p()),
+                    // Keep the caseeq if there are X's present
+                    new AstEqCase(fl, constp, rhsp));
                 if (neq) newp = new AstLogNot(fl, newp);
                 rhsp->user1p(nullptr);
                 UINFO(9, "       newceq " << newp << endl);
