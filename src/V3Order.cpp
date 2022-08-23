@@ -1851,8 +1851,8 @@ AstActive* OrderProcess::processMoveOneLogic(const OrderLogicVertex* lvertexp,
             } else {
                 newFuncpr->addStmtsp(nodep);
                 if (const AstNodeAssign* exprp = VN_CAST(nodep, NodeAssign))
-                    if(const AstVarRef* rrefp = VN_CAST(exprp->rhsp(), VarRef))
-                        if(const AstVarRef* lrefp = VN_CAST(exprp->lhsp(), VarRef)) {
+                    if (const AstVarRef* rrefp = VN_CAST(exprp->rhsp(), VarRef))
+                        if (const AstVarRef* lrefp = VN_CAST(exprp->lhsp(), VarRef)) {
                             if (rrefp->varp()->isTopLevelIOTainted()
                                 && lrefp->varp()->isTopLevelIO())
                                 newFuncpr->setTopLevelIO();

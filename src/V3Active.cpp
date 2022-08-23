@@ -448,13 +448,11 @@ private:
     bool filterTopLevelIO(AstNodeAssign* nodep) {
         if (const AstVarRef* lhsp = VN_CAST(nodep->lhsp(), VarRef)) {
             if (const AstVarRef* rhsp = VN_CAST(nodep->rhsp(), VarRef)) {
-                if ((rhsp->varp()->isTopLevelIOTainted()
-                     && lhsp->varp()->isTopLevelIO())
-                    ||
-                    (lhsp->varp()->isTopLevelIOTainted()
-                     && rhsp->varp()->isTopLevelIO())) {
-                    UINFO(9, "    Top Level Signal Ref1 " << lhsp << endl \
-                          << "                     Ref2 " << rhsp << endl);
+                if ((rhsp->varp()->isTopLevelIOTainted() && lhsp->varp()->isTopLevelIO())
+                    || (lhsp->varp()->isTopLevelIOTainted() && rhsp->varp()->isTopLevelIO())) {
+                    UINFO(9, "    Top Level Signal Ref1 " << lhsp << endl
+                                                          << "                     Ref2 " << rhsp
+                                                          << endl);
                     return true;
                 }
             }

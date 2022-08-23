@@ -2688,8 +2688,6 @@ VerilatedSyms::~VerilatedSyms() {
 //===========================================================================
 // Verilated:: Methods
 
-
-
 void Verilated::debug(int level) VL_MT_SAFE {
     s_debug = level;
     if (level) {
