@@ -68,6 +68,14 @@ class SignalStrengthVisitor final : public VNVisitor {
     // METHODS
     VL_DEBUG_FUNC;  // Declare debug()
 
+    bool allBitsAreEqual(AstNode* nodep) {
+        if (AstConst* constp = VN_AS(nodep, Const)) {
+            const V3Number num = constp->num();
+            return num.isEqZero() || num.isEqAllOnes() || num.isAllX() || num.isAllZ();
+        }
+        return false;
+    }
+
     AstAssign* getStrengthAssignmentp(FileLine* const fl, AstVar* const strengthVarp,
                                       uint8_t strengthLevel, AstNode* const assignedValuep,
                                       AstConst* const compareConstp) {
@@ -165,17 +173,14 @@ class SignalStrengthVisitor final : public VNVisitor {
             VVarType varType = varRefp->varp()->varType();
             bool isWire = varType == VVarType::WIRE || varType == VVarType::SUPPLY0
                           || varType == VVarType::SUPPLY1;
-            bool isRanged = varRefp->varp()->basicp()->isRanged();
-            if (isWire && !isRanged) {
+            bool allBitsAreTheSame
+                = !varRefp->varp()->basicp()->isRanged() || allBitsAreEqual(nodep->rhsp());
+            if (isWire && allBitsAreTheSame) {
                 m_assigns[varRefp->varp()].push_back(nodep);
             } else if (nodep->strengthSpecp()) {
-                if (isRanged
-                    && varType == VVarType::WIRE)  // declaring supply nets implies having
-                                                   // assignment with signal strength, but we don't
-                                                   // want to throw UNSUPPORTED just on declaration
-                    nodep->v3warn(
-                        E_UNSUPPORTED,
-                        "Unsupported: Signal strengths are unsupported in wires of size > 1");
+                if (!allBitsAreTheSame)
+                    nodep->v3warn(E_UNSUPPORTED, "Unsupported: Signal strengths are unsupported "
+                                                 "when values of elements on RHS may differ");
                 if (!isWire)
                     nodep->v3warn(E_UNSUPPORTED, "Unsupported: Signal strengths are unsupported "
                                                  "on the following variable type: "
