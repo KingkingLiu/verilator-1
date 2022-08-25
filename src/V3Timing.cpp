@@ -125,6 +125,7 @@ private:
     V3Graph m_depGraph;  // Dependency graph where a node is a dependency of another if it being
                          // suspendable makes the other node suspendable
     SenTreeFinder m_finder{m_netlistp};  // Sentree finder and uniquifier
+    std::unordered_set<VNRef<AstSenTree>> m_clockedSens;  // Set of all clocked sentrees
 
     // METHODS
     VL_DEBUG_FUNC;  // Declare debug()
@@ -193,6 +194,42 @@ private:
                                           new AstVarRef{refp->fileline(), vscp, VAccess::READ}});
         });
         return VN_AS(senItemsp, SenItem);
+    }
+    // Returns sentree for given expression and edge
+    AstSenTree* getSensesForEdge(AstNode* sensp, VEdgeType edges) {
+        auto* const flp = sensp->fileline();
+        auto* const sensesp = new AstSenTree{
+            flp, new AstSenItem{flp, VEdgeType::ET_CHANGED, sensp->cloneTree(false)}};
+        if (m_clockedSens.find(*sensesp) != m_clockedSens.end()) { return sensesp; }
+        sensesp->deleteTree();
+        return nullptr;
+    }
+    // Returns sentree that could replace the given sentree
+    std::vector<AstSenTree*> getSensesLike(AstSenTree* sensesp) {
+        VNDeleter deleter;
+        if (m_clockedSens.find(*sensesp) != m_clockedSens.end()) { return {sensesp}; }
+        deleter.pushDeletep(sensesp);
+        AstNode* const sensp = sensesp->sensesp()->sensp();
+        if (!sensp || sensp->nextp() || sensp->width1()) return {};
+        const VEdgeType edgeType = sensesp->sensesp()->edgeType();
+        if (edgeType == VEdgeType::ET_CHANGED) {
+            auto* const bothSensesp = getSensesForEdge(sensp, VEdgeType::ET_BOTHEDGE);
+            if (bothSensesp) return {bothSensesp};
+        } else if (edgeType == VEdgeType::ET_BOTHEDGE) {
+            auto* const chgSensesp = getSensesForEdge(sensp, VEdgeType::ET_CHANGED);
+            if (chgSensesp) return {chgSensesp};
+        }
+        if (edgeType == VEdgeType::ET_CHANGED || edgeType == VEdgeType::ET_BOTHEDGE) {
+            auto* const posSensesp = getSensesForEdge(sensp, VEdgeType::ET_POSEDGE);
+            auto* const negSensesp = getSensesForEdge(sensp, VEdgeType::ET_NEGEDGE);
+            if (posSensesp && negSensesp) {
+                return {posSensesp, negSensesp};
+            } else {
+                if (posSensesp) posSensesp->deleteTree();
+                if (negSensesp) negSensesp->deleteTree();
+            }
+        }
+        return {};
     }
     // Creates the global delay scheduler variable
     AstVarScope* getCreateDelayScheduler() {
@@ -317,6 +354,12 @@ private:
     }
 
     // VISITORS
+    virtual void visit(AstNetlist* nodep) override {
+        nodep->foreach<AstSenTree>([this](AstSenTree* sensesp) {
+            if (sensesp->hasClocked()) m_clockedSens.insert(*sensesp);
+        });
+        iterateChildren(nodep);
+    }
     virtual void visit(AstNodeModule* nodep) override {
         UASSERT(!m_classp, "Module or class under class");
         VL_RESTORER(m_classp);
@@ -532,36 +575,54 @@ private:
         iterateChildren(nodep);
         auto* const netDelayp = getLhsNetDelay(nodep);
         if (!netDelayp && !nodep->timingControlp()) return;
-        // This assignment will be converted to an always. In some cases this may generate an
-        // UNOPTFLAT, e.g.: assign #1 clk = ~clk. We create a temp var for the LHS of this assign,
-        // to disable the UNOPTFLAT warning for it.
-        // TODO: Find a way to do this without introducing this var. Perhaps make V3SchedAcyclic
-        // recognize awaits and prevent it from treating this kind of logic as cyclic
-        AstNode* const lhsp = nodep->lhsp()->unlinkFrBack();
-        std::string varname;
-        if (auto* const refp = VN_CAST(lhsp, VarRef)) {
-            varname = m_contAssignVarNames.get(refp->name());
-        } else {
-            varname = m_contAssignVarNames.get(lhsp);
-        }
-        auto* const tempvscp = m_scopep->createTemp(varname, lhsp->dtypep());
-        tempvscp->varp()->delayp(netDelayp);
         FileLine* const flp = nodep->fileline();
-        flp->modifyWarnOff(V3ErrorCode::UNOPTFLAT, true);
-        tempvscp->fileline(flp);
-        tempvscp->varp()->fileline(flp);
-        // Remap the LHS to the new temp var
-        nodep->lhsp(new AstVarRef{flp, tempvscp, VAccess::WRITE});
-        // Convert it to an always; the new assign with intra delay will be handled by
-        // visit(AstNodeAssign*)
-        AstAlways* const alwaysp = nodep->convertToAlways();
-        visit(alwaysp);
-        // Put the LHS back in the AssignW; put the temp var on the RHS
-        nodep->lhsp(lhsp);
-        nodep->rhsp(new AstVarRef{flp, tempvscp, VAccess::READ});
-        // Put the AssignW right after the always. Different order can produce UNOPTFLAT on the LHS
-        // var
-        alwaysp->addNextHere(nodep);
+        const auto& senTreeps = getSensesLike(new AstSenTree{flp, varRefpsToSenItemsp(nodep)});
+        if (!senTreeps.empty()) {
+            // The assignment will be converted to a clocked active (or more than one). The
+            // sentree(s) for this assignment already exist, so this does not add a new trigger.
+            // This can drastically reduce the number of eval loops compared to a combo active.
+            // TODO: allow multiple sentrees per active, so we don't have to clone the always
+            AstAlways* const alwaysp = nodep->convertToAlways();
+            for (auto* const sensesp : senTreeps) {
+                auto* const activep = new AstActive{flp, "", sensesp};
+                activep->sensesStorep(sensesp);
+                activep->addStmtsp(alwaysp->cloneTree(false));
+                m_activep->addNextHere(activep);
+            }
+            alwaysp->unlinkFrBack()->deleteTree();
+            VL_DO_DANGLING(nodep->deleteTree(), nodep);
+        } else {
+            // This assignment will be converted to a combo always. In some cases this may
+            // generate an UNOPTFLAT, e.g.: assign #1 clk = ~clk. We create a temp var for the
+            // LHS of this assign, to disable the UNOPTFLAT warning for it.
+            // TODO: Find a way to do this without introducing this var. Perhaps make
+            // V3SchedAcyclic recognize awaits and prevent it from treating this kind of logic
+            // as cyclic
+            AstNode* const lhsp = nodep->lhsp()->unlinkFrBack();
+            std::string varname;
+            if (auto* const refp = VN_CAST(lhsp, VarRef)) {
+                varname = m_contAssignVarNames.get(refp->name());
+            } else {
+                varname = m_contAssignVarNames.get(lhsp);
+            }
+            auto* const tempvscp = m_scopep->createTemp(varname, lhsp->dtypep());
+            tempvscp->varp()->delayp(netDelayp);
+            flp->modifyWarnOff(V3ErrorCode::UNOPTFLAT, true);
+            tempvscp->fileline(flp);
+            tempvscp->varp()->fileline(flp);
+            // Remap the LHS to the new temp var
+            nodep->lhsp(new AstVarRef{flp, tempvscp, VAccess::WRITE});
+            // Convert it to an always; the new assign with intra delay will be handled by
+            // visit(AstNodeAssign*)
+            AstAlways* const alwaysp = nodep->convertToAlways();
+            visit(alwaysp);
+            // Put the LHS back in the AssignW; put the temp var on the RHS
+            nodep->lhsp(lhsp);
+            nodep->rhsp(new AstVarRef{flp, tempvscp, VAccess::READ});
+            // Put the AssignW right after the always. Different order can produce UNOPTFLAT on the
+            // LHS var
+            alwaysp->addNextHere(nodep);
+        }
     }
     virtual void visit(AstWait* nodep) override {
         // Wait on changed events related to the vars in the wait statement
