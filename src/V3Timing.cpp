@@ -185,9 +185,9 @@ private:
             if (refp->access().isWriteOnly()) return;
             AstVarScope* const vscp = refp->varScopep();
             if (vscp->user4SetOnce()) return;
-            const bool isEvent = vscp->dtypep() && vscp->dtypep()->basicp()
-                                 && vscp->dtypep()->basicp()->isEvent();
-            const auto edgeType = isEvent ? VEdgeType::ET_EVENT : VEdgeType::ET_CHANGED;
+            auto* const cdtypep = VN_CAST(vscp->dtypep(), CDType);
+            const auto edgeType
+                = cdtypep && cdtypep->isEvent() ? VEdgeType::ET_EVENT : VEdgeType::ET_CHANGED;
             senItemsp = AstNode::addNext(
                 senItemsp, new AstSenItem{refp->fileline(), edgeType,
                                           new AstVarRef{refp->fileline(), vscp, VAccess::READ}});

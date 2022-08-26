@@ -460,6 +460,13 @@ private:
             if (condp->isOne()) {
                 // We don't need to add a conditional; we know the existing expression is ok
                 VL_DO_DANGLING(condp->deleteTree(), condp);
+            } else if (auto* const cdtypep = VN_CAST(nodep->dtypep(), CDType)) {
+                VNRelinker replaceHandle;
+                nodep->unlinkFrBack(&replaceHandle);
+                AstNode* const newp
+                    = new AstCondBound(nodep->fileline(), condp, nodep,
+                                       new AstText{nodep->fileline(), cdtypep->name() + "{}"});
+                replaceHandle.relink(newp);
             } else if (!lvalue
                        // Making a scalar would break if we're making an array
                        && !VN_IS(nodep->dtypep()->skipRefp(), NodeArrayDType)) {

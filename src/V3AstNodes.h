@@ -1002,7 +1002,6 @@ public:
     }
     bool isBitLogic() const { return keyword().isBitLogic(); }
     bool isDouble() const { return keyword().isDouble(); }
-    bool isEvent() const { return keyword() == VBasicDTypeKwd::EVENT; }
     bool isOpaque() const { return keyword().isOpaque(); }
     bool isString() const { return keyword().isString(); }
     bool isZeroInit() const { return keyword().isZeroInit(); }
@@ -1149,6 +1148,7 @@ class AstCDType final : public AstNodeDType {
     // Children: PINs (for parameter settings)
 public:
     enum CTypeName : uint8_t {
+        EVENT,
         MTASKSTATE,
         TRIGGERVEC,
         DELAY_SCHEDULER,
@@ -1170,9 +1170,9 @@ public:
     }
     ASTNODE_NODE_FUNCS(CDType)
     virtual string name() const override {
-        static const char* const names[]
-            = {"VlMTaskState",       "VlTriggerVec", "VlDelayScheduler",
-               "VlTriggerScheduler", "VlForkSync",   " MAX"};
+        static const char* const names[] = {
+            "VlEvent",    "VlMTaskState", "VlTriggerVec", "VlDelayScheduler", "VlTriggerScheduler",
+            "VlForkSync", " MAX"};
         return names[m_name];
     }
     // METHODS
@@ -1188,6 +1188,7 @@ public:
     virtual void virtRefDTypep(AstNodeDType* nodep) override {}
     virtual AstNodeDType* subDTypep() const override { return nullptr; }
     virtual bool isCompound() const override { return true; }
+    bool isEvent() const { return m_name == EVENT; }
     bool isMTaskState() const { return m_name == MTASKSTATE; }
     bool isTriggerVec() const { return m_name == TRIGGERVEC; }
     bool isDelayScheduler() const { return m_name == DELAY_SCHEDULER; }

@@ -717,8 +717,6 @@ AstNodeDType::CTypeRecursed AstNodeDType::cTypeRecurse(bool compound) const {
             info.m_type = "double";
         } else if (bdtypep->keyword().isString()) {
             info.m_type = "std::string";
-        } else if (bdtypep->isEvent()) {
-            info.m_type = "VlEvent";
         } else if (dtypep->widthMin() <= 8) {  // Handle unpacked arrays; not bdtypep->width
             info.m_type = "CData" + bitvec;
         } else if (dtypep->widthMin() <= 16) {

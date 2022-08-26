@@ -1938,7 +1938,7 @@ data_typeNoRef<nodeDTypep>:             // ==IEEE: data_type, excluding class_ty
         |       yCHANDLE
                         { $$ = new AstBasicDType{$1, VBasicDTypeKwd::CHANDLE}; }
         |       yEVENT
-                        { $$ = new AstBasicDType{$1, VBasicDTypeKwd::EVENT}; v3Global.setHasEvents(); }
+                        { $$ = new AstCDType{$1, AstCDType::EVENT}; v3Global.setHasEvents(); }
         //                      // Rules overlap virtual_interface_declaration
         //                      // Parameters here are SV2009
         //                      // IEEE has ['.' modport] but that will conflict with port

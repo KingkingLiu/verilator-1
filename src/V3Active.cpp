@@ -562,8 +562,8 @@ private:
         if (nodep->edgeType() != VEdgeType::ET_CHANGED) m_allChanged = false;
 
         if (const auto* const dtypep = nodep->sensp()->dtypep()) {
-            if (const auto* const basicp = dtypep->basicp()) {
-                if (basicp->isEvent()) nodep->edgeType(VEdgeType::ET_EVENT);
+            if (const auto* const cdtypep = VN_CAST(dtypep, CDType)) {
+                if (cdtypep->isEvent()) nodep->edgeType(VEdgeType::ET_EVENT);
             }
         }
 

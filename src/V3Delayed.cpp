@@ -517,10 +517,6 @@ private:
                 nodep->v3warn(BLKLOOPINIT, "Unsupported: Delayed assignment to array inside for "
                                            "loops (non-delayed is ok - see docs)");
             }
-            const AstBasicDType* const basicp = lhsp->dtypep()->basicp();
-            if (basicp && basicp->isEvent()) {
-                nodep->v3warn(E_UNSUPPORTED, "Unsupported: event arrays");
-            }
             if (newlhsp) {
                 if (nodep->lhsp()) nodep->lhsp()->unlinkFrBack();
                 nodep->lhsp(newlhsp);

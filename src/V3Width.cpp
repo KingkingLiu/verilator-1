@@ -1544,6 +1544,7 @@ private:
     }
 
     // DTYPES
+    virtual void visit(AstCDType* nodep) override { nodep->didWidth(true); }
     virtual void visit(AstNodeArrayDType* nodep) override {
         if (nodep->didWidthAndSet()) return;  // This node is a dtype & not both PRELIMed+FINALed
 
@@ -2523,9 +2524,11 @@ private:
                    || VN_IS(fromDtp, UnpackArrayDType)  //
                    || VN_IS(fromDtp, DynArrayDType)  //
                    || VN_IS(fromDtp, QueueDType)  //
-                   || VN_IS(fromDtp, BasicDType)) {
+                   || VN_IS(fromDtp, BasicDType)  //
+                   || VN_IS(fromDtp, CDType)) {
             // Method call on enum without following parenthesis, e.g. "ENUM.next"
-            // Convert this into a method call, and let that visitor figure out what to do next
+            // Convert this into a method call, and let that visitor figure out what to
+            // do next
             AstNode* const newp = new AstMethodCall(
                 nodep->fileline(), nodep->fromp()->unlinkFrBack(), nodep->name(), nullptr);
             nodep->replaceWith(newp);
@@ -2611,6 +2614,7 @@ private:
         UASSERT_OBJ(nodep->fromp() && nodep->fromp()->dtypep(), nodep, "Unsized expression");
         AstNodeDType* const fromDtp = nodep->fromp()->dtypep()->skipRefToEnump();
         AstBasicDType* const basicp = fromDtp ? fromDtp->basicp() : nullptr;
+        AstCDType* const cdtypep = fromDtp ? VN_CAST(fromDtp, CDType) : nullptr;
         UINFO(9, "     from dt " << fromDtp << endl);
         userIterate(fromDtp, WidthVP(SELF, BOTH).p());
         if (AstEnumDType* const adtypep = VN_CAST(fromDtp, EnumDType)) {
@@ -2627,8 +2631,8 @@ private:
             methodCallClass(nodep, adtypep);
         } else if (AstUnpackArrayDType* const adtypep = VN_CAST(fromDtp, UnpackArrayDType)) {
             methodCallUnpack(nodep, adtypep);
-        } else if (basicp && basicp->isEvent()) {
-            methodCallEvent(nodep, basicp);
+        } else if (cdtypep && cdtypep->isEvent()) {
+            methodCallEvent(nodep, cdtypep);
         } else if (basicp && basicp->isString()) {
             methodCallString(nodep, basicp);
         } else {
@@ -3316,7 +3320,7 @@ private:
             nodep->dtypeFrom(adtypep->subDTypep());  // Best guess
         }
     }
-    void methodCallEvent(AstMethodCall* nodep, AstBasicDType*) {
+    void methodCallEvent(AstMethodCall* nodep, AstCDType*) {
         // Method call on event
         if (nodep->name() == "triggered") {
             methodOkArguments(nodep, 0, 0);
@@ -4268,8 +4272,8 @@ private:
             iterateCheckAssign(nodep, "Assign RHS", nodep->rhsp(), FINAL, lhsDTypep);
             // if (debug()) nodep->dumpTree(cout, "  AssignOut: ");
         }
-        if (const AstBasicDType* const basicp = nodep->rhsp()->dtypep()->basicp()) {
-            if (basicp->isEvent()) {
+        if (const auto* const cdtypep = VN_CAST(nodep->rhsp()->dtypep(), CDType)) {
+            if (cdtypep->isEvent()) {
                 // see t_event_copy.v for commentary on the mess involved
                 nodep->v3warn(E_UNSUPPORTED, "Unsupported: assignment of event data type");
             }
@@ -5120,6 +5124,9 @@ private:
         } else {
             userIterateChildren(nodep, WidthVP(SELF, BOTH).p());
         }
+    }
+    virtual void visit(AstFireEvent* nodep) override {
+        userIterateChildren(nodep, WidthVP(SELF, BOTH).p());
     }
     virtual void visit(AstWait* nodep) override {
         if (VN_IS(m_ftaskp, Func)) {
