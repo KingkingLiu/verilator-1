@@ -69,7 +69,7 @@ class SignalStrengthVisitor final : public VNVisitor {
     VL_DEBUG_FUNC;  // Declare debug()
 
     bool allBitsAreEqual(AstNode* nodep) {
-        if (AstConst* constp = VN_AS(nodep, Const)) {
+        if (AstConst* constp = VN_CAST(nodep, Const)) {
             const V3Number num = constp->num();
             return num.isEqZero() || num.isEqAllOnes() || num.isAllX() || num.isAllZ();
         }
