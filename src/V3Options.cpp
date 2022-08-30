@@ -1456,6 +1456,17 @@ void V3Options::parseOptsList(FileLine* fl, const string& optdir, int argc, char
     DECL_OPTION("-v", CbVal, [this, &optdir](const char* valp) {
         V3Options::addLibraryFile(parseFileArg(optdir, valp));
     });
+    DECL_OPTION("-verilation-jobs", CbVal, [this, fl](const char* valp) {
+        int val = std::atoi(valp);
+        if (val < 0) {
+            fl->v3error("--verilation-jobs requires a non-negative integer, but '"
+                        << valp << "' was passed");
+            val = 1;
+        } else if (val == 0) {
+            val = std::thread::hardware_concurrency();
+        }
+        m_verilationJobs = val;
+    });
     DECL_OPTION("-verilate", OnOff, &m_verilate);
     DECL_OPTION("-version", CbCall, [this]() {
         showVersion(false);
@@ -1573,6 +1584,7 @@ void V3Options::parseOptsList(FileLine* fl, const string& optdir, int argc, char
                 ++i;
             }
             if (m_buildJobs == -1) m_buildJobs = val;
+            if (m_verilationJobs == -1) m_verilationJobs = val;
         } else if (argv[i][0] == '-' || argv[i][0] == '+') {
             const char* argvNoDashp = (argv[i][1] == '-') ? (argv[i] + 2) : (argv[i] + 1);
             if (const int consumed = parser.parse(i, argc, argv)) {
@@ -1605,6 +1617,7 @@ void V3Options::parseOptsList(FileLine* fl, const string& optdir, int argc, char
         }
     }
     if (m_buildJobs == -1) m_buildJobs = 1;
+    if (m_verilationJobs == -1) m_verilationJobs = 1;
 }
 
 //======================================================================

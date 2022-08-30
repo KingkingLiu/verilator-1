@@ -30,6 +30,7 @@
 #include <iomanip>
 #include <map>
 #include <memory>
+#include <mutex>
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -108,7 +109,8 @@ class V3FileDependImp final {
     };
 
     // MEMBERS
-    std::set<string> m_filenameSet;  // Files generated (elim duplicates)
+    mutable std::mutex m_mutex;  // Protects members
+    std::set<string> m_filenameSet VL_GUARDED_BY(m_mutex);  // Files generated (elim duplicates)
     std::set<DependFile> m_filenameList;  // Files sourced/generated
 
     static string stripQuotes(const string& in) {
@@ -121,7 +123,8 @@ class V3FileDependImp final {
 
 public:
     // ACCESSOR METHODS
-    void addSrcDepend(const string& filename) {
+    void addSrcDepend(const string& filename) VL_MT_SAFE {
+        const std::lock_guard<std::mutex> lock{m_mutex};
         if (m_filenameSet.find(filename) == m_filenameSet.end()) {
             // cppcheck-suppress stlFindInsert  // cppcheck 1.90 bug
             m_filenameSet.insert(filename);
@@ -130,7 +133,8 @@ public:
             m_filenameList.insert(df);
         }
     }
-    void addTgtDepend(const string& filename) {
+    void addTgtDepend(const string& filename) VL_MT_SAFE {
+        const std::lock_guard<std::mutex> lock{m_mutex};
         if (m_filenameSet.find(filename) == m_filenameSet.end()) {
             // cppcheck-suppress stlFindInsert  // cppcheck 1.90 bug
             m_filenameSet.insert(filename);
@@ -957,8 +961,9 @@ void V3OutCFile::putsGuard() {
 
 class VIdProtectImp final {
     // MEMBERS
+    mutable std::mutex m_mutex;  // Protects members
     std::map<const std::string, std::string> m_nameMap;  // Map of old name into new name
-    std::unordered_set<std::string> m_newIdSet;  // Which new names exist
+    std::unordered_set<std::string> m_newIdSet VL_GUARDED_BY(m_mutex);  // Which new names exist
 protected:
     // CONSTRUCTORS
     friend class VIdProtect;
@@ -976,8 +981,9 @@ public:
     }
     ~VIdProtectImp() = default;
     // METHODS
-    string passthru(const string& old) {
+    string passthru(const string& old) VL_MT_SAFE {
         if (!v3Global.opt.protectIds()) return old;
+        const std::lock_guard<std::mutex> lock{m_mutex};
         const auto it = m_nameMap.find(old);
         if (it != m_nameMap.end()) {
             // No way to go back and correct the older crypt name
@@ -989,8 +995,9 @@ public:
         }
         return old;
     }
-    string protectIf(const string& old, bool doIt) {
+    string protectIf(const string& old, bool doIt) VL_MT_SAFE {
         if (!v3Global.opt.protectIds() || old.empty() || !doIt) return old;
+        const std::lock_guard<std::mutex> lock{m_mutex};
         const auto it = m_nameMap.find(old);
         if (it != m_nameMap.end()) {
             return it->second;
