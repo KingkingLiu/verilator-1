@@ -732,6 +732,10 @@ public:
         return (m_e == WIRE || m_e == WREAL || m_e == IMPLICITWIRE || m_e == TRIWIRE || m_e == TRI0
                 || m_e == TRI1 || m_e == PORT || m_e == SUPPLY0 || m_e == SUPPLY1 || m_e == VAR);
     }
+    bool isNet() const {
+        return (m_e == WIRE || m_e == IMPLICITWIRE || m_e == TRIWIRE || m_e == TRI0 || m_e == TRI1
+                || m_e == SUPPLY0 || m_e == SUPPLY1);
+    }
     bool isContAssignable() const {  // In Verilog, always ok in SystemVerilog
         return (m_e == SUPPLY0 || m_e == SUPPLY1 || m_e == WIRE || m_e == WREAL
                 || m_e == IMPLICITWIRE || m_e == TRIWIRE || m_e == TRI0 || m_e == TRI1

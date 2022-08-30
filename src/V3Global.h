@@ -109,6 +109,8 @@ class V3Global final {
     bool m_hasSCTextSections = false;  // Has `systemc_* sections that need to be emitted
     bool m_useParallelBuild = false;  // Use parallel build for model
     bool m_useRandomizeMethods = false;  // Need to define randomize() class methods
+    bool m_netsResolved
+        = false;  //  // Nets may have multiple drivers that should be resolved in V3Tristate.cpp
 
     // Memory address to short string mapping (for debug)
     std::unordered_map<const void*, std::string>
@@ -149,6 +151,8 @@ public:
     void setHasForceableSignals() { m_hasForceableSignals = true; }
     bool hasSCTextSections() const { return m_hasSCTextSections; }
     void setHasSCTextSections() { m_hasSCTextSections = true; }
+    bool netsResolved() { return m_netsResolved; }
+    void netsResolved(bool flag) { m_netsResolved = flag; }
     V3HierBlockPlan* hierPlanp() const { return m_hierPlanp; }
     void hierPlanp(V3HierBlockPlan* plan) {
         UASSERT(!m_hierPlanp, "call once");

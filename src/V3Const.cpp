@@ -2854,6 +2854,9 @@ private:
             && !VN_AS(nodep->rhsp(), Const)->num().isFourState()
             && varrefp  // Don't do messes with BITREFs/ARRAYREFs
             && !varrefp->varp()->valuep()  // Not already constified
+            && (!varrefp->varp()->isNet()
+                || v3Global.netsResolved())  // Nets may have multiple drivers that should be
+                                             // resolved in V3Tristate.cpp
             && !varrefp->varScopep()) {  // Not scoped (or each scope may have different initial
                                          // value)
             // ASSIGNW (VARREF, const) -> INITIAL ( ASSIGN (VARREF, const) )

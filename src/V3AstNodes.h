@@ -2330,6 +2330,7 @@ public:
     bool isIfaceRef() const { return (varType() == VVarType::IFACEREF); }
     bool isIfaceParent() const { return m_isIfaceParent; }
     bool isSignal() const { return varType().isSignal(); }
+    bool isNet() const { return varType().isNet(); }
     bool isTemp() const { return varType().isTemp(); }
     bool isToggleCoverable() const {
         return ((isIO() || isSignal())
