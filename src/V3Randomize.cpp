@@ -586,20 +586,24 @@ private:
         // }
         //
         auto* dtypep = nodep->findBitDType(32, 32, VSigning::SIGNED);
-        auto* const frefp = new AstVarRef(nodep->fileline(), fvarp, VAccess::READ);
-        auto* randcallp = new AstMethodCall(fl, frefp, "randomize", nullptr);
-        randcallp->dtypep(dtypep);
-        auto* const rrefp = new AstVarRef(nodep->fileline(), rvarp, VAccess::READ);
-        auto* relaxcallp = new AstMethodCall(fl, rrefp, "relax_next", nullptr);
+        auto* const frefp = new AstVarRef(nodep->fileline(), fvarp, VAccess::WRITE);
+        auto* randcallp = new AstFuncRef(fl, "try_rand", nullptr);
+        randcallp->taskp(funcp);
+        randcallp->dtypeFrom(funcp);
+        auto* const rrefp = new AstVarRef(nodep->fileline(), rvarp, VAccess::WRITE);
+        auto* relaxcallp = new AstFuncRef(fl, "relax_next", nullptr);
         auto* rdtypep = nodep->findBitDType(32, 32, VSigning::SIGNED);
-        relaxcallp->dtypep(rdtypep);
+        relaxcallp->taskp(relaxp);
+        relaxcallp->dtypeFrom(relaxp);
         auto* redop = new AstWhile(
             fl, relaxcallp,
-            new AstIf(fl, new AstEq(fl, randcallp, new AstConst(fl, 1)), new AstBreak(fl)));
+            new AstIf(fl, new AstNeq(fl, new AstRedOr(fl, randcallp), new AstConst(fl, 0)),
+                      new AstBreak(fl)));
 
-        auto* ifp = new AstIf(fl, new AstNeq(fl, frefp->cloneTree(false), new AstConst(fl, 1)),
-                              redop, nullptr);
-        funcp->addStmtsp(ifp);
+        auto* ifp = new AstIf(
+            fl, new AstNeq(fl, new AstRedOr(fl, frefp->cloneTree(false)), new AstConst(fl, 1)),
+            redop, nullptr);
+        parentfuncp->addStmtsp(ifp);
         m_constraints = {};
         nodep->user1(false);
     }
