@@ -936,48 +936,48 @@ class TristateVisitor final : public TristateBaseVisitor {
             // away later when we determine the signal has no tristate
             iterateChildren(nodep);
             UINFO(9, dbgState() << nodep << endl);
+            FileLine* const fl = nodep->fileline();
             // Constification always moves const to LHS
             AstConst* const constp = VN_CAST(nodep->lhsp(), Const);
-            AstVarRef* const varrefp = VN_CAST(nodep->rhsp(), VarRef);  // Input variable
-            if (constp && constp->user1p() && varrefp) {
+            if (!constp) {
+                // There should be check if rhsp has user1p() and throw special error
+                checkUnhandled(nodep);
+                return;
+            }
+            if (!constp->user1p() && !nodep->rhsp()->user1p()) {
+                // This case doesn't require __en expression creating
+                return;
+            }
+            AstNode* const rhsp = nodep->rhsp()->unlinkFrBack();
+            AstNode* enRhsp;
+            if (rhsp->user1p()) {
+                enRhsp = rhsp->user1p();
+                rhsp->user1p(nullptr);
+            } else {
+                enRhsp = newAllZerosOrOnes(rhsp, true);
+            }
+            AstNode* newp;
+            if (constp->user1p()) {
                 // 3'b1z0 -> ((3'b101 == in__en) && (3'b100 == in))
-                varrefp->unlinkFrBack();
-                FileLine* const fl = nodep->fileline();
                 const V3Number oneIfEn
                     = VN_AS(constp->user1p(), Const)
                           ->num();  // visit(AstConst) already split into en/ones
                 const V3Number& oneIfEnOne = constp->num();
-                AstVar* const envarp = getCreateEnVarp(varrefp->varp());
-                AstNode* newp
-                    = new AstLogAnd(fl,
-                                    new AstEq(fl, new AstConst(fl, oneIfEn),
-                                              new AstVarRef(fl, envarp, VAccess::READ)),
-                                    // Keep the caseeq if there are X's present
-                                    new AstEqCase(fl, new AstConst(fl, oneIfEnOne), varrefp));
-                if (neq) newp = new AstLogNot(fl, newp);
-                UINFO(9, "       newceq " << newp << endl);
-                if (debug() >= 9) nodep->dumpTree(cout, "-caseeq-old: ");
-                if (debug() >= 9) newp->dumpTree(cout, "-caseeq-new: ");
-                nodep->replaceWith(newp);
-                VL_DO_DANGLING(pushDeletep(nodep), nodep);
-            } else if (constp && nodep->rhsp()->user1p()) {
-                FileLine* const fl = nodep->fileline();
-                constp->unlinkFrBack();
-                AstNode* const rhsp = nodep->rhsp()->unlinkFrBack();
-                AstNode* newp = new AstLogAnd{
-                    fl, new AstEq{fl, newAllZerosOrOnes(constp, false), rhsp->user1p()},
-                    // Keep the caseeq if there are X's present
-                    new AstEqCase{fl, constp, rhsp}};
-                if (neq) newp = new AstLogNot{fl, newp};
-                rhsp->user1p(nullptr);
-                UINFO(9, "       newceq " << newp << endl);
-                if (debug() >= 9) nodep->dumpTree(cout, "-caseeq-old: ");
-                if (debug() >= 9) newp->dumpTree(cout, "-caseeq-new: ");
-                nodep->replaceWith(newp);
-                VL_DO_DANGLING(pushDeletep(nodep), nodep);
+                newp = new AstLogAnd(fl, new AstEq(fl, new AstConst(fl, oneIfEn), enRhsp),
+                                     // Keep the caseeq if there are X's present
+                                     new AstEqCase(fl, new AstConst(fl, oneIfEnOne), rhsp));
             } else {
-                checkUnhandled(nodep);
+                constp->unlinkFrBack();
+                newp = new AstLogAnd{fl, new AstEq{fl, newAllZerosOrOnes(constp, true), enRhsp},
+                                     // Keep the caseeq if there are X's present
+                                     new AstEqCase{fl, constp, rhsp}};
             }
+            if (neq) newp = new AstLogNot{fl, newp};
+            UINFO(9, "       newceq " << newp << endl);
+            if (debug() >= 9) nodep->dumpTree(cout, "-caseeq-old: ");
+            if (debug() >= 9) newp->dumpTree(cout, "-caseeq-new: ");
+            nodep->replaceWith(newp);
+            VL_DO_DANGLING(pushDeletep(nodep), nodep);
         }
     }
     void visitEqNeqWild(AstNodeBiop* nodep) {
