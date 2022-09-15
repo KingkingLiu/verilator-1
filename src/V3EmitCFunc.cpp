@@ -681,6 +681,8 @@ string EmitCFunc::emitVarResetRecurse(const AstVar* varp, const string& varNameP
                                                  depth + 1, suffix + "[" + ivar + "]");
         const string post = "}\n";
         return below.empty() ? "" : pre + below + post;
+    } else if (const AstStructDType* const adtypep = VN_CAST(dtypep, StructDType); adtypep && !adtypep->packed()) {
+        return "";
     } else if (basicp && basicp->keyword() == VBasicDTypeKwd::STRING) {
         // String's constructor deals with it
         return "";

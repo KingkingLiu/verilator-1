@@ -2393,36 +2393,38 @@ private:
         if (nodep->didWidthAndSet()) return;  // This node is a dtype & not both PRELIMed+FINALed
         UINFO(5, "   NODECLASS " << nodep << endl);
         // if (debug() >= 9) nodep->dumpTree("-class-in--");
-        if (!nodep->packed()) {
-            nodep->v3warn(UNPACKED, "Unsupported: Unpacked struct/union");
-            if (!v3Global.opt.structsPacked()) {
-                nodep->v3warn(UNPACKED, "Unsupported: --no-structs-packed");
-            }
+        if (!v3Global.opt.structsPacked()) {
+            nodep->v3warn(UNPACKED, "Unsupported: --no-structs-packed");
         }
+
         userIterateChildren(nodep, nullptr);  // First size all members
         nodep->repairMemberCache();
-        // Determine bit assignments and width
+
         nodep->dtypep(nodep);
-        int lsb = 0;
-        int width = 0;
         nodep->isFourstate(false);
-        // MSB is first, so go backwards
-        AstMemberDType* itemp;
-        for (itemp = nodep->membersp(); itemp && itemp->nextp();
-             itemp = VN_AS(itemp->nextp(), MemberDType)) {}
-        for (AstMemberDType* backip; itemp; itemp = backip) {
-            if (itemp->isFourstate()) nodep->isFourstate(true);
-            backip = VN_CAST(itemp->backp(), MemberDType);
-            itemp->lsb(lsb);
-            if (VN_IS(nodep, UnionDType)) {
-                width = std::max(width, itemp->width());
-            } else {
-                lsb += itemp->width();
-                width += itemp->width();
+
+        if (nodep->packed()) {
+            // Determine bit assignments and width
+            int lsb = 0;
+            int width = 0;
+            // MSB is first, so go backwards
+            AstMemberDType* itemp;
+            for (itemp = nodep->membersp(); itemp && itemp->nextp();
+                 itemp = VN_AS(itemp->nextp(), MemberDType)) {}
+            for (AstMemberDType* backip; itemp; itemp = backip) {
+                if (itemp->isFourstate()) nodep->isFourstate(true);
+                backip = VN_CAST(itemp->backp(), MemberDType);
+                itemp->lsb(lsb);
+                if (VN_IS(nodep, UnionDType)) {
+                    width = std::max(width, itemp->width());
+                } else {
+                    lsb += itemp->width();
+                    width += itemp->width();
+                }
             }
+            nodep->widthForce(width, width);  // Signing stays as-is, as parsed from declaration
         }
-        nodep->widthForce(width, width);  // Signing stays as-is, as parsed from declaration
-        // if (debug() >= 9) nodep->dumpTree("-class-out-");
+        if (debug() >= 9) nodep->dumpTree("-class-out-");
     }
     virtual void visit(AstClass* nodep) override {
         if (nodep->didWidthAndSet()) return;
@@ -2546,9 +2548,21 @@ private:
                 nodep->dtypep(memberp);
                 UINFO(9, "   MEMBERSEL(attr) -> " << nodep << endl);
                 UINFO(9, "           dt-> " << nodep->dtypep() << endl);
-            } else {
+            } else if (adtypep->packed()) {
                 AstSel* const newp = new AstSel(nodep->fileline(), nodep->fromp()->unlinkFrBack(),
                                                 memberp->lsb(), memberp->width());
+                // Must skip over the member to find the union; as the member may disappear later
+                newp->dtypep(memberp->subDTypep()->skipRefToEnump());
+                newp->didWidth(true);  // Don't replace dtype with basic type
+                UINFO(9, "   MEMBERSEL -> " << newp << endl);
+                UINFO(9, "           dt-> " << newp->dtypep() << endl);
+                nodep->replaceWith(newp);
+                VL_DO_DANGLING(pushDeletep(nodep), nodep);
+                // Should be able to treat it as a normal-ish nodesel - maybe.
+                // The lhsp() will be strange until this stage; create the number here?
+            } else {
+                AstStructSel* const newp = new AstStructSel(nodep->fileline(),
+                                                nodep->fromp()->unlinkFrBack(), nodep->name());
                 // Must skip over the member to find the union; as the member may disappear later
                 newp->dtypep(memberp->subDTypep()->skipRefToEnump());
                 newp->didWidth(true);  // Don't replace dtype with basic type
@@ -6259,7 +6273,12 @@ private:
                             << dtnodep->prettyTypeName());
             // Move to under netlist
             UINFO(9, "iterateEditMoveDTypep child moving " << dtnodep << endl);
+            //if (auto* const structp = VN_CAST(dtnodep, NodeUOrStructDType)) {
+            //    auto* const defp = new AstUOrStructDef{structp->fileline(), structp};
+            //    dtnodep->replaceWith(defp);
+            //} else {
             dtnodep->unlinkFrBack();
+            //}
             v3Global.rootp()->typeTablep()->addTypesp(dtnodep);
         }
         if (!dtnodep->didWidth()) {

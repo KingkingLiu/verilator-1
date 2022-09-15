@@ -239,10 +239,10 @@ private:
     }
     virtual void visit(AstTypedef* nodep) override {
         iterateChildren(nodep);
-        if (m_elimCells && !nodep->attrPublic()) {
+        /*if (m_elimCells && !nodep->attrPublic()) {
             VL_DO_DANGLING(pushDeletep(nodep->unlinkFrBack()), nodep);
             return;
-        }
+        }*/
         checkAll(nodep);
         // Don't let packages with only public variables disappear
         // Normal modules may disappear, e.g. if they are parameterized then removed

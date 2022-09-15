@@ -482,6 +482,7 @@ public:
     void attrPublic(bool flag) { m_attrPublic = flag; }
     virtual void tag(const string& text) override { m_tag = text; }
     virtual string tag() const override { return m_tag; }
+    virtual string emitC() { V3ERROR_NA_RETURN(""); }
 };
 
 class AstTypedefFwd final : public AstNode {
@@ -2887,6 +2888,35 @@ public:
     void fromp(AstNode* nodep) { setOp1p(nodep); }
     AstVar* varp() const { return m_varp; }
     void varp(AstVar* nodep) { m_varp = nodep; }
+};
+
+class AstStructSel final : public AstNodeMath {
+    // Unpacked struct member access
+    // Parents: math|stmt
+    // Children: varref, math
+private:
+    // Don't need the class we are extracting from, as the "fromp()"'s datatype can get us to it
+    string m_name; // Name of the member
+public:
+    AstStructSel(FileLine* fl, AstNode* fromp, const string& name)
+        : ASTGEN_SUPER_StructSel(fl)
+        , m_name{name} {
+        setOp1p(fromp);
+        dtypep(nullptr);  // V3Width will resolve
+    }
+    ASTNODE_NODE_FUNCS(StructSel)
+    virtual string name() const override { return m_name; }
+    virtual string emitVerilog() override { V3ERROR_NA_RETURN(""); }
+    virtual string emitC() override { V3ERROR_NA_RETURN(""); }
+    virtual bool cleanOut() const override { return false; }
+    virtual bool same(const AstNode* samep) const override {
+        return true;
+    }  // dtype comparison does it
+    virtual int instrCount() const override { return widthInstrs(); }
+    AstNode* fromp() const {
+        return op1p();
+    }  // op1 = Extracting what (nullptr=TBD during parsing)
+    void fromp(AstNode* nodep) { setOp1p(nodep); }
 };
 
 class AstModportFTaskRef final : public AstNode {

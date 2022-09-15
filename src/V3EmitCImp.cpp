@@ -88,6 +88,10 @@ class EmitCGatherDependencies final : VNVisitor {
         addDTypeDependency(nodep->fromp()->dtypep());
         iterateChildrenConst(nodep);
     }
+    virtual void visit(AstStructSel* nodep) override {
+        addDTypeDependency(nodep->fromp()->dtypep());
+        iterateChildrenConst(nodep);
+    }
     virtual void visit(AstNodeVarRef* nodep) override {
         addSelfDependency(nodep->selfPointer(), nodep->varp());
         iterateChildrenConst(nodep);
