@@ -399,6 +399,9 @@ class TristateVisitor final : public TristateBaseVisitor {
             nodep->user1p(newAllZerosOrOnes(nodep, true));
         }
         // Otherwise return the previous output enable
+        // if (nodep->user1p()->backp())
+        //     return nodep->user1p()->cloneTree(false);
+        // else
         return nodep->user1p();
     }
     AstVar* getCreateEnVarp(AstVar* invarp) {
@@ -966,6 +969,7 @@ class TristateVisitor final : public TristateBaseVisitor {
                 newp = new AstLogAnd(fl, new AstEq(fl, new AstConst(fl, oneIfEn), enRhsp),
                                      // Keep the caseeq if there are X's present
                                      new AstEqCase(fl, new AstConst(fl, oneIfEnOne), rhsp));
+                constp->user1p(nullptr);
             } else {
                 constp->unlinkFrBack();
                 newp = new AstLogAnd{fl, new AstEq{fl, newAllZerosOrOnes(constp, true), enRhsp},
@@ -1324,7 +1328,7 @@ class TristateVisitor final : public TristateBaseVisitor {
                        // Reference to another tristate variable
                        && m_tgraph.isTristate(nodep->varp())
                        // and in a position where it feeds upstream to another tristate
-                       && m_tgraph.feedsTri(nodep)) {
+                       && true) {
                 // Then propagate the enable from the original variable
                 UINFO(9, "     Ref-to-tri " << nodep << endl);
                 AstVar* const enVarp = getCreateEnVarp(nodep->varp());
