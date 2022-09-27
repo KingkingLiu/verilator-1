@@ -5445,9 +5445,9 @@ portSig variable_dimensionListE         { $$ = $1; addNextNull($$, VARDONEP($$, 
         ;
 
 property_port_itemDirE:
-                /* empty */                             { }
-        |       yLOCAL__ETC                             { }
-        |       yLOCAL__ETC port_direction              { }
+/* empty */                             { GRAMMARP->m_pinAnsi = true; VARIO(INPUT); }
+|       yLOCAL__ETC                             { GRAMMARP->m_pinAnsi = true; VARIO(INPUT); }
+|       yLOCAL__ETC yINPUT              { GRAMMARP->m_pinAnsi = true; VARIO(INPUT); }
         ;
 
 property_declarationBody<nodep>:  // IEEE: part of property_declaration
