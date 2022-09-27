@@ -5397,7 +5397,7 @@ elseStmtBlock<nodep>:   // Part of concurrent_assertion_statement
 property_declaration<nodep>:  // ==IEEE: property_declaration
                 property_declarationFront property_port_listE ';' property_declarationBody
                         yENDPROPERTY endLabelE
-                        { SYMP->popScope($$); }
+{ SYMP->popScope($$);  $$ = nullptr;}
         ;
 
 property_declarationFront<nodep>:  // IEEE: part of property_declaration
@@ -5422,13 +5422,13 @@ property_port_item<nodep>:  // IEEE: property_port_item/sequence_port_item
 //UNSUP //                      //           id {variable_dimension} [ '=' property_actual_arg ]
 //UNSUP //                      // seq IEEE: [ yLOCAL [ sequence_lvar_port_direction ] ] sequence_formal_type
 //UNSUP //                      //           id {variable_dimension} [ '=' sequence_actual_arg ]
-property_port_itemFront property_port_itemAssignment { $$ = nullptr; }
+property_port_itemFront property_port_itemAssignment { $$ = $2; }
         ;
 
 property_port_itemFront: // IEEE: part of property_port_item/sequence_port_item
 //                 property_port_itemDirE property_formal_typeNoDt         { VARDTYPE($2); }
 // //UNSUP //                      // data_type_or_implicit
-//         |       property_port_itemDirE data_type                { VARDTYPE($2); }
+                property_port_itemDirE data_type                { VARDTYPE($2); }
 //         |       property_port_itemDirE yVAR data_type           { VARDTYPE($3); }
 //         |       property_port_itemDirE yVAR implicit_typeE      { VARDTYPE($3); }
 //         |       property_port_itemDirE signingE rangeList       { VARDTYPE(SPACED($2,$3)); }
@@ -5436,7 +5436,7 @@ property_port_itemFront: // IEEE: part of property_port_item/sequence_port_item
         ;
 
 property_port_itemAssignment<nodep>:  // IEEE: part of property_port_item/sequence_port_item/checker_port_direction
-                portSig variable_dimensionListE         { VARDONEP($1, $2, nullptr); }
+portSig variable_dimensionListE         { $$ = $1; addNextNull($$, VARDONEP($$, $2, nullptr)); }
 //UNSUP |       portSig variable_dimensionListE '=' property_actual_arg
 //UNSUP                 { VARDONE($<fl>1, $1, $2, $4); PINNUMINC(); }
         ;
