@@ -5397,12 +5397,17 @@ elseStmtBlock<nodep>:   // Part of concurrent_assertion_statement
 property_declaration<nodep>:  // ==IEEE: property_declaration
                 property_declarationFront property_port_listE ';' property_declarationBody
                         yENDPROPERTY endLabelE
-{ SYMP->popScope($$);  $$ = nullptr;}
+{ AstProperty* prop = VN_CAST($1, Property);
+    $$ = prop;
+    prop->propSpecp(VN_CAST($4, PropSpec));
+    SYMP->popScope(prop);
+    GRAMMARP->endLabel($<fl>6, prop, $6);}
         ;
 
 property_declarationFront<nodep>:  // IEEE: part of property_declaration
                 yPROPERTY idAny/*property_identifier*/
-                        { SYMP->pushNew($$); }
+{ $$ = new AstProperty{$1, *$2};
+    SYMP->pushNew($$); }
         ;
 
 property_port_listE<nodep>:  // IEEE: [ ( [ property_port_list ] ) ]
@@ -5432,7 +5437,7 @@ property_port_itemFront: // IEEE: part of property_port_item/sequence_port_item
 //         |       property_port_itemDirE yVAR data_type           { VARDTYPE($3); }
 //         |       property_port_itemDirE yVAR implicit_typeE      { VARDTYPE($3); }
 //         |       property_port_itemDirE signingE rangeList       { VARDTYPE(SPACED($2,$3)); }
-                property_port_itemDirE /*implicit*/             { /*VARDTYPE-same*/ }
+| property_port_itemDirE implicit_typeE             { VARDTYPE($2); }
         ;
 
 property_port_itemAssignment<nodep>:  // IEEE: part of property_port_item/sequence_port_item/checker_port_direction
@@ -5452,6 +5457,7 @@ property_declarationBody<nodep>:  // IEEE: part of property_declaration
 //UNSUP //                      // IEEE-2012: Incorectly hasyCOVER ySEQUENCE then property_spec here.
 //UNSUP //                      // Fixed in IEEE 1800-2017
                 property_spec                 { $$ = $1; }
+        |       property_spec ';'             { $$ = $1; }
         ;
 
 //UNSUPassertion_variable_declarationList: // IEEE: part of assertion_variable_declaration

@@ -1602,15 +1602,28 @@ class AstPropSpec final : public AstNode {
     // @astgen op3 := propp : AstNode
 public:
     AstPropSpec(FileLine* fl, AstSenItem* sensesp, AstNode* disablep, AstNode* propp)
-        : ASTGEN_SUPER_PropClocked(fl) {
+        : ASTGEN_SUPER_PropSpec(fl) {
         this->sensesp(sensesp);
         this->disablep(disablep);
         this->propp(propp);
     }
-    ASTGEN_MEMBERS_PropClocked;
+    ASTGEN_MEMBERS_PropSpec;
     bool hasDType() const override {
         return true;
     }  // Used under Cover, which expects a bool child
+};
+class AstProperty final : public AstNode {
+private:
+    string m_name;
+    // A property declaration
+    // @astgen op1 := propSpecp : AstPropSpec
+public:
+    AstProperty(FileLine* fl, const string& name)
+        : ASTGEN_SUPER_Property(fl)
+        , m_name(name) {}
+    ASTGEN_MEMBERS_Property;
+    string name() const override { return m_name; }
+    string verilogKwd() const override { return "property"; }
 };
 class AstPull final : public AstNode {
     // @astgen op1 := lhsp : AstNode
