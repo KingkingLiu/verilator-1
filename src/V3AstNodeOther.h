@@ -1612,19 +1612,20 @@ public:
         return true;
     }  // Used under Cover, which expects a bool child
 };
-class AstProperty final : public AstNode {
-private:
-    string m_name;
-    // A property declaration
-    // @astgen op1 := propSpecp : AstPropSpec
-public:
-    AstProperty(FileLine* fl, const string& name)
-        : ASTGEN_SUPER_Property(fl)
-        , m_name(name) {}
-    ASTGEN_MEMBERS_Property;
-    string name() const override { return m_name; }
-    string verilogKwd() const override { return "property"; }
-};
+// class AstProperty final : public AstNode {
+// private:
+//     string m_name;
+//     // A property declaration
+//     // @astgen op1 := portsp : List[AstNode]
+//     // @astgen op2 := propSpecp : AstPropSpec
+// public:
+//     AstProperty(FileLine* fl, const string& name)
+//         : ASTGEN_SUPER_Property(fl)
+//         , m_name(name) {}
+//     ASTGEN_MEMBERS_Property;
+//     string name() const override { return m_name; }
+//     string verilogKwd() const override { return "property"; }
+// };
 class AstPull final : public AstNode {
     // @astgen op1 := lhsp : AstNode
 
@@ -2438,6 +2439,16 @@ public:
         this->fvarp(fvarp);
     }
     ASTGEN_MEMBERS_Func;
+    bool hasDType() const override { return true; }
+};
+class AstProperty final : public AstNodeFTask {
+    // A property inside a module
+public:
+    AstProperty(FileLine* fl, const string& name, AstNode* stmtp, AstNode* fvarp)
+        : ASTGEN_SUPER_Property(fl, name, stmtp) {
+        this->fvarp(fvarp);
+    }
+    ASTGEN_MEMBERS_Property;
     bool hasDType() const override { return true; }
 };
 class AstTask final : public AstNodeFTask {

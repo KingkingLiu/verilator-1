@@ -5394,20 +5394,18 @@ elseStmtBlock<nodep>:   // Part of concurrent_assertion_statement
         |       yELSE stmtBlock                         { $$ = $2; }
         ;
 
-property_declaration<nodep>:  // ==IEEE: property_declaration
+property_declaration<nodeFTaskp>:  // ==IEEE: property_declaration
                 property_declarationFront property_port_listE ';' property_declarationBody
                         yENDPROPERTY endLabelE
-{ AstProperty* prop = VN_CAST($1, Property);
-    $$ = prop;
-    prop->propSpecp(VN_CAST($4, PropSpec));
-    SYMP->popScope(prop);
-    GRAMMARP->endLabel($<fl>6, prop, $6);}
+{   $$ = $1;
+    $$->addStmtsp($2);
+    $$->addStmtsp($4);
+    GRAMMARP->endLabel($<fl>6, $$, $6);}
         ;
 
-property_declarationFront<nodep>:  // IEEE: part of property_declaration
+property_declarationFront<nodeFTaskp>:  // IEEE: part of property_declaration
                 yPROPERTY idAny/*property_identifier*/
-{ $$ = new AstProperty{$1, *$2};
-    SYMP->pushNew($$); }
+{ $$ = new AstProperty{$1, *$2, nullptr, nullptr}; }
         ;
 
 property_port_listE<nodep>:  // IEEE: [ ( [ property_port_list ] ) ]
