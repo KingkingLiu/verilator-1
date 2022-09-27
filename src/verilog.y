@@ -5506,11 +5506,11 @@ property_spec<nodep>:                   // IEEE: property_spec
         //UNSUP: This rule has been super-specialized to what is supported now
         //UNSUP remove below
                 '@' '(' senitemEdge ')' yDISABLE yIFF '(' expr ')' pexpr
-                        { $$ = new AstPropClocked($1, $3, $8, $10); }
-        |       '@' '(' senitemEdge ')' pexpr           { $$ = new AstPropClocked($1, $3, nullptr, $5); }
+                        { $$ = new AstPropSpec($1, $3, $8, $10); }
+        |       '@' '(' senitemEdge ')' pexpr           { $$ = new AstPropSpec($1, $3, nullptr, $5); }
         //UNSUP remove above
-        |       yDISABLE yIFF '(' expr ')' pexpr        { $$ = new AstPropClocked($4->fileline(), nullptr, $4, $6); }
-        |       pexpr                                   { $$ = new AstPropClocked($1->fileline(), nullptr, nullptr, $1); }
+        |       yDISABLE yIFF '(' expr ')' pexpr        { $$ = new AstPropSpec($4->fileline(), nullptr, $4, $6); }
+        |       pexpr                                   { $$ = new AstPropSpec($1->fileline(), nullptr, nullptr, $1); }
         ;
 
 //UNSUPproperty_statement_spec<nodep>:  // ==IEEE: property_statement_spec

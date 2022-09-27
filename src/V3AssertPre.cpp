@@ -162,7 +162,7 @@ private:
         VL_DO_DANGLING(pushDeletep(nodep), nodep);
     }
 
-    void visit(AstPropClocked* nodep) override {
+    void visit(AstPropSpec* nodep) override {
         // No need to iterate the body, once replace will get iterated
         iterateAndNextNull(nodep->sensesp());
         if (m_senip)

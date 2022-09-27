@@ -3988,7 +3988,7 @@ private:
         return times;
     }
 
-    void visit(AstPropClocked* nodep) override {
+    void visit(AstPropSpec* nodep) override {
         if (m_vup->prelim()) {  // First stage evaluation
             iterateCheckBool(nodep, "Property", nodep->propp(), BOTH);
             userIterateAndNext(nodep->sensesp(), nullptr);

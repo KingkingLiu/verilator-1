@@ -1593,7 +1593,7 @@ public:
         return pragType() == static_cast<const AstPragma*>(samep)->pragType();
     }
 };
-class AstPropClocked final : public AstNode {
+class AstPropSpec final : public AstNode {
     // A clocked property
     // Parents:  ASSERT|COVER (property)
     // Children: SENITEM, Properties
@@ -1601,7 +1601,7 @@ class AstPropClocked final : public AstNode {
     // @astgen op2 := disablep : Optional[AstNode]
     // @astgen op3 := propp : AstNode
 public:
-    AstPropClocked(FileLine* fl, AstSenItem* sensesp, AstNode* disablep, AstNode* propp)
+    AstPropSpec(FileLine* fl, AstSenItem* sensesp, AstNode* disablep, AstNode* propp)
         : ASTGEN_SUPER_PropClocked(fl) {
         this->sensesp(sensesp);
         this->disablep(disablep);
