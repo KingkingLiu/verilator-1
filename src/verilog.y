@@ -5400,12 +5400,13 @@ property_declaration<nodeFTaskp>:  // ==IEEE: property_declaration
 {   $$ = $1;
     $$->addStmtsp($2);
     $$->addStmtsp($4);
+    SYMP->popScope($$);
     GRAMMARP->endLabel($<fl>6, $$, $6);}
         ;
 
 property_declarationFront<nodeFTaskp>:  // IEEE: part of property_declaration
                 yPROPERTY idAny/*property_identifier*/
-{ $$ = new AstProperty{$1, *$2, nullptr, nullptr}; }
+{ $$ = new AstProperty{$1, *$2, nullptr, nullptr}; SYMP->pushNewUnderNodeOrCurrent($$, nullptr);}
         ;
 
 property_port_listE<nodep>:  // IEEE: [ ( [ property_port_list ] ) ]
@@ -5439,7 +5440,7 @@ property_port_itemFront: // IEEE: part of property_port_item/sequence_port_item
         ;
 
 property_port_itemAssignment<nodep>:  // IEEE: part of property_port_item/sequence_port_item/checker_port_direction
-portSig variable_dimensionListE         { $$ = $1; addNextNull($$, VARDONEP($$, $2, nullptr)); }
+id variable_dimensionListE         { $$ = VARDONEA($<fl>1, *$1, $2, nullptr); }
 //UNSUP |       portSig variable_dimensionListE '=' property_actual_arg
 //UNSUP                 { VARDONE($<fl>1, $1, $2, $4); PINNUMINC(); }
         ;
