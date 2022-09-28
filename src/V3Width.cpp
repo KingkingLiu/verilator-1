@@ -4895,7 +4895,7 @@ private:
             UASSERT_OBJ(m_funcp, nodep, "FTask with function variable, but isn't a function");
             nodep->dtypeFrom(nodep->fvarp());  // Which will get it from fvarp()->dtypep()
         }
-        userIterateChildren(nodep, nullptr);
+        userIterateChildren(nodep, WidthVP(nodep->dtypep(), PRELIM).p());
         nodep->didWidth(true);
         nodep->doingWidth(false);
         m_funcp = nullptr;
