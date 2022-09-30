@@ -218,13 +218,22 @@ private:
         // Convert property to a function
         // The only statements allowed in AstProperty are AstPropSpec (body) and AstVar
         // (arguments).
-        AstNode* propBlockp = nodep->stmtsp()->unlinkFrBackWithNext();
-        // while(!VN_IS(propBlockp, Var))
-        //     propBlockp = propBlockp->nextp();
-        // propBlockp->unlinkFrBack();
-        AstFunc* funcp = new AstFunc(nodep->fileline(), nodep->name(), propBlockp,
-                                     propBlockp->dtypep()->cloneTree(false));
-        funcp->dtypeFrom(propBlockp);
+        AstNode* propExprp = nodep->stmtsp();
+        while (!VN_IS(propExprp, Var)) propExprp = propExprp->nextp();
+
+        AstFunc* funcp = new AstFunc(nodep->fileline(), nodep->name(), nullptr,
+                                     propExprp->dtypep()->cloneTree(false));
+
+        AstAssign* returnAssignp = new AstAssign(
+            propExprp->fileline(),
+            new AstVarRef(propExprp->fileline(), VN_AS(funcp->fvarp(), Var), VAccess::WRITE),
+            propExprp->unlinkFrBackWithNext());
+
+        propExprp->replaceWith(returnAssignp);
+
+        funcp->addStmtsp(nodep->stmtsp()->unlinkFrBackWithNext());
+
+        funcp->dtypeFrom(propExprp);
         // Change references of old property to a new function
         // Add also sentreep nodes to asserts
         auto it = m_propRefs.find(nodep);
