@@ -5406,7 +5406,7 @@ property_declaration<nodeFTaskp>:  // ==IEEE: property_declaration
 
 property_declarationFront<nodeFTaskp>:  // IEEE: part of property_declaration
                 yPROPERTY idAny/*property_identifier*/
-{ $$ = new AstProperty{$1, *$2, nullptr, nullptr}; SYMP->pushNewUnderNodeOrCurrent($$, nullptr);}
+{ $$ = new AstProperty{$1, *$2, nullptr}; SYMP->pushNewUnderNodeOrCurrent($$, nullptr);}
         ;
 
 property_port_listE<nodep>:  // IEEE: [ ( [ property_port_list ] ) ]

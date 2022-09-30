@@ -36,6 +36,11 @@ class AssertPreVisitor final : public VNVisitor {
     // We're not parsing the tree, or anything more complicated.
 private:
     // NODE STATE/TYPES
+    using RefVec = std::vector<AstFuncRef*>;
+    using PropertyToRefsMap = std::unordered_map<AstProperty*, RefVec>;
+    using PropertyToFuncMap = std::unordered_map<AstProperty*, AstFunc*>;
+    PropertyToRefsMap m_propRefs;  // map properties to its references
+    PropertyToFuncMap m_propFuncs;  // map old properties to function that replaced them
     // STATE
     // Reset each module:
     AstSenItem* m_seniDefaultp = nullptr;  // Default sensitivity (from AstDefClock)
@@ -88,13 +93,36 @@ private:
         iterateAndNextNull(nodep->stmtsp());
         m_seniAlwaysp = nullptr;
     }
-
     void visit(AstNodeCoverOrAssert* nodep) override {
         if (nodep->sentreep()) return;  // Already processed
         clearAssertInfo();
         // Find Clocking's buried under nodep->exprsp
         iterateChildren(nodep);
-        if (!nodep->immediate()) nodep->sentreep(newSenTree(nodep));
+
+        if (AstFuncRef* funcrefp = VN_CAST(nodep->propp(), FuncRef)) {
+            if (AstProperty* propp = VN_CAST(funcrefp->taskp(), Property)) {
+                // check if this property was already converted to a function
+                const auto it = m_propFuncs.find(propp);
+                if (it == m_propFuncs.end()) {
+                    // it will be converted to AstFunc in visit(AstProperty*)
+                    // there will be also sentreep set.
+                    m_propRefs[propp].push_back(funcrefp);
+                } else {
+                    // change reference to a converted function
+                    funcrefp->taskp(it->second);
+                    // set sentreep to sentreep of expr of that property
+                    if (!nodep->immediate())
+                        nodep->sentreep(VN_CAST(it->second->user1p()->cloneTree(false), SenTree));
+                }
+            } else if (AstFunc* funcp = VN_CAST(funcrefp->taskp(), Func)) {
+                if (!nodep->immediate() && funcp->user1p())
+                    nodep->sentreep(VN_CAST(funcp->user1p()->cloneTree(false), SenTree));
+            }
+        }
+
+        if (!nodep->immediate()) {
+            if (!nodep->sentreep()) nodep->sentreep(newSenTree(nodep));
+        }
         clearAssertInfo();
     }
     void visit(AstFell* nodep) override {
@@ -184,6 +212,36 @@ private:
         nodep->replaceWith(blockp);
         VL_DO_DANGLING(pushDeletep(nodep), nodep);
     }
+
+    void visit(AstProperty* nodep) override {
+        iterateChildren(nodep);
+        // Convert property to a function
+        // The only statements allowed in AstProperty are AstPropSpec (body) and AstVar
+        // (arguments).
+        AstNode* propBlockp = nodep->stmtsp()->unlinkFrBackWithNext();
+        // while(!VN_IS(propBlockp, Var))
+        //     propBlockp = propBlockp->nextp();
+        // propBlockp->unlinkFrBack();
+        AstFunc* funcp = new AstFunc(nodep->fileline(), nodep->name(), propBlockp,
+                                     propBlockp->dtypep()->cloneTree(false));
+        funcp->dtypeFrom(propBlockp);
+        // Change references of old property to a new function
+        // Add also sentreep nodes to asserts
+        auto it = m_propRefs.find(nodep);
+        if (it != m_propRefs.end()) {
+            for (auto& refp : it->second) {
+                refp->taskp(funcp);
+                AstNodeCoverOrAssert* assertp = VN_CAST(refp->backp(), NodeCoverOrAssert);
+                UASSERT_OBJ(assertp, refp, "Property reference not under assert object");
+                if (assertp->immediate()) assertp->sentreep(newSenTree(nodep));
+            }
+        }
+        // Add pair <old property, new function> to a map for future property references
+        m_propFuncs[nodep] = funcp;
+        nodep->replaceWith(funcp);
+        funcp->user1p(newSenTree(funcp));
+    }
+
     void visit(AstNodeModule* nodep) override {
         iterateChildren(nodep);
         // Reset defaults

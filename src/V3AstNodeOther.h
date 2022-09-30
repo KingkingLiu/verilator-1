@@ -2444,10 +2444,8 @@ public:
 class AstProperty final : public AstNodeFTask {
     // A property inside a module
 public:
-    AstProperty(FileLine* fl, const string& name, AstNode* stmtp, AstNode* fvarp)
-        : ASTGEN_SUPER_Property(fl, name, stmtp) {
-        this->fvarp(fvarp);
-    }
+    AstProperty(FileLine* fl, const string& name, AstNode* stmtp)
+        : ASTGEN_SUPER_Property(fl, name, stmtp) {}
     ASTGEN_MEMBERS_Property;
     bool hasDType() const override { return true; }
 };
