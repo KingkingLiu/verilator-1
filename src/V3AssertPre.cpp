@@ -219,15 +219,30 @@ private:
         // The only statements allowed in AstProperty are AstPropSpec (body) and AstVar
         // (arguments).
         AstNode* propExprp = nodep->stmtsp();
-        while (!VN_IS(propExprp, Var)) propExprp = propExprp->nextp();
+
+        while (VN_IS(propExprp, Var))
+            propExprp = propExprp->nextp();
+
+        AstNodeDType* funcDTypep = nodep->findBitDType();
+
+        AstVar* fvarp = new AstVar(nodep->fileline(), VVarType::VAR, nodep->name(),
+                                 funcDTypep);
+        fvarp->direction(VDirection::OUTPUT);
+        fvarp->lifetime(VLifetime::AUTOMATIC);
+        fvarp->funcReturn(true);
+        fvarp->trace(false);  // Not user visible
+        fvarp->attrIsolateAssign(nodep->attrIsolateAssign());
 
         AstFunc* funcp = new AstFunc(nodep->fileline(), nodep->name(), nullptr,
-                                     propExprp->dtypep()->cloneTree(false));
+                                     fvarp);
 
         AstAssign* returnAssignp = new AstAssign(
             propExprp->fileline(),
-            new AstVarRef(propExprp->fileline(), VN_AS(funcp->fvarp(), Var), VAccess::WRITE),
-            propExprp->unlinkFrBackWithNext());
+            new AstVarRef(propExprp->fileline(),
+                          VN_AS(funcp->fvarp(), Var), VAccess::WRITE),
+            propExprp->cloneTree(false));
+
+        returnAssignp->dtypep(funcDTypep);
 
         propExprp->replaceWith(returnAssignp);
 
