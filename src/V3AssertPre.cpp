@@ -99,24 +99,27 @@ private:
         // Find Clocking's buried under nodep->exprsp
         iterateChildren(nodep);
 
-        if (AstFuncRef* funcrefp = VN_CAST(nodep->propp(), FuncRef)) {
-            if (AstProperty* propp = VN_CAST(funcrefp->taskp(), Property)) {
-                // check if this property was already converted to a function
-                const auto it = m_propFuncs.find(propp);
-                if (it == m_propFuncs.end()) {
-                    // it will be converted to AstFunc in visit(AstProperty*)
-                    // there will be also sentreep set.
-                    m_propRefs[propp].push_back(funcrefp);
-                } else {
-                    // change reference to a converted function
-                    funcrefp->taskp(it->second);
-                    // set sentreep to sentreep of expr of that property
-                    if (!nodep->immediate())
-                        nodep->sentreep(VN_CAST(it->second->user1p()->cloneTree(false), SenTree));
+        if (AstSampled* sampledp = VN_CAST(nodep->propp(), Sampled)) {
+            if (AstFuncRef* funcrefp = VN_CAST(sampledp->exprp(), FuncRef)) {
+                if (AstProperty* propp = VN_CAST(funcrefp->taskp(), Property)) {
+                    // check if this property was already converted to a function
+                    const auto it = m_propFuncs.find(propp);
+                    if (it == m_propFuncs.end()) {
+                        // it will be converted to AstFunc in visit(AstProperty*)
+                        // there will be also sentreep set.
+                        m_propRefs[propp].push_back(funcrefp);
+                    } else {
+                        // change reference to a converted function
+                        funcrefp->taskp(it->second);
+                        // set sentreep to sentreep of expr of that property
+                        if (!nodep->immediate())
+                            nodep->sentreep(
+                                VN_CAST(it->second->user1p()->cloneTree(false), SenTree));
+                    }
+                } else if (AstFunc* funcp = VN_CAST(funcrefp->taskp(), Func)) {
+                    if (!nodep->immediate() && funcp->user1p())
+                        nodep->sentreep(VN_CAST(funcp->user1p()->cloneTree(false), SenTree));
                 }
-            } else if (AstFunc* funcp = VN_CAST(funcrefp->taskp(), Func)) {
-                if (!nodep->immediate() && funcp->user1p())
-                    nodep->sentreep(VN_CAST(funcp->user1p()->cloneTree(false), SenTree));
             }
         }
 
@@ -220,26 +223,22 @@ private:
         // (arguments).
         AstNode* propExprp = nodep->stmtsp();
 
-        while (VN_IS(propExprp, Var))
-            propExprp = propExprp->nextp();
+        while (VN_IS(propExprp, Var)) propExprp = propExprp->nextp();
 
         AstNodeDType* funcDTypep = nodep->findBitDType();
 
-        AstVar* fvarp = new AstVar(nodep->fileline(), VVarType::VAR, nodep->name(),
-                                 funcDTypep);
+        AstVar* fvarp = new AstVar(nodep->fileline(), VVarType::VAR, nodep->name(), funcDTypep);
         fvarp->direction(VDirection::OUTPUT);
         fvarp->lifetime(VLifetime::AUTOMATIC);
         fvarp->funcReturn(true);
         fvarp->trace(false);  // Not user visible
         fvarp->attrIsolateAssign(nodep->attrIsolateAssign());
 
-        AstFunc* funcp = new AstFunc(nodep->fileline(), nodep->name(), nullptr,
-                                     fvarp);
+        AstFunc* funcp = new AstFunc(nodep->fileline(), nodep->name(), nullptr, fvarp);
 
         AstAssign* returnAssignp = new AstAssign(
             propExprp->fileline(),
-            new AstVarRef(propExprp->fileline(),
-                          VN_AS(funcp->fvarp(), Var), VAccess::WRITE),
+            new AstVarRef(propExprp->fileline(), VN_AS(funcp->fvarp(), Var), VAccess::WRITE),
             propExprp->cloneTree(false));
 
         returnAssignp->dtypep(funcDTypep);
@@ -255,8 +254,9 @@ private:
         if (it != m_propRefs.end()) {
             for (auto& refp : it->second) {
                 refp->taskp(funcp);
-                AstNodeCoverOrAssert* assertp = VN_CAST(refp->backp(), NodeCoverOrAssert);
-                UASSERT_OBJ(assertp, refp, "Property reference not under assert object");
+                AstNodeCoverOrAssert* assertp = VN_CAST(refp->backp()->backp(), NodeCoverOrAssert);
+                UASSERT_OBJ(assertp, refp,
+                            "Property reference not under sampled object under assert object");
                 if (assertp->immediate()) assertp->sentreep(newSenTree(nodep));
             }
         }
