@@ -2777,7 +2777,6 @@ netSig<varp>:                   // IEEE: net_decl_assignment -  one element from
                         { $$ = VARDONEA($<fl>1, *$1, nullptr, $2);
                           auto* const assignp = new AstAssignW{$3, new AstVarRef{$<fl>1, *$1, VAccess::WRITE}, $4};
                           if (GRAMMARP->m_netStrengthp) assignp->strengthSpecp(GRAMMARP->m_netStrengthp->cloneTree(false));
-                          if ($$->delayp()) assignp->timingControlp($$->delayp()->unlinkFrBack());  // IEEE 1800-2017 10.3.3
                           AstNode::addNext<AstNode, AstNode>($$, assignp); }
         |       netId variable_dimensionList sigAttrListE
                         { $$ = VARDONEA($<fl>1,*$1, $2, $3); }
