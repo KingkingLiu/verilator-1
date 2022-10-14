@@ -496,14 +496,14 @@ vnum    {vnum1}|{vnum2}|{vnum3}|{vnum4}|{vnum5}
   "context"             { FL; return yCONTEXT; }
   "continue"            { FL; return yCONTINUE; }
   "cover"               { FL; return yCOVER; }
-  "covergroup"          { ERROR_RSVD_WORD("SystemVerilog 2005"); }
-  "coverpoint"          { ERROR_RSVD_WORD("SystemVerilog 2005"); }
+  "covergroup"          { FL; return yCOVERGROUP; }
+  "coverpoint"          { FL; return yCOVERPOINT; }
   "cross"               { ERROR_RSVD_WORD("SystemVerilog 2005"); }
   "dist"                { FL; return yDIST; }
   "do"                  { FL; return yDO; }
   "endclass"            { FL; return yENDCLASS; }
   "endclocking"         { FL; return yENDCLOCKING; }
-  "endgroup"            { ERROR_RSVD_WORD("SystemVerilog 2005"); }
+  "endgroup"            { FL; return yENDGROUP; }
   "endinterface"        { FL; return yENDINTERFACE; }
   "endpackage"          { FL; return yENDPACKAGE; }
   "endprogram"          { FL; return yENDPROGRAM; }

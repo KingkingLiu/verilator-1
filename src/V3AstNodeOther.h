@@ -956,6 +956,15 @@ public:
     // false, the returned VarScope will have _->dtypep()->sameTree(initp->dtypep()) return true.
     AstVarScope* findConst(AstConst* initp, bool mergeDType);
 };
+class AstCoverpoint final : public AstNode {
+    // @astgen op1 := stmtp : AstNode
+public:
+    AstCoverpoint(FileLine* fl, AstNode* stmtp)
+        : ASTGEN_SUPER_Coverpoint(fl) {
+        this->stmtp(stmtp); }
+    ASTGEN_MEMBERS_AstCoverpoint;
+    string verilogKwd() const override { return "coverpoint"; }
+};
 class AstDefParam final : public AstNode {
     // A defparam assignment
     // Parents: MODULE
@@ -2258,6 +2267,16 @@ public:
     bool timescaleMatters() const override { return false; }
     AstClass* classp() const VL_MT_SAFE { return m_classp; }
     void classp(AstClass* classp) { m_classp = classp; }
+};
+class AstCovergroup final : public AstNodeModule {
+    // It will be converted to AstClass
+    // @astgen op4 := sensesp : Optional[AstSenItem]
+public:
+    AstCovergroup(FileLine* fl, const string& name)
+        : ASTGEN_SUPER_Covergroup(fl, name) {}
+    ASTGEN_MEMBERS_AstCovergroup;
+    string verilogKwd() const override { return "covergroup"; }
+    bool timescaleMatters() const override { return false; }
 };
 class AstIface final : public AstNodeModule {
     // A module declaration

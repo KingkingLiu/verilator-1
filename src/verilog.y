@@ -531,8 +531,8 @@ BISONPRE_VERSION(3.7,%define api.header.include {"V3ParseBison.h"})
 %token<fl>              yCONTEXT        "context"
 %token<fl>              yCONTINUE       "continue"
 %token<fl>              yCOVER          "cover"
-//UNSUP %token<fl>      yCOVERGROUP     "covergroup"
-//UNSUP %token<fl>      yCOVERPOINT     "coverpoint"
+%token<fl>              yCOVERGROUP     "covergroup"
+%token<fl>              yCOVERPOINT     "coverpoint"
 //UNSUP %token<fl>      yCROSS          "cross"
 %token<fl>              yDEASSIGN       "deassign"
 %token<fl>              yDEFAULT        "default"
@@ -549,7 +549,7 @@ BISONPRE_VERSION(3.7,%define api.header.include {"V3ParseBison.h"})
 %token<fl>              yENDCLOCKING    "endclocking"
 %token<fl>              yENDFUNCTION    "endfunction"
 %token<fl>              yENDGENERATE    "endgenerate"
-//UNSUP %token<fl>      yENDGROUP       "endgroup"
+%token<fl>              yENDGROUP       "endgroup"
 %token<fl>              yENDINTERFACE   "endinterface"
 %token<fl>              yENDMODULE      "endmodule"
 %token<fl>              yENDPACKAGE     "endpackage"
@@ -1184,7 +1184,7 @@ package_or_generate_item_declaration<nodep>:    // ==IEEE: package_or_generate_i
         //                      // class_constructor_declaration is part of function_declaration
         //                      // local_parameter_declaration under parameter_declaration
         |       parameter_declaration ';'               { $$ = $1; }
-        //UNSUP covergroup_declaration                  { $$ = $1; }
+        |       covergroup_declaration                  { $$ = $1; }
         |       assertion_item_declaration              { $$ = $1; }
         |       ';'                                     { $$ = nullptr; }
         ;
@@ -5248,10 +5248,10 @@ clocking_declaration<nodep>:            // IEEE: clocking_declaration  (INCOMPLE
 //UNSUP |       yGLOBAL__CLOCKING yCLOCKING idAny/*clocking_identifier*/        { SYMP->pushNew($$); }
 //UNSUP ;
 
-//UNSUPclocking_event:  // ==IEEE: clocking_event
+clocking_event<senItemp>:  // ==IEEE: clocking_event
 //UNSUP         '@' id                                  { }
-//UNSUP |       '@' '(' event_expression ')'            { }
-//UNSUP ;
+       '@' '(' event_expression ')'            { $$ = $3; }
+        ;
 
 //UNSUPclocking_itemListE:
 //UNSUP         /* empty */                             { $$ = nullptr; }
@@ -5805,52 +5805,57 @@ complex_pexpr<nodep>:  // IEEE: part of property_expr, see comments there
 //************************************************
 // Covergroup
 
-//UNSUPcovergroup_declaration<nodep>:  // ==IEEE: covergroup_declaration
-//UNSUP         covergroup_declarationFront coverage_eventE ';' coverage_spec_or_optionListE
-//UNSUP                 yENDGROUP endLabelE
-//UNSUP                 { PARSEP->endgroupCb($<fl>5,$5);
-//UNSUP                   SYMP->popScope($$); }
+covergroup_declaration<nodeModulep>:  // ==IEEE: covergroup_declaration
+                covergroup_declarationFront coverage_eventE ';' coverage_spec_or_optionListE
+                        yENDGROUP endLabelE
+{ AstCovergroup*  covergroupp = VN_CAST($1, Covergroup);
+    covergroupp->sensesp($2);
+    covergroupp->addStmtsp($4);
+                          SYMP->popScope(covergroupp);
+GRAMMARP->endLabel($<fl>6,covergroupp,$6);
+$$ = covergroupp; }
 //UNSUP |       covergroup_declarationFront '(' tf_port_listE ')' coverage_eventE ';' coverage_spec_or_optionListE
 //UNSUP                 yENDGROUP endLabelE
 //UNSUP                 { PARSEP->endgroupCb($<fl>8,$8);
 //UNSUP                   SYMP->popScope($$); }
-//UNSUP ;
+        ;
 
-//UNSUPcovergroup_declarationFront:  // IEEE: part of covergroup_declaration
-//UNSUP         yCOVERGROUP idAny
-//UNSUP                         { SYMP->pushNew($$);
-//UNSUP                   PARSEP->covergroupCb($<fl>1,$1,$2); }
-//UNSUP ;
+covergroup_declarationFront<nodeModulep>:  // IEEE: part of covergroup_declaration
+                yCOVERGROUP idAny
+                        { $$ = new AstCovergroup{$<fl>1, *$2};
+                          SYMP->pushNew($$); }
+        ;
 
 //UNSUPcgexpr<nodep>:  // IEEE-2012: covergroup_expression, before that just expression
 //UNSUP         expr                                    { $$ = $1; }
 //UNSUP ;
 
-//UNSUPcoverage_spec_or_optionListE<nodep>:  // IEEE: [{coverage_spec_or_option}]
-//UNSUP         /* empty */                             { $$ = nullptr; }
-//UNSUP |       coverage_spec_or_optionList             { $$ = $1; }
-//UNSUP ;
+coverage_spec_or_optionListE<nodep>:  // IEEE: [{coverage_spec_or_option}]
+                /* empty */                             { $$ = nullptr; }
+        |       coverage_spec_or_optionList             { $$ = $1; }
+        ;
 
-//UNSUPcoverage_spec_or_optionList<nodep>:  // IEEE: {coverage_spec_or_option}
-//UNSUP         coverage_spec_or_option                 { $$ = $1; }
-//UNSUP |       coverage_spec_or_optionList coverage_spec_or_option     { $$ = addNextNull($1, $2); }
-//UNSUP ;
+coverage_spec_or_optionList<nodep>:  // IEEE: {coverage_spec_or_option}
+                coverage_spec_or_option                 { $$ = $1; }
+        |       coverage_spec_or_optionList coverage_spec_or_option     { $$ = addNextNull($1, $2); }
+        ;
 
-//UNSUPcoverage_spec_or_option<nodep>:  // ==IEEE: coverage_spec_or_option
-//UNSUP //                      // IEEE: coverage_spec
-//UNSUP         cover_point                             { $$ = $1; }
+coverage_spec_or_option<nodep>:  // ==IEEE: coverage_spec_or_option
+        //                      // IEEE: coverage_spec
+                cover_point                             { $$ = $1; }
 //UNSUP |       cover_cross                             { $$ = $1; }
 //UNSUP |       coverage_option ';'                     { $$ = $1; }
 //UNSUP |       error                                   { $$ = nullptr; }
-//UNSUP ;
+        ;
 
 //UNSUPcoverage_option:  // ==IEEE: coverage_option
 //UNSUP //                      // option/type_option aren't really keywords
 //UNSUP         id/*yOPTION | yTYPE_OPTION*/ '.' idAny/*member_identifier*/ '=' expr    { }
 //UNSUP ;
 
-//UNSUPcover_point:  // ==IEEE: cover_point
-//UNSUP         /**/               yCOVERPOINT expr iffE bins_or_empty  { }
+cover_point<nodep>:  // ==IEEE: cover_point
+                /**/               yCOVERPOINT expr iffE bins_or_empty
+{ $$ = new AstCoverpoint{$1, $2}; }
 //UNSUP //                      // IEEE-2012: class_scope before an ID
 //UNSUP |       /**/           /**/ /**/    id ':' yCOVERPOINT expr iffE bins_or_empty  { }
 //UNSUP |       class_scope_id ':' yCOVERPOINT expr iffE bins_or_empty  { }
@@ -5859,18 +5864,18 @@ complex_pexpr<nodep>:  // IEEE: part of property_expr, see comments there
 //UNSUP |       /**/           id /**/      id ':' yCOVERPOINT expr iffE bins_or_empty  { }
 //UNSUP //                      // IEEE-2012:
 //UNSUP |       bins_or_empty                           { $$ = $1; }
-//UNSUP;
+       ;
 
-//UNSUPiffE<nodep>:  // IEEE: part of cover_point, others
-//UNSUP         /* empty */                             { $$ = nullptr; }
+iffE<nodep>:  // IEEE: part of cover_point, others
+                /* empty */                             { $$ = nullptr; }
 //UNSUP |       yIFF '(' expr ')'                       { }
-//UNSUP ;
+        ;
 
-//UNSUPbins_or_empty<nodep>:  // ==IEEE: bins_or_empty
+bins_or_empty<nodep>:  // ==IEEE: bins_or_empty
 //UNSUP         '{' bins_or_optionsList '}'             { $$ = $2; }
 //UNSUP |       '{' '}'                                 { $$ = nullptr; }
-//UNSUP |       ';'                                     { $$ = nullptr; }
-//UNSUP ;
+                ';'                                     { $$ = nullptr; }
+        ;
 
 //UNSUPbins_or_optionsList<nodep>:  // IEEE: { bins_or_options ';' }
 //UNSUP         bins_or_options ';'                     { $$ = $1; }
@@ -6013,12 +6018,12 @@ complex_pexpr<nodep>:  // IEEE: part of property_expr, see comments there
 //UNSUP |       id/*cover_point_identifier*/ '.' idAny/*bins_identifier*/       { }
 //UNSUP ;
 
-//UNSUPcoverage_eventE:  // IEEE: [ coverage_event ]
-//UNSUP         /* empty */                             { $$ = nullptr; }
-//UNSUP |       clocking_event                          { $$ = $1; }
+coverage_eventE<senItemp>:  // IEEE: [ coverage_event ]
+                /* empty */                             { $$ = nullptr; }
+        |       clocking_event                          { $$ = $1; }
 //UNSUP |       yWITH__ETC function idAny/*"sample"*/ '(' tf_port_listE ')'     { }
 //UNSUP |       yP_ATAT '(' block_event_expression ')'  { }
-//UNSUP ;
+        ;
 
 //UNSUPblock_event_expression:  // ==IEEE: block_event_expression
 //UNSUP         block_event_expressionTerm              { $$ = $1; }
