@@ -961,7 +961,8 @@ class AstCoverpoint final : public AstNode {
 public:
     AstCoverpoint(FileLine* fl, AstNode* stmtp)
         : ASTGEN_SUPER_Coverpoint(fl) {
-        this->stmtp(stmtp); }
+        this->stmtp(stmtp);
+    }
     ASTGEN_MEMBERS_AstCoverpoint;
     string verilogKwd() const override { return "coverpoint"; }
 };
