@@ -240,9 +240,22 @@ private:
         // Can't do this, as we may have more calls later
         // nodep->funcp()->scopep(nullptr);
     }
-    void visit(AstCMethodCall* nodep) override { iterateChildren(nodep); }
-    void visit(AstCNew* nodep) override { iterateChildren(nodep); }
-    void visit(AstCFunc* nodep) override {
+    virtual void visit(AstCMethodCall* nodep) override { iterateChildren(nodep); }
+    virtual void visit(AstCNew* nodep) override { iterateChildren(nodep); }
+    virtual void visit(AstConstraint* nodep) override {
+        // VL_RESTORER(m_needThis);
+        // VL_RESTORER(m_allowThis);
+        if (!nodep->user1SetOnce()) {
+            // m_needThis = true;
+            // m_allowThis = true;
+            iterateChildren(nodep);
+            if (m_scopep) {
+                nodep->unlinkFrBack();
+                m_modp->addStmtsp(nodep);
+            }
+        }
+    }
+    virtual void visit(AstCFunc* nodep) override {
         VL_RESTORER(m_funcp);
         if (!nodep->user1()) {
             // Static functions should have been moved under the corresponding AstClassPackage

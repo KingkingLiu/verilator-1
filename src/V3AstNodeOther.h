@@ -1117,6 +1117,16 @@ public:
     // false, the returned VarScope will have _->dtypep()->sameTree(initp->dtypep()) return true.
     AstVarScope* findConst(AstConst* initp, bool mergeDType);
 };
+class AstConstraint final : public AstNode {
+    // @astgen op1 := condsp : AstNode
+public:
+    AstConstraint(FileLine* fl, AstNode* condsp)
+        : ASTGEN_SUPER_Constraint(fl) {
+        this->condsp(condsp);
+    }
+    ASTGEN_MEMBERS_AstConstraint;
+    string verilogKwd() const override { return "constraint"; }
+};
 class AstDefParam final : public AstNode {
     // A defparam assignment
     // Parents: MODULE

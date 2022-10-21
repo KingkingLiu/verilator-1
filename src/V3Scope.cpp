@@ -183,7 +183,13 @@ private:
             iterateChildren(nodep);
         }
     }
-    void visit(AstCellInline* nodep) override {  //
+    virtual void visit(AstConstraint* nodep) override {
+        nodep->unlinkFrBack();
+        nodep->user2p(nodep);
+        m_scopep->addBlocksp(nodep);
+        iterateChildren(nodep);
+    }
+    virtual void visit(AstCellInline* nodep) override {  //
         nodep->scopep(m_scopep);
     }
     void visit(AstActive* nodep) override {  // LCOV_EXCL_LINE
