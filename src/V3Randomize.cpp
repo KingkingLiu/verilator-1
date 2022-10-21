@@ -699,7 +699,7 @@ AstFunc* V3Randomize::newTryRandFunc(AstClass* nodep) {
     if (!funcp) {
         auto* const dtypep
             = nodep->findBitDType(32, 32, VSigning::SIGNED);  // IEEE says int return of 0/1
-        auto* const fvarp = new AstVar(nodep->fileline(), AstVarType::MEMBER, "randomize", dtypep);
+        auto* const fvarp = new AstVar(nodep->fileline(), VVarType::MEMBER, "randomize", dtypep);
         fvarp->lifetime(VLifetime::AUTOMATIC);
         fvarp->funcLocal(true);
         fvarp->funcReturn(true);
