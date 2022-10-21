@@ -308,7 +308,7 @@ private:
             if (VN_IS(nodep, And) || VN_IS(nodep, LogAnd)) {
                 addConstraint(biopp->lhsp(), softp);
                 addConstraint(biopp->rhsp(), softp);
-            } else if (VN_IS(nodep, Or) | VN_IS(nodep, LogOr)) {
+            } else if (VN_IS(nodep, Or) || VN_IS(nodep, LogOr)) {
                 ConstraintMultiset constraintsCopy = *this;
                 addConstraint(biopp->lhsp(), softp);
                 constraintsCopy.addConstraint(biopp->rhsp(), softp);
@@ -514,9 +514,7 @@ private:
                         = createRef(nodep->fileline(), memberVarp, fromp, VAccess::WRITE);
                     stmtsp = AstNode::addNext(stmtsp, newRandStmtsp(nodep->fileline(), refp));
                 } else if (const auto* const classRefp = VN_CAST(dtypep, ClassRefDType)) {
-                    auto* const refp
-                        = new AstVarRef(nodep->fileline(), memberVarp, VAccess::WRITE);
-                    auto* const memberFuncp = V3Randomize::newTryRandFunc(classRefp->classp());
+                    //auto* const memberFuncp = V3Randomize::newTryRandFunc(classRefp->classp());
                     stmtsp = AstNode::addNext(
                         stmtsp, newClassRandStmtsp(classRefp->classp(),
                                                    createRef(nodep->fileline(), memberVarp, fromp,
@@ -572,7 +570,6 @@ private:
         auto* parentfuncp = V3Randomize::newRandomizeFunc(nodep);
         auto* funcp = V3Randomize::newTryRandFunc(nodep);
         auto* fvarp = VN_CAST(funcp->fvarp(), Var);
-        auto* rvarp = VN_CAST(relaxp->fvarp(), Var);
 
         funcp->addStmtsp(newClassRandStmtsp(nodep, nullptr));
         funcp->addStmtsp(m_constraints.applyConstraints(funcp, nullptr, m_varCnt));
@@ -585,14 +582,11 @@ private:
         //   }
         // }
         //
-        auto* dtypep = nodep->findBitDType(32, 32, VSigning::SIGNED);
         auto* const frefp = new AstVarRef(nodep->fileline(), fvarp, VAccess::WRITE);
         auto* randcallp = new AstFuncRef(fl, "try_rand", nullptr);
         randcallp->taskp(funcp);
         randcallp->dtypeFrom(funcp);
-        auto* const rrefp = new AstVarRef(nodep->fileline(), rvarp, VAccess::WRITE);
         auto* relaxcallp = new AstFuncRef(fl, "relax_next", nullptr);
-        auto* rdtypep = nodep->findBitDType(32, 32, VSigning::SIGNED);
         relaxcallp->taskp(relaxp);
         relaxcallp->dtypeFrom(relaxp);
         auto* redop = new AstWhile(
