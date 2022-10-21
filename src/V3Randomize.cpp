@@ -342,9 +342,11 @@ private:
             auto* modp = new AstModDiv(fl, new AstRand(fl, nullptr, false), maxp);
             modp->dtypep(maxp->dtypep());
             modp->lhsp()->dtypep(maxp->dtypep());
-            stmtsp = AstNode::addNext(stmtsp, new AstAssign(fl, new AstVarRef(fl, randVarp, VAccess::WRITE), modp));
-            stmtsp = AstNode::addNext(stmtsp, new AstCase(fl, VCaseType::CT_CASE,
-                                      new AstVarRef(fl, randVarp, VAccess::READ), casesp));
+            stmtsp = AstNode::addNext(
+                stmtsp, new AstAssign(fl, new AstVarRef(fl, randVarp, VAccess::WRITE), modp));
+            stmtsp = AstNode::addNext(
+                stmtsp, new AstCase(fl, VCaseType::CT_CASE,
+                                    new AstVarRef(fl, randVarp, VAccess::READ), casesp));
             return stmtsp;
         }
         AstNode* generateCheck(AstNode* nodep, AstVar* fromp) {
@@ -514,7 +516,7 @@ private:
                         = createRef(nodep->fileline(), memberVarp, fromp, VAccess::WRITE);
                     stmtsp = AstNode::addNext(stmtsp, newRandStmtsp(nodep->fileline(), refp));
                 } else if (const auto* const classRefp = VN_CAST(dtypep, ClassRefDType)) {
-                    //auto* const memberFuncp = V3Randomize::newTryRandFunc(classRefp->classp());
+                    // auto* const memberFuncp = V3Randomize::newTryRandFunc(classRefp->classp());
                     stmtsp = AstNode::addNext(
                         stmtsp, newClassRandStmtsp(classRefp->classp(),
                                                    createRef(nodep->fileline(), memberVarp, fromp,
