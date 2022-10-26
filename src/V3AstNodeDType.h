@@ -587,6 +587,48 @@ public:
         return false;
     }
 };
+class AstCovergroupRefDType final : public AstNodeDType {
+    // Reference to a covergroup
+    // @astgen op1 := paramsp: List[AstPin]
+private:
+    AstCovergroup* m_covergroupp;  // data type pointed to, BELOW the AstTypedef
+    AstNodeModule* m_classOrPackagep = nullptr;  // Package hierarchy
+public:
+    AstCovergroupRefDType(FileLine* fl, AstCovergroup* covergroupp, AstPin* paramsp)
+        : ASTGEN_SUPER_CovergroupRefDType(fl)
+        , m_covergroupp{covergroupp} {
+        this->dtypep(this);
+        this->addParamsp(paramsp);
+    }
+    ASTGEN_MEMBERS_AstCovergroupRefDType;
+    // METHODS
+    const char* broken() const override;
+    void cloneRelink() override;
+    bool same(const AstNode* samep) const override {
+        const AstCovergroupRefDType* const asamep = static_cast<const AstCovergroupRefDType*>(samep);
+        return (m_covergroupp == asamep->m_covergroupp && m_classOrPackagep == asamep->m_classOrPackagep);
+    }
+    bool similarDType(AstNodeDType* samep) const override {
+        return this == samep || (type() == samep->type() && same(samep));
+    }
+    void dump(std::ostream& str = std::cout) const override;
+    void dumpSmall(std::ostream& str) const override;
+    string name() const override;
+    AstBasicDType* basicp() const override { return nullptr; }
+    AstNodeDType* skipRefp() const override { return (AstNodeDType*)this; }
+    AstNodeDType* skipRefToConstp() const override { return (AstNodeDType*)this; }
+    AstNodeDType* skipRefToEnump() const override { return (AstNodeDType*)this; }
+    int widthAlignBytes() const override { return 0; }
+    int widthTotalBytes() const override { return 0; }
+    AstNodeDType* virtRefDTypep() const override { return nullptr; }
+    void virtRefDTypep(AstNodeDType* nodep) override {}
+    AstNodeDType* subDTypep() const override { return nullptr; }
+    AstNodeModule* classOrPackagep() const { return m_classOrPackagep; }
+    void classOrPackagep(AstNodeModule* nodep) { m_classOrPackagep = nodep; }
+    AstCovergroup* covergroupp() const { return m_covergroupp; }
+    void covergroupp(AstCovergroup* nodep) { m_covergroupp = nodep; }
+    bool isCompound() const override { return true; }
+};
 class AstDefImplicitDType final : public AstNodeDType {
     // For parsing enum/struct/unions that are declared with a variable rather than typedef
     // This allows "var enum {...} a,b" to share the enum definition for both variables

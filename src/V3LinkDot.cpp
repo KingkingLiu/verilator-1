@@ -954,6 +954,37 @@ class LinkDotFindVisitor final : public VNVisitor {
             if (!m_explicitNew && m_statep->forPrimary()) makeImplicitNew(nodep);
         }
     }
+    void visit(AstCovergroup* nodep) override {
+        UASSERT_OBJ(m_curSymp, nodep, "Covergroup not under module/package/$unit");
+        UINFO(8, "   " << nodep << endl);
+        VL_RESTORER(m_scope);
+        VL_RESTORER(m_classOrPackagep);
+        VL_RESTORER(m_modSymp);
+        VL_RESTORER(m_curSymp);
+        VL_RESTORER(m_paramNum);
+        VL_RESTORER(m_modBlockNum);
+        VL_RESTORER(m_modWithNum);
+        {
+            UINFO(4, "     Link Covergroup: " << nodep << endl);
+            VSymEnt* const upperSymp = m_curSymp;
+            m_scope = m_scope + "." + nodep->name();
+            m_classOrPackagep = nodep;
+            m_curSymp = m_modSymp
+                = m_statep->insertBlock(upperSymp, nodep->name(), nodep, m_classOrPackagep);
+            m_statep->insertMap(m_curSymp, m_scope);
+            UINFO(9, "New module scope " << m_curSymp << endl);
+            //
+            m_paramNum = 0;
+            m_modBlockNum = 0;
+            m_modWithNum = 0;
+            m_explicitNew = false;
+            // m_modSymp/m_curSymp for non-packages set by AstCell above this module
+            // Iterate
+            iterateChildren(nodep);
+            nodep->user4(true);
+            std::cout << m_curSymp << std::endl;
+        }
+    }
     void visit(AstScope* nodep) override {
         UASSERT_OBJ(m_statep->forScopeCreation(), nodep,
                     "Scopes should only exist right after V3Scope");
@@ -3136,6 +3167,19 @@ private:
             }
         }
     }
+    void visit(AstCovergroup* nodep) override {
+        UINFO(5, "   " << nodep << endl);
+        checkNoDot(nodep);
+        VL_RESTORER(m_curSymp);
+        VL_RESTORER(m_modSymp);
+        {
+            m_ds.init(m_curSymp);
+            // Until overridden by a SCOPE
+            m_ds.m_dotSymp = m_curSymp = m_modSymp = m_statep->getNodeSym(nodep);
+            m_modp = nodep;
+            iterateChildren(nodep);
+        }
+    }
     void visit(AstRefDType* nodep) override {
         // Resolve its reference
         if (nodep->user3SetOnce()) return;
@@ -3191,6 +3235,7 @@ private:
                     nodep->refDTypep(defp);
                     nodep->classOrPackagep(foundp->classOrPackagep());
                 }
+
             } else if (AstClass* const defp = foundp ? VN_AS(foundp->nodep(), Class) : nullptr) {
                 AstPin* const paramsp = nodep->paramsp();
                 if (paramsp) paramsp->unlinkFrBackWithNext();
