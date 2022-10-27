@@ -35,6 +35,7 @@
 #include "V3Const.h"
 #include "V3Coverage.h"
 #include "V3CoverageJoin.h"
+#include "V3Covergroups.h"
 #include "V3Dead.h"
 #include "V3Delayed.h"
 #include "V3Depth.h"
@@ -170,6 +171,9 @@ static void process() {
         }
     }
 
+    // Convert covergroup constuctions to classes and always blocks
+    V3Covergroups::covergroups(v3Global.rootp());
+    
     // Calculate and check widths, edit tree to TRUNC/EXTRACT any width mismatches
     V3Width::width(v3Global.rootp());
 
