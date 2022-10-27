@@ -605,8 +605,10 @@ public:
     const char* broken() const override;
     void cloneRelink() override;
     bool same(const AstNode* samep) const override {
-        const AstCovergroupRefDType* const asamep = static_cast<const AstCovergroupRefDType*>(samep);
-        return (m_covergroupp == asamep->m_covergroupp && m_classOrPackagep == asamep->m_classOrPackagep);
+        const AstCovergroupRefDType* const asamep
+            = static_cast<const AstCovergroupRefDType*>(samep);
+        return (m_covergroupp == asamep->m_covergroupp
+                && m_classOrPackagep == asamep->m_classOrPackagep);
     }
     bool similarDType(AstNodeDType* samep) const override {
         return this == samep || (type() == samep->type() && same(samep));

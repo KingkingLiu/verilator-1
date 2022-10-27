@@ -3244,7 +3244,8 @@ private:
                 nodep->replaceWith(newp);
                 VL_DO_DANGLING(nodep->deleteTree(), nodep);
                 return;
-            } else if (AstCovergroup* const defp = foundp ? VN_CAST(foundp->nodep(), Covergroup) : nullptr) {
+            } else if (AstCovergroup* const defp
+                       = foundp ? VN_CAST(foundp->nodep(), Covergroup) : nullptr) {
                 AstCovergroupRefDType* const newp
                     = new AstCovergroupRefDType{nodep->fileline(), defp, nullptr};
                 newp->classOrPackagep(foundp->classOrPackagep());

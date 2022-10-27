@@ -61,19 +61,18 @@ private:
     }
     void visit(AstVar* nodep) override {
         // Only covergroup instantions have to be handled in this phase
-        if (!VN_IS(nodep->subDTypep(), CovergroupRefDType))
-            return;
+        if (!VN_IS(nodep->subDTypep(), CovergroupRefDType)) return;
         AstCovergroup* covergroupp = VN_AS(nodep->subDTypep(), CovergroupRefDType)->covergroupp();
         for (AstNode* stmtp = covergroupp->stmtsp(); stmtp; stmtp = stmtp->nextp()) {
             AstCoverpoint* pointp = VN_AS(stmtp, Coverpoint);
             FileLine* const fl = nodep->fileline();
             AstBegin* blockp = new AstBegin{fl, nodep->name() + "__incrementation_block", nullptr};
-            
+
             AstSenTree* sentreep = new AstSenTree{fl, covergroupp->sensesp()->cloneTree(false)};
             AstAlways* alwaysp = new AstAlways{fl, VAlwaysKwd::ALWAYS, sentreep, blockp};
             m_modp->addStmtsp(alwaysp);
         }
-//        nodep->unlinkFrBack()->deleteTree();
+        //        nodep->unlinkFrBack()->deleteTree();
     }
 
     void visit(AstNode* nodep) override {

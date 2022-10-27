@@ -1522,7 +1522,9 @@ void AstCovergroupRefDType::cloneRelink() {
         m_classOrPackagep = m_classOrPackagep->clonep();
     }
 }
-string AstCovergroupRefDType::name() const { return covergroupp() ? covergroupp()->name() : "<unlinked>"; }
+string AstCovergroupRefDType::name() const {
+    return covergroupp() ? covergroupp()->name() : "<unlinked>";
+}
 void AstNodeCoverOrAssert::dump(std::ostream& str) const {
     this->AstNodeStmt::dump(str);
     if (immediate()) str << " [IMMEDIATE]";

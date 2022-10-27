@@ -173,7 +173,7 @@ static void process() {
 
     // Convert covergroup constuctions to classes and always blocks
     V3Covergroups::covergroups(v3Global.rootp());
-    
+
     // Calculate and check widths, edit tree to TRUNC/EXTRACT any width mismatches
     V3Width::width(v3Global.rootp());
 
