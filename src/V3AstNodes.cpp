@@ -1497,6 +1497,32 @@ void AstClassRefDType::cloneRelink() {
     }
 }
 string AstClassRefDType::name() const { return classp() ? classp()->name() : "<unlinked>"; }
+void AstCovergroupRefDType::dump(std::ostream& str) const {
+    this->AstNodeDType::dump(str);
+    if (classOrPackagep()) str << " cpkg=" << nodeAddr(classOrPackagep());
+    if (covergroupp()) {
+        str << " -> ";
+        covergroupp()->dump(str);
+    } else {
+        str << " -> UNLINKED";
+    }
+}
+void AstCovergroupRefDType::dumpSmall(std::ostream& str) const {
+    this->AstNodeDType::dumpSmall(str);
+    str << "covergroup:" << name();
+}
+const char* AstCovergroupRefDType::broken() const {
+    BROKEN_RTN(m_covergroupp && !m_covergroupp->brokeExists());
+    BROKEN_RTN(m_classOrPackagep && !m_classOrPackagep->brokeExists());
+    return nullptr;
+}
+void AstCovergroupRefDType::cloneRelink() {
+    if (m_covergroupp && m_covergroupp->clonep()) m_covergroupp = m_covergroupp->clonep();
+    if (m_classOrPackagep && m_classOrPackagep->clonep()) {
+        m_classOrPackagep = m_classOrPackagep->clonep();
+    }
+}
+string AstCovergroupRefDType::name() const { return covergroupp() ? covergroupp()->name() : "<unlinked>"; }
 void AstNodeCoverOrAssert::dump(std::ostream& str) const {
     this->AstNodeStmt::dump(str);
     if (immediate()) str << " [IMMEDIATE]";

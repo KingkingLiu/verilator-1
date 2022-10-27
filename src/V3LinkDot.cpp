@@ -982,7 +982,6 @@ class LinkDotFindVisitor final : public VNVisitor {
             // Iterate
             iterateChildren(nodep);
             nodep->user4(true);
-            std::cout << m_curSymp << std::endl;
         }
     }
     void visit(AstScope* nodep) override {
@@ -3236,11 +3235,18 @@ private:
                     nodep->classOrPackagep(foundp->classOrPackagep());
                 }
 
-            } else if (AstClass* const defp = foundp ? VN_AS(foundp->nodep(), Class) : nullptr) {
+            } else if (AstClass* const defp = foundp ? VN_CAST(foundp->nodep(), Class) : nullptr) {
                 AstPin* const paramsp = nodep->paramsp();
                 if (paramsp) paramsp->unlinkFrBackWithNext();
                 AstClassRefDType* const newp
                     = new AstClassRefDType{nodep->fileline(), defp, paramsp};
+                newp->classOrPackagep(foundp->classOrPackagep());
+                nodep->replaceWith(newp);
+                VL_DO_DANGLING(nodep->deleteTree(), nodep);
+                return;
+            } else if (AstCovergroup* const defp = foundp ? VN_CAST(foundp->nodep(), Covergroup) : nullptr) {
+                AstCovergroupRefDType* const newp
+                    = new AstCovergroupRefDType{nodep->fileline(), defp, nullptr};
                 newp->classOrPackagep(foundp->classOrPackagep());
                 nodep->replaceWith(newp);
                 VL_DO_DANGLING(nodep->deleteTree(), nodep);
