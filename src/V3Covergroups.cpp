@@ -80,15 +80,20 @@ private:
             AstCoverpoint* pointp = VN_AS(stmtp, Coverpoint);
             AstNode* varrefp = pointp->stmtp()->unlinkFrBack();
             FileLine* fl = varrefp->fileline();
-            AstNodeDType* fieldDTypep = new AstPackArrayDType{fl, VFlagChildDType{},
-                new AstBasicDType{fl, VBasicDTypeKwd::LOGIC},
-                new AstRange{fl, new AstConst{fl, 15}, new AstConst{fl, 0}}}; // change the first constant to function call that returns the proper size
-            AstVar* fieldp = new AstVar{fl, VVarType::MEMBER, varrefp->name() + "__values_occurred", VFlagChildDType{}, fieldDTypep};
+            AstNodeDType* fieldDTypep = new AstPackArrayDType{
+                fl, VFlagChildDType{}, new AstBasicDType{fl, VBasicDTypeKwd::LOGIC},
+                new AstRange{fl, new AstConst{fl, 15},
+                             new AstConst{fl, 0}}};  // change the first constant to function call
+                                                     // that returns the proper size
+            AstVar* fieldp
+                = new AstVar{fl, VVarType::MEMBER, varrefp->name() + "__values_occurred",
+                             VFlagChildDType{}, fieldDTypep};
             classp->addMembersp(fieldp);
         }
         m_covClass[nodep] = classp;
         for (AstCovergroupRefDType*& coverRefp : m_covRefDTypes[nodep]) {
-            AstClassRefDType* classRefp = new AstClassRefDType(coverRefp->fileline(), classp, nullptr);
+            AstClassRefDType* classRefp
+                = new AstClassRefDType(coverRefp->fileline(), classp, nullptr);
             coverRefp->replaceWith(classRefp);
         }
         nodep->replaceWith(classp);
@@ -96,7 +101,7 @@ private:
     void visit(AstVar* nodep) override {
         // Only covergroup instantions have to be handled in this phase
         if (!VN_IS(nodep->subDTypep(), CovergroupRefDType)) return;
-        AstCovergroup* covergroupp = VN_AS(nodep->subDTypep(), CovergroupRefDType)->covergroupp();            
+        AstCovergroup* covergroupp = VN_AS(nodep->subDTypep(), CovergroupRefDType)->covergroupp();
 
         // Add block to mark which values occurred
         for (AstNode* stmtp = covergroupp->stmtsp(); stmtp; stmtp = stmtp->nextp()) {
@@ -108,11 +113,12 @@ private:
             AstAlways* alwaysp = new AstAlways{fl, VAlwaysKwd::ALWAYS, sentreep, blockp};
             m_modp->addStmtsp(alwaysp);
         }
-        
+
         // Covert covergroup instantion to class instantion
         auto classFound = m_covClass.find(covergroupp);
         if (classFound != m_covClass.end()) {
-            AstClassRefDType* classRefp = new AstClassRefDType{nodep->fileline(), classFound->second, nullptr};
+            AstClassRefDType* classRefp
+                = new AstClassRefDType{nodep->fileline(), classFound->second, nullptr};
             nodep->subDTypep()->replaceWith(classRefp);
         } else {
             m_covRefDTypes[covergroupp].push_back(VN_AS(nodep->subDTypep(), CovergroupRefDType));
