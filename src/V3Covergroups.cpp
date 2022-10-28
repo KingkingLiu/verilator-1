@@ -64,7 +64,7 @@ private:
         if (!VN_IS(nodep->subDTypep(), CovergroupRefDType)) return;
         AstCovergroup* covergroupp = VN_AS(nodep->subDTypep(), CovergroupRefDType)->covergroupp();
         for (AstNode* stmtp = covergroupp->stmtsp(); stmtp; stmtp = stmtp->nextp()) {
-            AstCoverpoint* pointp = VN_AS(stmtp, Coverpoint);
+            // AstCoverpoint* pointp = VN_AS(stmtp, Coverpoint);
             FileLine* const fl = nodep->fileline();
             AstBegin* blockp = new AstBegin{fl, nodep->name() + "__incrementation_block", nullptr};
 
