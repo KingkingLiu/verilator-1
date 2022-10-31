@@ -105,7 +105,7 @@ public:
 constexpr bool operator==(const VNType& lhs, const VNType& rhs) VL_MT_SAFE {
     return lhs.m_e == rhs.m_e;
 }
-constexpr bool operator==(const VNType& lhs, VNType::en rhs) { return lhs.m_e == rhs; }
+constexpr bool operator==(const VNType& lhs, VNType::en rhs) VL_MT_SAFE { return lhs.m_e == rhs; }
 constexpr bool operator==(VNType::en lhs, const VNType& rhs) { return lhs == rhs.m_e; }
 inline std::ostream& operator<<(std::ostream& os, const VNType& rhs) { return os << rhs.ascii(); }
 
@@ -1665,7 +1665,8 @@ public:
     string origNameProtect() const;  // origName with --protect-id applied
     string shortName() const;  // Name with __PVT__ removed for concatenating scopes
     static string dedotName(const string& namein);  // Name with dots removed
-    static string prettyName(const string& namein);  // Name for printing out to the user
+    // Name for printing out to the user
+    static string prettyName(const string& namein) VL_MT_SAFE;
     static string prettyNameQ(const string& namein) {  // Quoted pretty name (for errors)
         return std::string{"'"} + prettyName(namein) + "'";
     }
@@ -1984,7 +1985,7 @@ private:
 
     // For internal use only.
     template <typename TargetType, typename DeclType>
-    constexpr static bool uselessCast() {
+    constexpr static bool uselessCast() VL_MT_SAFE {
         using NonRef = typename std::remove_reference<DeclType>::type;
         using NonPtr = typename std::remove_pointer<NonRef>::type;
         using NonCV = typename std::remove_cv<NonPtr>::type;
@@ -1993,7 +1994,7 @@ private:
 
     // For internal use only.
     template <typename TargetType, typename DeclType>
-    constexpr static bool impossibleCast() {
+    constexpr static bool impossibleCast() VL_MT_SAFE {
         using NonRef = typename std::remove_reference<DeclType>::type;
         using NonPtr = typename std::remove_pointer<NonRef>::type;
         using NonCV = typename std::remove_cv<NonPtr>::type;
@@ -2099,7 +2100,7 @@ public:
     // dispatch to the callable in 'foreach' should be completely predictable by branch target
     // caches in modern CPUs, while it is basically unpredictable for VNVisitor.
     template <typename Callable>
-    void foreach(Callable&& f) {
+    void foreach(Callable&& f) VL_MT_SAFE {
         using T_Node = typename Arg0NoPointerNoCV<Callable>::type;
         static_assert(vlstd::is_invocable<Callable, T_Node*>::value
                           && std::is_base_of<AstNode, T_Node>::value,
@@ -2263,7 +2264,7 @@ constexpr bool AstNode::isLeaf<AstVarXRef>() {
 
 // foreach implementation
 template <typename T_Arg, typename Callable>
-void AstNode::foreachImpl(ConstCorrectAstNode<T_Arg>* nodep, const Callable& f, bool visitNext) {
+void AstNode::foreachImpl(ConstCorrectAstNode<T_Arg>* nodep, const Callable& f, bool visitNext) VL_MT_SAFE {
     // Pre-order traversal implemented directly (without recursion) for speed reasons. The very
     // first iteration (the one that operates on the input nodep) is special, as we might or
     // might not need to enqueue nodep->nextp() depending on VisitNext, while in all other
@@ -2283,7 +2284,7 @@ void AstNode::foreachImpl(ConstCorrectAstNode<T_Arg>* nodep, const Callable& f, 
     constexpr int prefetchDistance = 2;
 
     // Grow stack to given size
-    const auto grow = [&](size_t size) {
+    const auto grow = [&](size_t size) VL_MT_SAFE {
         const ptrdiff_t occupancy = topp - basep;
         stack.resize(size);
         basep = stack.data() + prefetchDistance;
@@ -2299,7 +2300,7 @@ void AstNode::foreachImpl(ConstCorrectAstNode<T_Arg>* nodep, const Callable& f, 
     for (int i = -prefetchDistance; i; ++i) basep[i] = nodep;
 
     // Visit given node, enqueue children for traversal
-    const auto visit = [&](Node* currp) {
+    const auto visit = [&](Node* currp) VL_MT_SAFE {
         // Type test this node
         if (AstNode::privateTypeTest<T_Arg_NonConst>(currp)) {
             // Call the client function

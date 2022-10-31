@@ -1786,7 +1786,7 @@ void AstRefDType::cloneRelink() {
         m_classOrPackagep = m_classOrPackagep->clonep();
     }
 }
-AstNodeDType* AstRefDType::subDTypep() const {
+AstNodeDType* AstRefDType::subDTypep() const VL_MT_SAFE {
     if (typedefp()) return typedefp()->subDTypep();
     return refDTypep();  // Maybe nullptr
 }
