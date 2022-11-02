@@ -39,17 +39,13 @@ VL_DEFINE_DEBUG_FUNCTIONS;
 class CovergroupsVisitor final : public VNVisitor {
 private:
     // NODE STATE
+    //   *::user1p            -> pointer to AstClass*; only in AstCovergroup
     // Cleared on netlist
 
     // TYPES
-    using RefDTypeVec = std::vector<AstCovergroupRefDType*>;
-    using CovToRefDTypesMap = std::map<AstCovergroup*, RefDTypeVec>;
-    using CovToClassMap = std::map<AstCovergroup*, AstClass*>;
 
     // STATE
     AstNodeModule* m_modp = nullptr;
-    CovToRefDTypesMap m_covRefDTypes;
-    CovToClassMap m_covClass;
 
     // METHODS
     void makeImplicitNew(AstClass* nodep) {
@@ -60,18 +56,7 @@ private:
         nodep->addMembersp(newp);
         UINFO(8, "Made implicit new for " << nodep->name() << ": " << nodep << endl);
     }
-
-    // VISITs
-    void visit(AstNodeModule* nodep) override {
-        VL_RESTORER(m_modp);
-        VL_RESTORER(m_covRefDTypes);
-        VL_RESTORER(m_covClass);
-        {
-            m_modp = nodep;
-            iterateChildren(nodep);
-        }
-    }
-    void visit(AstCovergroup* nodep) override {
+    AstClass* getConvertClassFromCovergroup(AstCovergroup* nodep) {
         // Convert covergroup into class
         AstClass* classp = new AstClass{nodep->fileline(), nodep->name()};
         makeImplicitNew(classp);
@@ -90,18 +75,30 @@ private:
                              VFlagChildDType{}, fieldDTypep};
             classp->addMembersp(fieldp);
         }
-        m_covClass[nodep] = classp;
-        for (AstCovergroupRefDType*& coverRefp : m_covRefDTypes[nodep]) {
-            AstClassRefDType* classRefp
-                = new AstClassRefDType(coverRefp->fileline(), classp, nullptr);
-            coverRefp->replaceWith(classRefp);
-        }
+        nodep->user1p(classp);
         nodep->replaceWith(classp);
+        return classp;
     }
+
+    // VISITs
+    void visit(AstNodeModule* nodep) override {
+        VL_RESTORER(m_modp);
+        {
+            m_modp = nodep;
+            iterateChildren(nodep);
+        }
+    }
+    void visit(AstCovergroup* nodep) override { getConvertClassFromCovergroup(nodep); }
     void visit(AstVar* nodep) override {
         // Only covergroup instantions have to be handled in this phase
         if (!VN_IS(nodep->subDTypep(), CovergroupRefDType)) return;
         AstCovergroup* covergroupp = VN_AS(nodep->subDTypep(), CovergroupRefDType)->covergroupp();
+        AstClass* classp = VN_AS(covergroupp->user1p(), Class);
+        // Convert covergroup into class if it hasn't been done already
+        if (!classp) { classp = getConvertClassFromCovergroup(covergroupp); }
+        // Convert covergroup instance into class instance
+        AstClassRefDType* classRefp = new AstClassRefDType{nodep->fileline(), classp, nullptr};
+        nodep->subDTypep()->replaceWith(classRefp);
 
         // Add block to mark which values occurred
         for (AstNode* stmtp = covergroupp->stmtsp(); stmtp; stmtp = stmtp->nextp()) {
@@ -112,16 +109,6 @@ private:
             AstSenTree* sentreep = new AstSenTree{fl, covergroupp->sensesp()->cloneTree(false)};
             AstAlways* alwaysp = new AstAlways{fl, VAlwaysKwd::ALWAYS, sentreep, blockp};
             m_modp->addStmtsp(alwaysp);
-        }
-
-        // Covert covergroup instantion to class instantion
-        auto classFound = m_covClass.find(covergroupp);
-        if (classFound != m_covClass.end()) {
-            AstClassRefDType* classRefp
-                = new AstClassRefDType{nodep->fileline(), classFound->second, nullptr};
-            nodep->subDTypep()->replaceWith(classRefp);
-        } else {
-            m_covRefDTypes[covergroupp].push_back(VN_AS(nodep->subDTypep(), CovergroupRefDType));
         }
     }
 
