@@ -81,7 +81,7 @@ private:
             AstNode* varrefp = pointp->stmtp()->unlinkFrBack();
             FileLine* fl = varrefp->fileline();
             AstNodeDType* fieldDTypep = new AstPackArrayDType{
-                fl, VFlagChildDType{}, new AstBasicDType{fl, VBasicDTypeKwd::LOGIC},
+                fl, VFlagChildDType{}, new AstBasicDType{fl, VBasicDTypeKwd::BIT},
                 new AstRange{fl, new AstConst{fl, 15},
                              new AstConst{fl, 0}}};  // change the first constant to function call
                                                      // that returns the proper size
@@ -142,5 +142,5 @@ public:
 void V3Covergroups::covergroups(AstNetlist* rootp) {
     UINFO(4, __FUNCTION__ << ": " << endl);
     { CovergroupsVisitor{rootp}; }  // Destruct before checking
-    V3Global::dumpCheckGlobalTree("covergroups", 0, dumpTree() >= 6);
+    V3Global::dumpCheckGlobalTree("covergroups", 0, dumpTree() >= 3);
 }
