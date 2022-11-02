@@ -48,6 +48,12 @@ private:
     AstNodeModule* m_modp = nullptr;
 
     // METHODS
+    std::string getMemberNameOfConvertedCoverpoint(AstCoverpoint* nodep) {
+        // 19.5 section of IEEE Std 1800-2017 describes names of coverpoints
+        // Then "__values_occurred" suffix is added
+        std::string coverpointName = nodep->stmtp()->name();
+        return coverpointName + "__values_occurred";
+    }
     void makeImplicitNew(AstClass* nodep) {
         // This function is called when a covergroup is converted into a class.
         // Original classes have constructor added in V3LinkDot.cpp.
@@ -63,15 +69,14 @@ private:
         // Change coverpoints into class fields to remember which values already occurred
         for (AstNode* stmtp = nodep->stmtsp(); stmtp; stmtp = stmtp->nextp()) {
             AstCoverpoint* pointp = VN_AS(stmtp, Coverpoint);
-            AstNode* varrefp = pointp->stmtp()->unlinkFrBack();
-            FileLine* fl = varrefp->fileline();
+            FileLine* fl = pointp->fileline();
             AstNodeDType* fieldDTypep = new AstPackArrayDType{
                 fl, VFlagChildDType{}, new AstBasicDType{fl, VBasicDTypeKwd::BIT},
                 new AstRange{fl, new AstConst{fl, 15},
                              new AstConst{fl, 0}}};  // change the first constant to function call
                                                      // that returns the proper size
             AstVar* fieldp
-                = new AstVar{fl, VVarType::MEMBER, varrefp->name() + "__values_occurred",
+                = new AstVar{fl, VVarType::MEMBER, getMemberNameOfConvertedCoverpoint(pointp),
                              VFlagChildDType{}, fieldDTypep};
             classp->addMembersp(fieldp);
         }
@@ -102,9 +107,17 @@ private:
 
         // Add block to mark which values occurred
         for (AstNode* stmtp = covergroupp->stmtsp(); stmtp; stmtp = stmtp->nextp()) {
-            // AstCoverpoint* pointp = VN_AS(stmtp, Coverpoint);
+            AstCoverpoint* pointp = VN_AS(stmtp, Coverpoint);
             FileLine* const fl = nodep->fileline();
-            AstBegin* blockp = new AstBegin{fl, nodep->name() + "__incrementation_block", nullptr};
+            AstVar* classFieldp
+                = VN_AS(classp->findMember(getMemberNameOfConvertedCoverpoint(pointp)), Var);
+            AstAssign* markOccurrencep
+                = new AstAssign{fl,
+                                new AstSelBit{fl, new AstVarRef{fl, classFieldp, VAccess::WRITE},
+                                              pointp->stmtp()->cloneTree(false)},
+                                new AstConst{fl, AstConst::BitTrue{}}};
+            AstBegin* blockp
+                = new AstBegin{fl, nodep->name() + "__incrementation_block", markOccurrencep};
 
             AstSenTree* sentreep = new AstSenTree{fl, covergroupp->sensesp()->cloneTree(false)};
             AstAlways* alwaysp = new AstAlways{fl, VAlwaysKwd::ALWAYS, sentreep, blockp};
