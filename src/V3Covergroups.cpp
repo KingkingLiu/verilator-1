@@ -178,7 +178,7 @@ private:
         // Convert covergroup method to a class method
         AstVarRef* varrefp = VN_CAST(nodep->fromp(), VarRef);
         if (!varrefp) return;
-        AstCovergroup* covergroupp;
+        AstCovergroup* covergroupp = nullptr;
         AstClass* classp;
         if (AstCovergroupRefDType* covergroupRefp
             = VN_CAST(varrefp->varp()->subDTypep(), CovergroupRefDType)) {
