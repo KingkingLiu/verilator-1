@@ -63,8 +63,45 @@ private:
         UINFO(8, "Made implicit new for " << nodep->name() << ": " << nodep << endl);
     }
     void makeGetInstCoverage(AstClass* nodep) {
-        AstFunc* const getInstCoverage
-            = new AstFunc{nodep->fileline(), "get_inst_coverage", nullptr, nullptr};
+        FileLine* fl = nodep->fileline();
+        // First create return variable, as it is done in V3LinkDot.cpp
+        AstVar* const returnVarp
+            = new AstVar{fl, VVarType::MEMBER, "get_inst_coverage", VFlagChildDType{},
+                         new AstBasicDType{fl, VBasicDTypeKwd::DOUBLE}};
+        returnVarp->direction(VDirection::OUTPUT);
+        returnVarp->lifetime(VLifetime::AUTOMATIC);
+        returnVarp->funcReturn(true);
+        returnVarp->trace(false);  // Not user visible
+
+        AstFunc* const getInstCoveragep
+            = new AstFunc{fl, "get_inst_coverage", nullptr, returnVarp};
+        getInstCoveragep->classMethod(true);
+
+        // AstVar* numeratorp = new AstVar{fl, VVarType::STMTEMP, "numerator",
+        //     VFlagChildDType{}, new AstBasicDType{fl, VBasicDTypeKwd::INTEGER}};
+        // getInstCoveragep->addStmtsp(numeratorp);
+
+        // AstVar* denominatorp = new AstVar{fl, VVarType::STMTEMP, "denominator",
+        //     VFlagChildDType{}, new AstBasicDType{fl, VBasicDTypeKwd::INTEGER}};
+        // getInstCoveragep->addStmtsp(numeratorp);
+
+        AstNode* numSump = nullptr;
+        AstNode* denomSump = nullptr;
+        for (AstNode* memberp = nodep->membersp(); memberp; memberp = memberp->nextp()) {
+            if (AstVar* fieldp = VN_CAST(memberp, Var)) {
+                AstNode* numAddp = new AstCountOnes{fl, new AstVarRef{fl, fieldp, VAccess::READ}};
+                numSump = numSump ? new AstAdd{fl, numSump, numAddp} : numAddp;
+
+                AstNode* denomAddp = new AstAttrOf{fl, VAttrType::DIM_BITS,
+                                                   new AstVarRef{fl, fieldp, VAccess::READ}};
+                denomSump = denomSump ? new AstAdd{fl, denomSump, denomAddp} : denomAddp;
+            }
+        }
+        AstDiv* resp = new AstDiv{fl, numSump, denomSump};
+        getInstCoveragep->addStmtsp(
+            new AstAssign{fl, new AstVarRef{fl, returnVarp, VAccess::WRITE}, resp});
+
+        nodep->addMembersp(getInstCoveragep);
     }
     AstClass* getConvertClassFromCovergroup(AstCovergroup* nodep) {
         // Convert covergroup into class
@@ -82,8 +119,11 @@ private:
             AstVar* fieldp
                 = new AstVar{fl, VVarType::MEMBER, getMemberNameOfConvertedCoverpoint(pointp),
                              VFlagChildDType{}, fieldDTypep};
+            fieldp->lifetime(VLifetime::AUTOMATIC);
             classp->addMembersp(fieldp);
         }
+
+        makeGetInstCoverage(classp);
         nodep->user1p(classp);
         classp->user1p(nodep);
         nodep->replaceWith(classp);
