@@ -39,7 +39,7 @@ VL_DEFINE_DEBUG_FUNCTIONS;
 class CovergroupsVisitor final : public VNVisitor {
 private:
     // NODE STATE
-    //   *::user1p            -> pointer to AstClass*; only in AstCovergroup
+    //   *::user1p  -> pointer to AstClass from AstCovergroup and from AstCovergroup to AstClass
     // Cleared on netlist
 
     // TYPES
@@ -57,10 +57,14 @@ private:
     void makeImplicitNew(AstClass* nodep) {
         // This function is called when a covergroup is converted into a class.
         // Original classes have constructor added in V3LinkDot.cpp.
-        AstFunc* const newp = new AstFunc(nodep->fileline(), "new", nullptr, nullptr);
+        AstFunc* const newp = new AstFunc{nodep->fileline(), "new", nullptr, nullptr};
         newp->isConstructor(true);
         nodep->addMembersp(newp);
         UINFO(8, "Made implicit new for " << nodep->name() << ": " << nodep << endl);
+    }
+    void makeGetInstCoverage(AstClass* nodep) {
+        AstFunc* const getInstCoverage
+            = new AstFunc{nodep->fileline(), "get_inst_coverage", nullptr, nullptr};
     }
     AstClass* getConvertClassFromCovergroup(AstCovergroup* nodep) {
         // Convert covergroup into class
@@ -81,6 +85,7 @@ private:
             classp->addMembersp(fieldp);
         }
         nodep->user1p(classp);
+        classp->user1p(nodep);
         nodep->replaceWith(classp);
         return classp;
     }
@@ -99,7 +104,7 @@ private:
         if (!VN_IS(nodep->subDTypep(), CovergroupRefDType)) return;
         AstCovergroup* covergroupp = VN_AS(nodep->subDTypep(), CovergroupRefDType)->covergroupp();
         AstClass* classp = VN_AS(covergroupp->user1p(), Class);
-        // Convert covergroup into class if it hasn't been done already
+        // Convert covergroup into class if it hasn't been done yet
         if (!classp) { classp = getConvertClassFromCovergroup(covergroupp); }
         // Convert covergroup instance into class instance
         AstClassRefDType* classRefp = new AstClassRefDType{nodep->fileline(), classp, nullptr};
@@ -123,6 +128,36 @@ private:
             AstAlways* alwaysp = new AstAlways{fl, VAlwaysKwd::ALWAYS, sentreep, blockp};
             m_modp->addStmtsp(alwaysp);
         }
+    }
+    void visit(AstMethodCall* nodep) override {
+        // Only covergroup methods have to be handled in this phase, but it is needed to iterate
+        // through whole subtree anyway, because one method call may have other method calls in its
+        // arguments
+        iterateChildren(nodep);
+
+        // Convert covergroup method to a class method
+        AstVarRef* varrefp = VN_CAST(nodep->fromp(), VarRef);
+        if (!varrefp) return;
+        AstCovergroup* covergroupp;
+        AstClass* classp;
+        if (AstCovergroupRefDType* covergroupRefp
+            = VN_CAST(varrefp->varp()->subDTypep(), CovergroupRefDType)) {
+            // Instance hasn't been converted yet, it will be done when it's node is visited
+            covergroupp = covergroupRefp->covergroupp();
+            classp = VN_AS(covergroupp->user1p(), Class);
+            if (!classp) {
+                // Covergroup hasn't been converted yet, so it will be done now
+                classp = getConvertClassFromCovergroup(covergroupp);
+            }
+        } else if (AstClassRefDType* classRefp
+                   = VN_CAST(varrefp->varp()->subDTypep(), ClassRefDType)) {
+            classp = classRefp->classp();
+            // Class instance may be class instance from the beginning or it may be converted
+            // covergroup instance. If it is the converted, it has user1p.
+            covergroupp = VN_AS(classp->user1p(), Covergroup);
+        }
+        if (!covergroupp)  // The method is not covergroup method
+            return;
     }
 
     void visit(AstNode* nodep) override {
