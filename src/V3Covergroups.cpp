@@ -107,7 +107,6 @@ private:
     AstClass* getConvertClassFromCovergroup(AstCovergroup* nodep) {
         // Convert covergroup into class
         AstClass* classp = new AstClass{nodep->fileline(), nodep->name()};
-        makeImplicitNew(classp);
         // Change coverpoints into class fields to remember which values already occurred
         for (AstNode* stmtp = nodep->stmtsp(); stmtp; stmtp = stmtp->nextp()) {
             AstCoverpoint* pointp = VN_AS(stmtp, Coverpoint);
@@ -125,6 +124,8 @@ private:
         }
 
         makeGetInstCoverage(classp);
+        makeImplicitNew(classp);
+
         nodep->user1p(classp);
         classp->user1p(nodep);
         nodep->replaceWith(classp);
