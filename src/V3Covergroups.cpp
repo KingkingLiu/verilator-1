@@ -97,7 +97,8 @@ private:
                 denomSump = denomSump ? new AstAdd{fl, denomSump, denomAddp} : denomAddp;
             }
         }
-        AstDiv* resp = new AstDiv{fl, numSump, denomSump};
+        AstDiv* resp = new AstDiv{
+            fl, new AstMul{fl, numSump, new AstConst{fl, AstConst::RealDouble{}, 100}}, denomSump};
         getInstCoveragep->addStmtsp(
             new AstAssign{fl, new AstVarRef{fl, returnVarp, VAccess::WRITE}, resp});
 
