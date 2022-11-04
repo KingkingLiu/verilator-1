@@ -207,6 +207,22 @@ class EmitCHeader final : public EmitCConstInit {
             }
         }
     }
+    void emitStructDecl(const AstNodeModule* modp, const AstStructDType *sdtypep) {
+        for (const AstMemberDType* itemp = sdtypep->membersp(); itemp;
+             itemp = VN_AS(itemp->nextp(), MemberDType)) {
+            if (const auto* subp = VN_CAST(itemp->skipRefp(), StructDType); subp && !subp->packed()) {
+                emitStructDecl(modp, subp);
+                puts("\n");
+            }
+        }
+        puts("struct struct" + cvtToStr(sdtypep->uniqueNum()) + " {\n");
+        for (const AstMemberDType* itemp = sdtypep->membersp(); itemp;
+             itemp = VN_AS(itemp->nextp(), MemberDType)) {
+            puts(itemp->dtypep()->cType(itemp->name(), false, false));
+            puts(";\n");
+        }
+        puts("};\n");
+    }
     void emitStructs(const AstNodeModule* modp) {
         bool first = true;
         for (const AstNode* nodep = modp->stmtsp(); nodep; nodep = nodep->nextp()) {
@@ -217,13 +233,7 @@ class EmitCHeader final : public EmitCConstInit {
             if (!sdtypep) continue;
             if (sdtypep->packed()) continue;
             decorateFirst(first, "\n// UNPACKED STRUCT TYPES\n");
-            puts("struct struct" + cvtToStr(sdtypep->uniqueNum()) + " {\n");
-            for (const AstMemberDType* itemp = sdtypep->membersp(); itemp;
-                 itemp = VN_AS(itemp->nextp(), MemberDType)) {
-                puts(itemp->dtypep()->cType(itemp->name(), false, false));
-                puts(";\n");
-            }
-            puts("};\n");
+            emitStructDecl(modp, sdtypep);
         }
     }
     void emitFuncDecls(const AstNodeModule* modp, bool inClassBody) {

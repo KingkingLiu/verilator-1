@@ -71,6 +71,9 @@ class CUseVisitor final : public VNVisitor {
         if (nodep->user1SetOnce()) return;  // Process once
         if (nodep->virtRefDTypep()) iterate(nodep->virtRefDTypep());
         if (nodep->virtRefDType2p()) iterate(nodep->virtRefDType2p());
+        if (AstStructDType* const stypep = VN_CAST(nodep->skipRefp(), StructDType); stypep && !stypep->packed()) {
+            addNewUse(nodep, VUseType::INT_INCLUDE, stypep->classOrPackagep()->name());
+        }
     }
     virtual void visit(AstNode* nodep) override {
         if (nodep->user1SetOnce()) return;  // Process once

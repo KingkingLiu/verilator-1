@@ -222,6 +222,7 @@ private:
     const bool m_paramsOnly;  // Computing parameter value; limit operation
     const bool m_doGenerate;  // Do errors later inside generate statement
     int m_dtTables = 0;  // Number of created data type tables
+    AstNodeModule* m_modp = nullptr;  // Current module
     TableMap m_tableMap;  // Created tables so can remove duplicates
     std::map<const AstNodeDType*, AstQueueDType*>
         m_queueDTypeIndexed;  // Queues with given index type
@@ -2423,6 +2424,8 @@ private:
                 }
             }
             nodep->widthForce(width, width);  // Signing stays as-is, as parsed from declaration
+        } else {
+            nodep->classOrPackagep(m_modp);
         }
         if (debug() >= 9) nodep->dumpTree("-class-out-");
     }
@@ -2439,6 +2442,13 @@ private:
         // TODO this maybe eventually required to properly resolve members,
         // though causes problems with t_class_forward.v, so for now avoided
         // userIterateChildren(nodep->classp(), nullptr);
+    }
+    virtual void visit(AstNodeModule* nodep) override {
+        VL_RESTORER(m_modp);
+        {
+            m_modp = nodep;
+            iterateChildren(nodep);
+        }
     }
     virtual void visit(AstClassOrPackageRef* nodep) override {
         if (nodep->didWidthAndSet()) return;

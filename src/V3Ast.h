@@ -2946,10 +2946,12 @@ private:
     // TYPES
     using MemberNameMap = std::map<const std::string, AstMemberDType*>;
     // MEMBERS
+
     string m_name;  // Name from upper typedef, if any
     bool m_packed;
     bool m_isFourstate;
     MemberNameMap m_members;
+    AstNodeModule* m_classOrPackagep = nullptr;  // Package hierarchy
     const int m_uniqueNum;
 
 protected:
@@ -2989,6 +2991,8 @@ public:
     }
     virtual string name() const override { return m_name; }
     virtual void name(const string& flag) override { m_name = flag; }
+    AstNodeModule* classOrPackagep() const { return m_classOrPackagep; }
+    void classOrPackagep(AstNodeModule* classpackagep) { m_classOrPackagep = classpackagep; }
     AstMemberDType* membersp() const {
         return VN_AS(op1p(), MemberDType);
     }  // op1 = AstMember list
