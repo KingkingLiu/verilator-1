@@ -2081,6 +2081,77 @@ private:
         } while (classSymp && !VN_IS(classSymp->nodep(), Class));
         return classSymp;
     }
+    void visitRefDType(AstRefDType* nodep) {
+        // Resolve its reference
+        if (nodep->user3SetOnce()) return;
+        if (AstNode* const cpackagep = nodep->classOrPackageOpp()) {
+            if (AstClassOrPackageRef* const cpackagerefp = VN_CAST(cpackagep, ClassOrPackageRef)) {
+                nodep->classOrPackagep(cpackagerefp->classOrPackagep());
+                if (!VN_IS(nodep->classOrPackagep(), Class)
+                    && !VN_IS(nodep->classOrPackagep(), Package)) {
+                    cpackagerefp->v3error(
+                        "'::' expected to reference a class/package but referenced '"
+                        << (nodep->classOrPackagep() ? nodep->classOrPackagep()->prettyTypeName()
+                                                     : "<unresolved-object>")
+                        << "'\n"
+                        << cpackagerefp->warnMore() + "... Suggest '.' instead of '::'");
+                }
+            } else {
+                cpackagep->v3warn(E_UNSUPPORTED,
+                                  "Unsupported: Multiple '::' package/class reference");
+            }
+            VL_DO_DANGLING(cpackagep->unlinkFrBack()->deleteTree(), cpackagep);
+        }
+        if (m_ds.m_dotp && m_ds.m_dotPos == DP_PACKAGE) {
+            UASSERT_OBJ(VN_IS(m_ds.m_dotp->lhsp(), ClassOrPackageRef), m_ds.m_dotp->lhsp(),
+                        "Bad package link");
+            auto* const cpackagerefp = VN_AS(m_ds.m_dotp->lhsp(), ClassOrPackageRef);
+            UASSERT_OBJ(cpackagerefp->classOrPackagep(), m_ds.m_dotp->lhsp(), "Bad package link");
+            nodep->classOrPackagep(cpackagerefp->classOrPackagep());
+            m_ds.m_dotPos = DP_SCOPE;
+            m_ds.m_dotp = nullptr;
+        } else {
+            checkNoDot(nodep);
+        }
+        if (nodep->typeofp()) {  // Really is a typeof not a reference
+        } else if (!nodep->typedefp() && !nodep->subDTypep()) {
+            const VSymEnt* foundp;
+            if (nodep->classOrPackagep()) {
+                foundp = m_statep->getNodeSym(nodep->classOrPackagep())->findIdFlat(nodep->name());
+            } else {
+                foundp = m_curSymp->findIdFallback(nodep->name());
+            }
+            if (AstTypedef* const defp = foundp ? VN_CAST(foundp->nodep(), Typedef) : nullptr) {
+                nodep->typedefp(defp);
+                nodep->classOrPackagep(foundp->classOrPackagep());
+            } else if (AstParamTypeDType* const defp
+                       = foundp ? VN_CAST(foundp->nodep(), ParamTypeDType) : nullptr) {
+                if (defp == nodep->backp()) {  // Where backp is typically typedef
+                    nodep->v3error("Reference to '" << m_ds.m_dotText
+                                                    << (m_ds.m_dotText == "" ? "" : ".")
+                                                    << nodep->prettyName() << "'"
+                                                    << " type would form a recursive definition");
+                    nodep->refDTypep(nodep->findVoidDType());  // Try to reduce later errors
+                } else {
+                    nodep->refDTypep(defp);
+                    nodep->classOrPackagep(foundp->classOrPackagep());
+                }
+            } else if (AstClass* const defp = foundp ? VN_AS(foundp->nodep(), Class) : nullptr) {
+                AstPin* const paramsp = nodep->paramsp();
+                if (paramsp) paramsp->unlinkFrBackWithNext();
+                AstClassRefDType* const newp
+                    = new AstClassRefDType{nodep->fileline(), defp, paramsp};
+                newp->classOrPackagep(foundp->classOrPackagep());
+                nodep->replaceWith(newp);
+                VL_DO_DANGLING(nodep->deleteTree(), nodep);
+                return;
+            } else {
+                if (foundp) UINFO(1, "Found sym node: " << foundp->nodep() << endl);
+                nodep->v3error("Can't find typedef: " << nodep->prettyNameQ());
+            }
+        }
+        iterateChildren(nodep);
+    }
 
     // VISITs
     void visit(AstNetlist* nodep) override {
@@ -3079,7 +3150,16 @@ private:
                         VSymEnt* const foundp = m_curSymp->findIdFallback(cpackagerefp->name());
                         bool ok = false;
                         if (foundp) {
-                            if (AstClass* const classp = VN_CAST(foundp->nodep(), Class)) {
+                            AstClass* classp = VN_CAST(foundp->nodep(), Class);
+                            if (!classp) {
+                                if (AstParamTypeDType* const paramRefp
+                                    = VN_CAST(foundp->nodep(), ParamTypeDType)) {
+                                    AstRefDType* refp = VN_AS(paramRefp->childDTypep(), RefDType);
+                                    visitRefDType(refp);
+                                    classp = VN_AS(paramRefp->skipRefp(), ClassRefDType)->classp();
+                                }
+                            }
+                            if (classp) {
                                 UINFO(8, "Import to " << nodep << " from export class " << classp
                                                       << endl);
                                 if (classp == nodep) {
@@ -3131,77 +3211,7 @@ private:
             }
         }
     }
-    void visit(AstRefDType* nodep) override {
-        // Resolve its reference
-        if (nodep->user3SetOnce()) return;
-        if (AstNode* const cpackagep = nodep->classOrPackageOpp()) {
-            if (AstClassOrPackageRef* const cpackagerefp = VN_CAST(cpackagep, ClassOrPackageRef)) {
-                nodep->classOrPackagep(cpackagerefp->classOrPackagep());
-                if (!VN_IS(nodep->classOrPackagep(), Class)
-                    && !VN_IS(nodep->classOrPackagep(), Package)) {
-                    cpackagerefp->v3error(
-                        "'::' expected to reference a class/package but referenced '"
-                        << (nodep->classOrPackagep() ? nodep->classOrPackagep()->prettyTypeName()
-                                                     : "<unresolved-object>")
-                        << "'\n"
-                        << cpackagerefp->warnMore() + "... Suggest '.' instead of '::'");
-                }
-            } else {
-                cpackagep->v3warn(E_UNSUPPORTED,
-                                  "Unsupported: Multiple '::' package/class reference");
-            }
-            VL_DO_DANGLING(cpackagep->unlinkFrBack()->deleteTree(), cpackagep);
-        }
-        if (m_ds.m_dotp && m_ds.m_dotPos == DP_PACKAGE) {
-            UASSERT_OBJ(VN_IS(m_ds.m_dotp->lhsp(), ClassOrPackageRef), m_ds.m_dotp->lhsp(),
-                        "Bad package link");
-            auto* const cpackagerefp = VN_AS(m_ds.m_dotp->lhsp(), ClassOrPackageRef);
-            UASSERT_OBJ(cpackagerefp->classOrPackagep(), m_ds.m_dotp->lhsp(), "Bad package link");
-            nodep->classOrPackagep(cpackagerefp->classOrPackagep());
-            m_ds.m_dotPos = DP_SCOPE;
-            m_ds.m_dotp = nullptr;
-        } else {
-            checkNoDot(nodep);
-        }
-        if (nodep->typeofp()) {  // Really is a typeof not a reference
-        } else if (!nodep->typedefp() && !nodep->subDTypep()) {
-            const VSymEnt* foundp;
-            if (nodep->classOrPackagep()) {
-                foundp = m_statep->getNodeSym(nodep->classOrPackagep())->findIdFlat(nodep->name());
-            } else {
-                foundp = m_curSymp->findIdFallback(nodep->name());
-            }
-            if (AstTypedef* const defp = foundp ? VN_CAST(foundp->nodep(), Typedef) : nullptr) {
-                nodep->typedefp(defp);
-                nodep->classOrPackagep(foundp->classOrPackagep());
-            } else if (AstParamTypeDType* const defp
-                       = foundp ? VN_CAST(foundp->nodep(), ParamTypeDType) : nullptr) {
-                if (defp == nodep->backp()) {  // Where backp is typically typedef
-                    nodep->v3error("Reference to '" << m_ds.m_dotText
-                                                    << (m_ds.m_dotText == "" ? "" : ".")
-                                                    << nodep->prettyName() << "'"
-                                                    << " type would form a recursive definition");
-                    nodep->refDTypep(nodep->findVoidDType());  // Try to reduce later errors
-                } else {
-                    nodep->refDTypep(defp);
-                    nodep->classOrPackagep(foundp->classOrPackagep());
-                }
-            } else if (AstClass* const defp = foundp ? VN_AS(foundp->nodep(), Class) : nullptr) {
-                AstPin* const paramsp = nodep->paramsp();
-                if (paramsp) paramsp->unlinkFrBackWithNext();
-                AstClassRefDType* const newp
-                    = new AstClassRefDType{nodep->fileline(), defp, paramsp};
-                newp->classOrPackagep(foundp->classOrPackagep());
-                nodep->replaceWith(newp);
-                VL_DO_DANGLING(nodep->deleteTree(), nodep);
-                return;
-            } else {
-                if (foundp) UINFO(1, "Found sym node: " << foundp->nodep() << endl);
-                nodep->v3error("Can't find typedef: " << nodep->prettyNameQ());
-            }
-        }
-        iterateChildren(nodep);
-    }
+    void visit(AstRefDType* nodep) override { visitRefDType(nodep); }
     void visit(AstDpiExport* nodep) override {
         // AstDpiExport: Make sure the function referenced exists, then dump it
         iterateChildren(nodep);
