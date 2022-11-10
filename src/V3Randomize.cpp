@@ -356,9 +356,7 @@ private:
                     methodp->dtypeSetVoid();
                     methodp->statement(true);
                     taskp->addStmtsp(methodp);
-                    auto* delp = condsp;
-                    condsp = condsp->nextp()->unlinkFrBack();
-                    VL_DO_DANGLING(delp->deleteTree(), condsp);
+                    condsp = condsp->nextp();
                 } else {
                     auto* const methodp = new AstCMethodHard{
                         fl, new AstVarRef{fl, genp, VAccess::READWRITE}, "hard", condsp};
