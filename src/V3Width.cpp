@@ -2400,8 +2400,10 @@ private:
         if (nodep->didWidthAndSet()) return;  // This node is a dtype & not both PRELIMed+FINALed
         UINFO(5, "   NODECLASS " << nodep << endl);
         // if (debug() >= 9) nodep->dumpTree("-class-in--");
-        if (!v3Global.opt.structsPacked()) {
-            nodep->v3warn(UNPACKED, "Unsupported: --no-structs-packed");
+        if (!nodep->packed()) {
+            if (!v3Global.opt.structsPacked()) {
+                nodep->v3warn(UNPACKED, "Unsupported: --no-structs-packed");
+            }
         }
 
         userIterateChildren(nodep, nullptr);  // First size all members
