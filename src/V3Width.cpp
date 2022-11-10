@@ -1697,6 +1697,12 @@ private:
             return;
         }
         nodep->dtypep(iterateEditMoveDTypep(nodep, nodep->subDTypep()));
+
+        // If this typedef defines a union or struct, assure it won't be deleted from AST by V3Dead
+        if (auto* const dtype = VN_CAST(nodep->dtypep(), NodeUOrStructDType)) {
+            if (!dtype->packed()) nodep->attrPublic(true);
+        }
+
         userIterateChildren(nodep, nullptr);
     }
     virtual void visit(AstParamTypeDType* nodep) override {
@@ -2425,6 +2431,7 @@ private:
             }
             nodep->widthForce(width, width);  // Signing stays as-is, as parsed from declaration
         } else {
+            // Remember where the definition is, so it could be used in other modules
             nodep->classOrPackagep(m_modp);
         }
         if (debug() >= 9) nodep->dumpTree("-class-out-");
@@ -6283,12 +6290,7 @@ private:
                             << dtnodep->prettyTypeName());
             // Move to under netlist
             UINFO(9, "iterateEditMoveDTypep child moving " << dtnodep << endl);
-            //if (auto* const structp = VN_CAST(dtnodep, NodeUOrStructDType)) {
-            //    auto* const defp = new AstUOrStructDef{structp->fileline(), structp};
-            //    dtnodep->replaceWith(defp);
-            //} else {
             dtnodep->unlinkFrBack();
-            //}
             v3Global.rootp()->typeTablep()->addTypesp(dtnodep);
         }
         if (!dtnodep->didWidth()) {

@@ -220,6 +220,11 @@ private:
         if (nodep->fromp()->dtypep()) nodep->fromp()->dtypep()->user1Inc();  // classref
         checkAll(nodep);
     }
+    virtual void visit(AstStructSel* nodep) override {
+        iterateChildren(nodep);
+        if (nodep->fromp()->dtypep()) nodep->fromp()->dtypep()->user1Inc();  // structdtype
+        checkAll(nodep);
+    }
     virtual void visit(AstModport* nodep) override {
         iterateChildren(nodep);
         if (m_elimCells) {
@@ -239,10 +244,10 @@ private:
     }
     virtual void visit(AstTypedef* nodep) override {
         iterateChildren(nodep);
-        /*if (m_elimCells && !nodep->attrPublic()) {
+        if (m_elimCells && !nodep->attrPublic()) {
             VL_DO_DANGLING(pushDeletep(nodep->unlinkFrBack()), nodep);
             return;
-        }*/
+        }
         checkAll(nodep);
         // Don't let packages with only public variables disappear
         // Normal modules may disappear, e.g. if they are parameterized then removed
