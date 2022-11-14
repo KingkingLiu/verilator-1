@@ -28,7 +28,7 @@ jobs:
         run: |
           bash ci/ci-install.bash &&
           sudo apt-get install clang-14 libclang-14-dev
-          pip install clang==14.0.0
+          pip install clang==14.0.0 termcolor
       - name: Check MT attributes
         run: |
           python ci/clang_check_attributes.py src/V3EmitCImp.cpp -Isrc/ -Iinclude/ -Isrc/obj_opt/ -x std::,__builtin_,AstNode::accept,__gnu_cxx
