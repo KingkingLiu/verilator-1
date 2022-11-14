@@ -895,7 +895,7 @@ class EmitCTrace final : EmitCFunc {
     ~EmitCTrace() override = default;
 
 public:
-    static void main(AstNodeModule* modp, bool slow, std::deque<AstCFile*>& cfilesr) {
+    static void main(AstNodeModule* modp, bool slow, std::deque<AstCFile*>& cfilesr) __attribute__((annotate("MT_START"))){
         EmitCTrace{modp, slow, cfilesr};
     }
 };
