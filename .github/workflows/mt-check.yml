@@ -18,6 +18,8 @@ jobs:
       CI_COMMIT: ${{ github.sha }}
       CI_M32: 0
       CI_BUILD_STAGE_NAME: build
+      CC: clang
+      CXX: clang++
     steps:
       - name: Checkout
         uses: actions/checkout@v3
