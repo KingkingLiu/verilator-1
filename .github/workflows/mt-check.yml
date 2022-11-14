@@ -31,8 +31,8 @@ jobs:
           sudo apt-get install clang-14 libclang-14-dev
           pip install clang==14.0.0 termcolor
 
-    - name: Build
-      run: ./ci/ci-script.bash
+      - name: Build
+        run: ./ci/ci-script.bash
 
       - name: Check MT attributes
         run: |
