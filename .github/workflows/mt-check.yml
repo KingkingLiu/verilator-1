@@ -17,6 +17,7 @@ jobs:
       CI_RUNS_ON: ubuntu-22.04
       CI_COMMIT: ${{ github.sha }}
       CI_M32: 0
+      CI_BUILD_STAGE_NAME: build
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -24,8 +25,6 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install packages for build
-        env:
-          CI_BUILD_STAGE_NAME: build
         run: |
           bash ci/ci-install.bash
           sudo apt-get install clang-14 libclang-14-dev
