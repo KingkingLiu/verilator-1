@@ -137,6 +137,11 @@ static void process() {
     v3Global.checkTree();  // Force a check, as link is most likely place for problems
     // Check if all parameters have been found
     v3Global.opt.checkParameters();
+
+    // Remove parameters by cloning modules to de-parameterized versions
+    // This requires some width calculations and constant propagation
+    V3Param::param(v3Global.rootp());
+
     // Correct state we couldn't know at parse time, repair SEL's
     V3LinkResolve::linkResolve(v3Global.rootp());
     // Set Lvalue's in variable refs
@@ -149,9 +154,6 @@ static void process() {
 
     if (v3Global.opt.stats()) V3Stats::statsStageAll(v3Global.rootp(), "Link");
 
-    // Remove parameters by cloning modules to de-parameterized versions
-    //   This requires some width calculations and constant propagation
-    V3Param::param(v3Global.rootp());
     V3LinkDot::linkDotParamed(v3Global.rootp());  // Cleanup as made new modules
     V3Error::abortIfErrors();
 
