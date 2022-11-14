@@ -22,13 +22,18 @@ jobs:
         uses: actions/checkout@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Install packages for build
         env:
           CI_BUILD_STAGE_NAME: build
         run: |
-          bash ci/ci-install.bash &&
+          bash ci/ci-install.bash
           sudo apt-get install clang-14 libclang-14-dev
           pip install clang==14.0.0 termcolor
+
+    - name: Build
+      run: ./ci/ci-script.bash
+
       - name: Check MT attributes
         run: |
           python ci/clang_check_attributes.py src/V3EmitCImp.cpp -Isrc/ -Iinclude/ -Isrc/obj_opt/ -x std::,__builtin_,AstNode::accept,__gnu_cxx
