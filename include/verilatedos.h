@@ -169,6 +169,12 @@
 // Comment tag that function is not threadsafe
 // protected to make sure single-caller
 #define VL_MT_UNSAFE_ONE
+// Comment tag that function is entry point of parallelization
+#if defined(__clang__)
+# define VL_MT_START __attribute__((annotate("MT_START")))
+#else
+# define VL_MT_START
+#endif
 
 #ifndef VL_NO_LEGACY
 # define VL_ULL(c) (c##ULL)  // Add appropriate suffix to 64-bit constant (deprecated)
