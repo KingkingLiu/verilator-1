@@ -184,7 +184,15 @@ def show_info(node, xfiles, xprefs, level=1):
         show_info(c, xfiles, xprefs, level+1)
 
 def get_files(filename):
-    return [f for f in glob.glob(f"{filename}/*.cpp")]
+    files = [f for f in glob.glob(f"{filename}/*.cpp")]
+    # Dont process test files
+    files = [f for f in files if "_test.cpp" not in f]
+    # Dont process Verilator coverage files
+    files = [f for f in files if "Vlc" not in f]
+    # We want to use V3Const after astgen
+    files = [f for f in files if "V3Const.cpp" not in f]
+    files.append("src/obj_dbg/V3Const__gen.cpp")
+    return files
 
 
 def read_args(args):
