@@ -138,14 +138,15 @@ static void process() {
     // Check if all parameters have been found
     v3Global.opt.checkParameters();
 
-    // Remove parameters by cloning modules to de-parameterized versions
-    // This requires some width calculations and constant propagation
-    V3Param::param(v3Global.rootp());
-
     // Correct state we couldn't know at parse time, repair SEL's
     V3LinkResolve::linkResolve(v3Global.rootp());
     // Set Lvalue's in variable refs
     V3LinkLValue::linkLValue(v3Global.rootp());
+
+    // Remove parameters by cloning modules to de-parameterized versions
+    // This requires some width calculations and constant propagation
+    V3Param::param(v3Global.rootp());
+
     // Convert return/continue/disable to jumps
     V3LinkJump::linkJump(v3Global.rootp());
     // Convert --/++ to normal operations. Must be after LinkJump.
