@@ -148,7 +148,7 @@ public:
 private:
     VL_UNCOPYABLE(VerilatedThreadMsgQueue);
     // METHODS
-    static VerilatedThreadMsgQueue& threadton() {
+    static VerilatedThreadMsgQueue& threadton() VL_MT_SAFE {
         static thread_local VerilatedThreadMsgQueue t_s;
         return t_s;
     }
@@ -226,7 +226,7 @@ class VerilatedContextImp final : VerilatedContext {
         // Number incrementing on each reseed, 0=illegal
         int s_randSeedEpoch = 1;  // Reads ok, wish had a VL_WRITE_GUARDED_BY(s_randMutex)
     };
-    static Statics& s() {
+    static Statics& s() VL_MT_SAFE {
         static Statics s_s;
         return s_s;
     }
@@ -440,7 +440,7 @@ protected:
     friend class Verilated;
 
     // MEMBERS
-    static VerilatedImpData& s() {  // Singleton
+    static VerilatedImpData& s() VL_MT_SAFE {  // Singleton
         static VerilatedImpData s_s;
         return s_s;
     }

@@ -3050,7 +3050,7 @@ void* VerilatedScope::exportFindNullError(int funcnum) VL_MT_SAFE {
     return nullptr;
 }
 
-void* VerilatedScope::exportFindError(int funcnum) const {
+void* VerilatedScope::exportFindError(int funcnum) const VL_MT_SAFE {
     // Slowpath - Called only when find has failed
     const std::string msg
         = (std::string{"Testbench C called '"} + VerilatedImp::exportName(funcnum)

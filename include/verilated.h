@@ -533,7 +533,7 @@ public:
     // METHODS - public but for internal use only
 
     // Internal: access to implementation class
-    VerilatedContextImp* impp() { return reinterpret_cast<VerilatedContextImp*>(this); }
+    VerilatedContextImp* impp() VL_MT_SAFE { return reinterpret_cast<VerilatedContextImp*>(this); }
     const VerilatedContextImp* impp() const {
         return reinterpret_cast<const VerilatedContextImp*>(this);
     }
@@ -617,7 +617,7 @@ public:  // But internals only - called from VerilatedModule's
     void varInsert(int finalize, const char* namep, void* datap, bool isParam,
                    VerilatedVarType vltype, int vlflags, int dims, ...) VL_MT_UNSAFE;
     // ACCESSORS
-    const char* name() const { return m_namep; }
+    const char* name() const VL_MT_SAFE { return m_namep; }
     const char* identifier() const { return m_identifierp; }
     int8_t timeunit() const { return m_timeunit; }
     VerilatedSyms* symsp() const { return m_symsp; }
@@ -696,7 +696,7 @@ public:
     static int debug() VL_MT_SAFE { return s_debug; }
 #else
     /// Return constant 0 debug level, so C++'s optimizer rips up
-    static constexpr int debug() VL_PURE { return 0; }
+    static constexpr int debug() VL_PURE VL_MT_SAFE { return 0; }
 #endif
 
     /// Set the last VerilatedContext accessed
@@ -718,7 +718,7 @@ public:
         lastContextp(contextp);
     }
     /// Return the VerilatedContext for the current thread
-    static VerilatedContext* threadContextp() {
+    static VerilatedContext* threadContextp() VL_MT_SAFE {
         if (VL_UNLIKELY(!t_s.t_contextp)) t_s.t_contextp = lastContextp();
         return t_s.t_contextp;
     }
