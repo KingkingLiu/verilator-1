@@ -40,7 +40,8 @@ public:
     static string filenameNonDir(const string& filename) VL_MT_SAFE;
     /// Return non-extensioned (no .) part of filename
     static string filenameNonExt(const string& filename) VL_MT_SAFE;
-    static string filenameNonDirExt(const string& filename) VL_MT_SAFE {  ///< Return basename of filename
+    static string
+    filenameNonDirExt(const string& filename) VL_MT_SAFE {  ///< Return basename of filename
         return filenameNonExt(filenameNonDir(filename));
     }
     static string filenameDir(const string& filename);  ///< Return directory part of filename

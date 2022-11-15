@@ -556,7 +556,8 @@ class EmitCImp final : EmitCFunc {
     ~EmitCImp() override = default;
 
 public:
-    static void main(const AstNodeModule* modp, bool slow, std::deque<AstCFile*>& cfilesr) VL_MT_START {
+    static void main(const AstNodeModule* modp, bool slow,
+                     std::deque<AstCFile*>& cfilesr) VL_MT_START {
         EmitCImp{modp, slow, cfilesr};
     }
 };
