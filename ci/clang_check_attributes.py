@@ -180,6 +180,7 @@ def show_info(node, xfiles, xprefs, level=1):
         if "MT_START" in get_annotations(node):
             print_node(node, level)
             print_funcs(node, xfiles, xprefs, level+1)
+            PRINTED.clear()
     for c in node.get_children():
         show_info(c, xfiles, xprefs, level+1)
 
