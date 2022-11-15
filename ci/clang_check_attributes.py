@@ -260,7 +260,7 @@ def main():
         print_node(n, 0)
         print_funcs(n, cfg['excluded_paths'], cfg['excluded_prefixes'], 1)
         print("--------------")
-    print(f"Unsafe len: {len(UNSAFE_CALLS)}")
+    print(f"Number of functions marked as MT_SAFE calling unsafe functions: {len(UNSAFE_CALLS)}")
 
 
 if __name__ == '__main__':
