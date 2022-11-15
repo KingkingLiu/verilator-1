@@ -26,6 +26,7 @@ PRINTED = []
 MT_SAFE_KINDS = [CursorKind.CONSTRUCTOR]
 UNSAFE_CALLS = []
 
+
 def get_diag_info(diag):
     return {
         'severity': diag.severity,
@@ -43,15 +44,22 @@ def print_node(node, level):
             color = "green"
         else:
             color = "red"
-        print(colored('%s %-35s %-100s %s [%s:%s - %s:%s] \t %s  %s' % (' ' * level,
-                    node.kind, fully_qualified_pretty(node), ' ' * (20 - level), node.extent.start.line, node.extent.start.column,
-                    node.extent.end.line, node.extent.end.column, node.location.file, annotations), color))
+        print(
+            colored(
+                '%s %-35s %-100s %s [%s:%s - %s:%s] \t %s  %s' %
+                (' ' * level, node.kind, fully_qualified_pretty(node), ' ' *
+                 (20 - level), node.extent.start.line,
+                 node.extent.start.column, node.extent.end.line,
+                 node.extent.end.column, node.location.file, annotations),
+                color))
         PRINTED.append(fully_qualified_pretty(node))
 
 
 def get_annotations(node):
-    return [c.displayname for c in node.get_children()
-            if c.kind == CursorKind.ANNOTATE_ATTR]
+    return [
+        c.displayname for c in node.get_children()
+        if c.kind == CursorKind.ANNOTATE_ATTR
+    ]
 
 
 def fully_qualified(c):
@@ -120,6 +128,7 @@ def find_usr(file, usr, xfiles, xprefs, layer):
             return c
     return None
 
+
 def find_funcs(node, xfiles, xprefs, level=1):
     funcs = get_call_expr(node)
     for c in funcs:
@@ -134,7 +143,8 @@ def find_funcs(node, xfiles, xprefs, level=1):
             continue
         if str(call.location.file).endswith(".h"):
             if os.path.exists(str(call.location.file).replace(".h", ".cpp")):
-                tu_call = find_usr(call.location.file, call.get_usr(), xfiles, xprefs, level+1)
+                tu_call = find_usr(call.location.file, call.get_usr(), xfiles,
+                                   xprefs, level + 1)
                 if tu_call is not None:
                     call = tu_call
 
@@ -142,11 +152,13 @@ def find_funcs(node, xfiles, xprefs, level=1):
             if fully_qualified_pretty(call) not in PRINTED:
                 PRINTED.append(fully_qualified_pretty(call))
 
-            if "MT_SAFE" not in get_annotations(call) and call.kind not in MT_SAFE_KINDS:
+            if "MT_SAFE" not in get_annotations(
+                    call) and call.kind not in MT_SAFE_KINDS:
                 return False
             if call.kind == CursorKind.CXX_METHOD or call.kind == CursorKind.CONSTRUCTOR or call.kind == CursorKind.FUNCTION_DECL:
-                return find_funcs(call, xfiles, xprefs, level+1)
+                return find_funcs(call, xfiles, xprefs, level + 1)
     return True
+
 
 def print_funcs(node, xfiles, xprefs, level=1):
     funcs = get_call_expr(node)
@@ -162,27 +174,30 @@ def print_funcs(node, xfiles, xprefs, level=1):
             continue
         if str(call.location.file).endswith(".h"):
             if os.path.exists(str(call.location.file).replace(".h", ".cpp")):
-                tu_call = find_usr(call.location.file, call.get_usr(), xfiles, xprefs, level+1)
+                tu_call = find_usr(call.location.file, call.get_usr(), xfiles,
+                                   xprefs, level + 1)
                 if tu_call is not None:
                     call = tu_call
 
         if call is not None:
             print_node(call, level)
             if call.kind == CursorKind.CXX_METHOD or call.kind == CursorKind.CONSTRUCTOR or call.kind == CursorKind.FUNCTION_DECL:
-                print_funcs(call, xfiles, xprefs, level+1)
+                print_funcs(call, xfiles, xprefs, level + 1)
+
 
 def show_info(node, xfiles, xprefs, level=1):
     if node.kind == CursorKind.CXX_METHOD:
         if "MT_SAFE" in get_annotations(node):
-            if not find_funcs(node, xfiles, xprefs, level+1):
+            if not find_funcs(node, xfiles, xprefs, level + 1):
                 global UNSAFE_CALLS
                 UNSAFE_CALLS.append(node)
         if "MT_START" in get_annotations(node):
             print_node(node, level)
-            print_funcs(node, xfiles, xprefs, level+1)
+            print_funcs(node, xfiles, xprefs, level + 1)
             PRINTED.clear()
     for c in node.get_children():
-        show_info(c, xfiles, xprefs, level+1)
+        show_info(c, xfiles, xprefs, level + 1)
+
 
 def get_files(filename):
     files = [f for f in glob.glob(f"{filename}/*.cpp")]
@@ -221,11 +236,13 @@ def read_args(args):
         'excluded_paths': excluded_paths,
     }
 
+
 def show_ast(cursor, level=0):
     '''pretty print cursor AST'''
     print_node(cursor, level)
     for c in cursor.get_children():
-        show_ast(c, level+1)
+        show_ast(c, level + 1)
+
 
 def main():
     if len(sys.argv) < 2:
@@ -260,7 +277,9 @@ def main():
         print_node(n, 0)
         print_funcs(n, cfg['excluded_paths'], cfg['excluded_prefixes'], 1)
         print("--------------")
-    print(f"Number of functions marked as MT_SAFE calling unsafe functions: {len(UNSAFE_CALLS)}")
+    print(
+        f"Number of functions marked as MT_SAFE calling unsafe functions: {len(UNSAFE_CALLS)}"
+    )
 
 
 if __name__ == '__main__':
