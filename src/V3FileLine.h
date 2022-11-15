@@ -19,6 +19,7 @@
 
 #include "config_build.h"
 #include "verilatedos.h"
+#include "verilated.h"
 
 #include "V3Error.h"
 #include "V3LangCode.h"
@@ -50,8 +51,9 @@ class FileLineSingleton final {
     using MsgEnBitSet = std::bitset<V3ErrorCode::_ENUM_MAX>;
 
     // MEMBERS
+    mutable VerilatedMutex m_mutex;  // protects members
     std::map<const std::string, fileNameIdx_t> m_namemap;  // filenameno for each filename
-    std::deque<string> m_names;  // filename text for each filenameno
+    std::deque<string> m_names VL_GUARDED_BY(m_mutex);  // filename text for each filenameno
     std::deque<V3LangCode> m_languages;  // language for each filenameno
 
     // Map from flag set to the index in m_internedMsgEns for interning
@@ -64,18 +66,22 @@ class FileLineSingleton final {
     ~FileLineSingleton() = default;
 
     fileNameIdx_t nameToNumber(const string& filename);
-    string numberToName(fileNameIdx_t filenameno) const { return m_names[filenameno]; }
+    string numberToName(fileNameIdx_t filenameno) const VL_MT_SAFE {
+        const VerilatedLockGuard lock{m_mutex};
+        return m_names[filenameno];
+    }
     V3LangCode numberToLang(fileNameIdx_t filenameno) const { return m_languages[filenameno]; }
     void numberToLang(fileNameIdx_t filenameno, const V3LangCode& l) {
         m_languages[filenameno] = l;
     }
     void clear() {
+        const VerilatedLockGuard lock{m_mutex};
         m_namemap.clear();
         m_names.clear();
         m_languages.clear();
     }
     void fileNameNumMapDumpXml(std::ostream& os);
-    static string filenameLetters(fileNameIdx_t fileno);
+    static string filenameLetters(fileNameIdx_t fileno) VL_MT_SAFE;
 
     // Add given bitset to the interned bitsets, return interned index
     msgEnSetIdx_t addMsgEnBitSet(const MsgEnBitSet& bitSet);
@@ -159,7 +165,7 @@ protected:
 
 private:
     // CONSTRUCTORS
-    static FileLineSingleton& singleton() {
+    static FileLineSingleton& singleton() VL_MT_SAFE {
         static FileLineSingleton s;
         return s;
     }
