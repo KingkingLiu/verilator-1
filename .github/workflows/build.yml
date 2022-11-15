@@ -158,3 +158,28 @@ jobs:
       env:
         TESTS: ${{ matrix.suite }}
       run: ./ci/ci-script.bash
+
+  attributes-check:
+    needs: build
+    runs-on: ubuntu-22.04
+    name: Ubuntu 22.04 | Attributes check
+    env:
+      VERILATOR_ARCHIVE: verilator-${{ github.sha }}-ubuntu-22.04-clang.tar.gz
+      FORCE_COLOR: 1
+    steps:
+
+      - name: Download tar archive
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ env.VERILATOR_ARCHIVE }}
+          path: ${{ github.workspace }}
+
+      - name: Install packages for build
+        run: |
+          bash ci/ci-install.bash
+          sudo apt-get install clang-14 libclang-14-dev
+          pip install clang==14.0.0 termcolor
+
+      - name: Check attributes
+        run: |
+          python ci/clang_check_attributes.py src/V3EmitCImp.cpp -Isrc/ -Iinclude/ -Isrc/obj_opt/ -x std::,__builtin_,__gnu_cxx
