@@ -431,7 +431,7 @@ inline void v3errorEndFatal(std::ostringstream& sstr) {
 
 // Helper macros for VL_DEFINE_DEBUG_FUNCTIONS
 #define VL_DEFINE_DEBUG(name) \
-    VL_ATTR_UNUSED static int debug##name() { \
+    VL_ATTR_UNUSED static int debug##name() VL_MT_SAFE { \
         static int level = -1; \
         if (VL_UNLIKELY(level < 0)) { \
             std::string tag{VL_STRINGIFY(name)}; \
