@@ -20,6 +20,11 @@ CLANG_ARGS = []
 TRANSLATE_UNITS = {}
 PRINTED = []
 
+# by definition constructor is MT safe,
+# but functions that constructor call are not!
+MT_SAFE_KINDS = [CursorKind.CONSTRUCTOR]
+UNSAFE_CALLS = []
+
 def get_diag_info(diag):
     return {
         'severity': diag.severity,
@@ -33,7 +38,7 @@ def get_diag_info(diag):
 def print_node(node, level):
     if fully_qualified_pretty(node) not in PRINTED:
         annotations = get_annotations(node)
-        if "MT_SAFE" in annotations:
+        if "MT_SAFE" in annotations or node.kind in MT_SAFE_KINDS:
             color = "green"
         else:
             color = "red"
@@ -114,6 +119,34 @@ def find_usr(file, usr, xfiles, xprefs, layer):
             return c
     return None
 
+def find_funcs(node, xfiles, xprefs, level=1):
+    funcs = get_call_expr(node)
+    for c in funcs:
+        if not c.referenced:
+            continue
+        if is_excluded(c.referenced, xfiles, xprefs):
+            continue
+        call = c.referenced
+        # Don't recurse into already printed nodes
+        # it some cases in increases printing nodes by a lot
+        if fully_qualified_pretty(call) in PRINTED:
+            continue
+        if str(call.location.file).endswith(".h"):
+            if os.path.exists(str(call.location.file).replace(".h", ".cpp")):
+                tu_call = find_usr(call.location.file, call.get_usr(), xfiles, xprefs, level+1)
+                if tu_call is not None:
+                    call = tu_call
+
+        if call is not None:
+            if fully_qualified_pretty(call) not in PRINTED:
+                PRINTED.append(fully_qualified_pretty(call))
+
+            if "MT_SAFE" not in get_annotations(call) and call.kind not in MT_SAFE_KINDS:
+                return False
+            if call.kind == CursorKind.CXX_METHOD or call.kind == CursorKind.CONSTRUCTOR or call.kind == CursorKind.FUNCTION_DECL:
+                return find_funcs(call, xfiles, xprefs, level+1)
+    return True
+
 def print_funcs(node, xfiles, xprefs, level=1):
     funcs = get_call_expr(node)
     for c in funcs:
@@ -137,12 +170,12 @@ def print_funcs(node, xfiles, xprefs, level=1):
             if call.kind == CursorKind.CXX_METHOD or call.kind == CursorKind.CONSTRUCTOR or call.kind == CursorKind.FUNCTION_DECL:
                 print_funcs(call, xfiles, xprefs, level+1)
 
-
 def show_info(node, xfiles, xprefs, level=1):
     if node.kind == CursorKind.CXX_METHOD:
-        if "MT_START" in get_annotations(node):
-            print_node(node, level)
-            print_funcs(node, xfiles, xprefs, level+1)
+        if "MT_SAFE" in get_annotations(node):
+            if not find_funcs(node, xfiles, xprefs, level+1):
+                global UNSAFE_CALLS
+                UNSAFE_CALLS.append(node)
     for c in node.get_children():
         show_info(c, xfiles, xprefs, level+1)
 
@@ -183,6 +216,11 @@ def read_args(args):
         'search_attributes': search_attributes
     }
 
+def show_ast(cursor, level=0):
+    '''pretty print cursor AST'''
+    print_node(cursor, level)
+    for c in cursor.get_children():
+        show_ast(c, level+1)
 
 def main():
     if len(sys.argv) < 2:
@@ -216,6 +254,14 @@ def main():
                 pprint(('diags', list(map(get_diag_info, tu.diagnostics))))
                 return
         show_info(tu.cursor, cfg['excluded_paths'], cfg['excluded_prefixes'])
+
+    global UNSAFE_CALLS, PRINTED
+    for n in UNSAFE_CALLS:
+        PRINTED.clear()
+        print_node(n, 0)
+        print_funcs(n, cfg['excluded_paths'], cfg['excluded_prefixes'], 1)
+        print("--------------")
+    print(f"Unsafe len: {len(UNSAFE_CALLS)}")
 
 
 if __name__ == '__main__':
