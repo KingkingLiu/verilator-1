@@ -159,7 +159,7 @@
 // during normal operation (post-init)
 #define VL_MT_SAFE_POSTINIT
 // Attribute that function is clang threadsafe and uses given mutex
-#define VL_MT_SAFE_EXCLUDES(mutex) VL_EXCLUDES(mutex)
+#define VL_MT_SAFE_EXCLUDES(mutex) VL_MT_SAFE VL_EXCLUDES(mutex)
 // Comment tag that function is not threadsafe
 #if defined(__clang__)
 # define VL_MT_UNSAFE __attribute__((annotate("MT_UNSAFE")))
