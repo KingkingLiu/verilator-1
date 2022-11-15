@@ -13,6 +13,7 @@ from collections import defaultdict
 import sys
 import json
 import os
+import glob
 from termcolor import colored
 
 INDEX = None
@@ -176,15 +177,14 @@ def show_info(node, xfiles, xprefs, level=1):
             if not find_funcs(node, xfiles, xprefs, level+1):
                 global UNSAFE_CALLS
                 UNSAFE_CALLS.append(node)
+        if "MT_START" in get_annotations(node):
+            print_node(node, level)
+            print_funcs(node, xfiles, xprefs, level+1)
     for c in node.get_children():
         show_info(c, xfiles, xprefs, level+1)
 
-def read_compile_commands(filename):
-    if filename.endswith('.json'):
-        with open(filename) as compdb:
-            return json.load(compdb)
-    else:
-        return [{'command': '', 'file': filename}]
+def get_files(filename):
+    return [f for f in glob.glob(f"{filename}/*.cpp")]
 
 
 def read_args(args):
@@ -192,8 +192,6 @@ def read_args(args):
     clang_args = []
     excluded_prefixes = []
     excluded_paths = ['/usr']
-    search_attributes = []
-    edit = False
     i = 0
     while i < len(args):
         if args[i] == '-x':
@@ -212,8 +210,6 @@ def read_args(args):
         'clang_args': clang_args,
         'excluded_prefixes': excluded_prefixes,
         'excluded_paths': excluded_paths,
-        'edit': edit,
-        'search_attributes': search_attributes
     }
 
 def show_ast(cursor, level=0):
@@ -224,8 +220,7 @@ def show_ast(cursor, level=0):
 
 def main():
     if len(sys.argv) < 2:
-        print('usage: ' + sys.argv[0] + ' file.cpp|compile_database.json '
-              '[extra clang args...]')
+        print('usage: ' + sys.argv[0] + ' folder [extra clang args...]')
         return
 
     cfg = read_args(sys.argv)
@@ -236,16 +231,11 @@ def main():
     CLANG_ARGS = cfg['clang_args']
 
     print('reading source files...')
-    files_read = []
-    for cmd in read_compile_commands(cfg['db']):
+    for file in get_files(cfg['db']):
         INDEX = Index.create()
-        tu = INDEX.parse(cmd['file'], CLANG_ARGS)
-        TRANSLATE_UNITS[cmd['file']] = tu
-        if cmd['file'] not in files_read:
-            files_read.append(cmd['file'])
-        else:
-            continue
-        print(cmd['file'])
+        tu = INDEX.parse(file, CLANG_ARGS)
+        TRANSLATE_UNITS[file] = tu
+        print(file)
         if not tu:
             parser.error("unable to load input")
 

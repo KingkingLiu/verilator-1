@@ -193,4 +193,4 @@ jobs:
 
       - name: Check attributes
         run: |
-          python ci/clang_check_attributes.py src/V3EmitCImp.cpp -Isrc/ -Iinclude/ -Isrc/obj_opt/ -x std::,__builtin_,__gnu_cxx
+          python ci/clang_check_attributes.py src -Isrc/ -Iinclude/ -Isrc/obj_opt/ -x std::,__builtin_,__gnu_cxx
