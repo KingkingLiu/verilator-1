@@ -148,7 +148,11 @@
 #endif
 
 // Comment tag that Function is pure (and thus also VL_MT_SAFE)
+#if defined(__clang__)
+#define VL_PURE __attribute__((annotate("PURE")))
+#else
 #define VL_PURE
+#endif
 // Comment tag that function is threadsafe
 #if defined(__clang__)
 # define VL_MT_SAFE __attribute__((annotate("MT_SAFE")))
