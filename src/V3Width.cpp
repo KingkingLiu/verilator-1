@@ -2436,7 +2436,7 @@ private:
             // Remember where the definition is, so it could be used in other modules
             nodep->classOrPackagep(m_modp);
         }
-        if (debug() >= 9) nodep->dumpTree("-class-out-");
+        // if (debug() >= 9) nodep->dumpTree("-class-out-");
     }
     virtual void visit(AstClass* nodep) override {
         if (nodep->didWidthAndSet()) return;
@@ -2456,7 +2456,7 @@ private:
         VL_RESTORER(m_modp);
         {
             m_modp = nodep;
-            iterateChildren(nodep);
+            userIterateChildren(nodep, nullptr);
         }
     }
     virtual void visit(AstClassOrPackageRef* nodep) override {
