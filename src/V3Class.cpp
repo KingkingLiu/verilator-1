@@ -164,6 +164,13 @@ private:
             m_toScopeMoves.emplace_back(std::make_pair(nodep, m_packageScopep));
         }
     }
+    virtual void visit(AstTypedef* nodep) override {
+        iterateChildren(nodep);
+        const auto* const dtypep = VN_CAST(nodep->dtypep(), StructDType);
+        if (!dtypep || dtypep->packed()) return;
+
+        
+    }
 
     virtual void visit(AstNodeMath* nodep) override {}  // Short circuit
     virtual void visit(AstNodeStmt* nodep) override {}  // Short circuit
