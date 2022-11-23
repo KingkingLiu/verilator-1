@@ -2432,9 +2432,6 @@ private:
                 }
             }
             nodep->widthForce(width, width);  // Signing stays as-is, as parsed from declaration
-        } else {
-            // Remember where the definition is, so it could be used in other modules
-            nodep->classOrPackagep(m_modp);
         }
         // if (debug() >= 9) nodep->dumpTree("-class-out-");
     }

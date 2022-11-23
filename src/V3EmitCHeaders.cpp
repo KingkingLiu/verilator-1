@@ -211,8 +211,11 @@ class EmitCHeader final : public EmitCConstInit {
         for (const AstMemberDType* itemp = sdtypep->membersp(); itemp;
              itemp = VN_AS(itemp->nextp(), MemberDType)) {
             if (const auto* subp = VN_CAST(itemp->skipRefp(), StructDType); subp && !subp->packed()) {
-                emitStructDecl(modp, subp);
-                puts("\n");
+                // Recurse if the substruct is anonymous
+                if (!subp->classOrPackagep()) {
+                    emitStructDecl(modp, subp);
+                    puts("\n");
+                }
             }
         }
         puts("struct struct" + cvtToStr(sdtypep->uniqueNum()) + " {\n");

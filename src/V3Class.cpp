@@ -17,6 +17,8 @@
 //
 // Each class:
 //      Move to be modules under AstNetlist
+// Each typedef of an unpacked struct:
+//      Move to a new package under AstNetlist
 //
 //*************************************************************************
 
@@ -165,11 +167,29 @@ private:
         }
     }
     virtual void visit(AstTypedef* nodep) override {
+        if (nodep->user1SetOnce()) return;
         iterateChildren(nodep);
-        const auto* const dtypep = VN_CAST(nodep->dtypep(), StructDType);
+        auto* const dtypep = VN_CAST(nodep->dtypep(), StructDType);
         if (!dtypep || dtypep->packed()) return;
 
-        
+        AstNodeModule *modp = VN_AS(nodep->backp(), NodeModule);
+        nodep->unlinkFrBack();
+
+        AstPackage* const packagep = new AstPackage{nodep->fileline(), nodep->name()};
+        packagep->name(nodep->name());
+        dtypep->classOrPackagep(packagep);
+        v3Global.rootp()->addModulep(packagep);
+        packagep->addStmtp(nodep);
+
+        AstCell* const cellp = new AstCell{packagep->fileline(),
+                                           packagep->fileline(),
+                                           packagep->name(),
+                                           packagep->name(),
+                                           nullptr,
+                                           nullptr,
+                                           nullptr};
+        cellp->modp(packagep);
+        modp->addStmtp(cellp);
     }
 
     virtual void visit(AstNodeMath* nodep) override {}  // Short circuit
