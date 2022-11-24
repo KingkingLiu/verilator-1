@@ -9,9 +9,9 @@
 module top();
 
 
-  typedef struct { // IEEE 1800-2017 SV CH:10.9.2
+  typedef struct packed { // IEEE 1800-2017 SV CH:10.9.2
     int A;
-    struct {
+    struct packed {
     int B, C;
     } BC1, BC2;
   } DEF_struct;
