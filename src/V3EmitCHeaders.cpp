@@ -210,7 +210,8 @@ class EmitCHeader final : public EmitCConstInit {
     void emitStructDecl(const AstNodeModule* modp, const AstStructDType *sdtypep) {
         for (const AstMemberDType* itemp = sdtypep->membersp(); itemp;
              itemp = VN_AS(itemp->nextp(), MemberDType)) {
-            if (const auto* subp = VN_CAST(itemp->skipRefp(), StructDType); subp && !subp->packed()) {
+            const auto* subp = VN_CAST(itemp->skipRefp(), StructDType);
+            if (subp && !subp->packed()) {
                 // Recurse if the substruct is anonymous
                 if (!subp->classOrPackagep()) {
                     emitStructDecl(modp, subp);
