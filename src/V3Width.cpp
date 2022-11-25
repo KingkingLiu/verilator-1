@@ -2401,6 +2401,9 @@ private:
         UINFO(5, "   NODECLASS " << nodep << endl);
         // if (debug() >= 9) nodep->dumpTree("-class-in--");
         if (!nodep->packed()) {
+            if (VN_IS(nodep, UnionDType)) {
+                nodep->v3warn(UNPACKED, "Unsupported: Unpacked union");
+            }
             if (!v3Global.opt.structsPacked()) {
                 nodep->v3warn(UNPACKED, "Unsupported: --no-structs-packed");
             }
