@@ -2580,8 +2580,8 @@ private:
                 // Should be able to treat it as a normal-ish nodesel - maybe.
                 // The lhsp() will be strange until this stage; create the number here?
             } else {
-                AstStructSel* const newp = new AstStructSel(nodep->fileline(),
-                                                nodep->fromp()->unlinkFrBack(), nodep->name());
+                AstStructSel* const newp = new AstStructSel(
+                    nodep->fileline(), nodep->fromp()->unlinkFrBack(), nodep->name());
                 // Must skip over the member to find the union; as the member may disappear later
                 newp->dtypep(memberp->subDTypep()->skipRefToEnump());
                 newp->didWidth(true);  // Don't replace dtype with basic type

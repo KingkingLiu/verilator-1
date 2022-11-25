@@ -2896,7 +2896,7 @@ class AstStructSel final : public AstNodeMath {
     // Children: varref, math
 private:
     // Don't need the class we are extracting from, as the "fromp()"'s datatype can get us to it
-    string m_name; // Name of the member
+    string m_name;  // Name of the member
 public:
     AstStructSel(FileLine* fl, AstNode* fromp, const string& name)
         : ASTGEN_SUPER_StructSel(fl)

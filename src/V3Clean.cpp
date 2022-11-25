@@ -97,9 +97,7 @@ private:
                 || VN_IS(nodep->dtypep()->skipRefp(), VoidDType)) {
             } else {
                 auto* const dtypep = VN_CAST(nodep->dtypep()->skipRefp(), StructDType);
-                if (!dtypep || dtypep->packed()) {
-                    setCppWidth(nodep);
-                }
+                if (!dtypep || dtypep->packed()) { setCppWidth(nodep); }
             }
         }
     }

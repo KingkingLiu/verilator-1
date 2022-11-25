@@ -694,7 +694,8 @@ AstNodeDType::CTypeRecursed AstNodeDType::cTypeRecurse(bool compound) const {
         info.m_type += ", " + cvtToStr(adtypep->declRange().elements());
         info.m_type += ">";
     } else if (VN_IS(dtypep, StructDType) && !VN_AS(dtypep, StructDType)->packed()) {
-        info.m_type = "struct struct" + cvtToStr(VN_AS(dtypep, StructDType)->uniqueNum()); // + adtypep->name();
+        info.m_type = "struct struct"
+                      + cvtToStr(VN_AS(dtypep, StructDType)->uniqueNum());  // + adtypep->name();
     } else if (const AstBasicDType* const bdtypep = dtypep->basicp()) {
 
         // We don't print msb()/lsb() as multidim packed would require recursion,

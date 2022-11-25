@@ -207,7 +207,7 @@ class EmitCHeader final : public EmitCConstInit {
             }
         }
     }
-    void emitStructDecl(const AstNodeModule* modp, const AstStructDType *sdtypep) {
+    void emitStructDecl(const AstNodeModule* modp, const AstStructDType* sdtypep) {
         for (const AstMemberDType* itemp = sdtypep->membersp(); itemp;
              itemp = VN_AS(itemp->nextp(), MemberDType)) {
             const auto* subp = VN_CAST(itemp->skipRefp(), StructDType);
