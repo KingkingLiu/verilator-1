@@ -2415,7 +2415,7 @@ private:
         nodep->dtypep(nodep);
         nodep->isFourstate(false);
 
-        if (nodep->packed()) {
+        if (nodep->packed() || VN_IS(nodep, UnionDType)) {
             // Determine bit assignments and width
             int lsb = 0;
             int width = 0;
