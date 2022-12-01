@@ -2415,27 +2415,25 @@ private:
         nodep->dtypep(nodep);
         nodep->isFourstate(false);
 
-        if (nodep->packed() || VN_IS(nodep, UnionDType)) {
-            // Determine bit assignments and width
-            int lsb = 0;
-            int width = 0;
-            // MSB is first, so go backwards
-            AstMemberDType* itemp;
-            for (itemp = nodep->membersp(); itemp && itemp->nextp();
-                 itemp = VN_AS(itemp->nextp(), MemberDType)) {}
-            for (AstMemberDType* backip; itemp; itemp = backip) {
-                if (itemp->isFourstate()) nodep->isFourstate(true);
-                backip = VN_CAST(itemp->backp(), MemberDType);
-                itemp->lsb(lsb);
-                if (VN_IS(nodep, UnionDType)) {
-                    width = std::max(width, itemp->width());
-                } else {
-                    lsb += itemp->width();
-                    width += itemp->width();
-                }
+        // Determine bit assignments and width
+        int lsb = 0;
+        int width = 0;
+        // MSB is first, so go backwards
+        AstMemberDType* itemp;
+        for (itemp = nodep->membersp(); itemp && itemp->nextp();
+             itemp = VN_AS(itemp->nextp(), MemberDType)) {}
+        for (AstMemberDType* backip; itemp; itemp = backip) {
+            if (itemp->isFourstate()) nodep->isFourstate(true);
+            backip = VN_CAST(itemp->backp(), MemberDType);
+            itemp->lsb(lsb);
+            if (VN_IS(nodep, UnionDType)) {
+                width = std::max(width, itemp->width());
+            } else {
+                lsb += itemp->width();
+                width += itemp->width();
             }
-            nodep->widthForce(width, width);  // Signing stays as-is, as parsed from declaration
         }
+        nodep->widthForce(width, width);  // Signing stays as-is, as parsed from declaration
         // if (debug() >= 9) nodep->dumpTree("-class-out-");
     }
     virtual void visit(AstClass* nodep) override {
