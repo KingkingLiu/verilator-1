@@ -219,7 +219,8 @@ class EmitCHeader final : public EmitCConstInit {
                 }
             }
         }
-        puts("struct " + EmitCBaseVisitor::prefixNameProtect(sdtypep) + "__struct" + cvtToStr(sdtypep->uniqueNum()) + " {\n");
+        puts("struct " + EmitCBaseVisitor::prefixNameProtect(sdtypep) + "__struct"
+             + cvtToStr(sdtypep->uniqueNum()) + " {\n");
         for (const AstMemberDType* itemp = sdtypep->membersp(); itemp;
              itemp = VN_AS(itemp->nextp(), MemberDType)) {
             puts(itemp->dtypep()->cType(itemp->name(), false, false));

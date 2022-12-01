@@ -176,7 +176,7 @@ private:
 
         AstPackage* const packagep = new AstPackage{nodep->fileline(), nodep->name()};
         packagep->name(nodep->name());
-        dtypep->name(nodep->name()); // The name will be used in struct definition
+        dtypep->name(nodep->name());  // The name will be used in struct definition
         dtypep->classOrPackagep(packagep);
         v3Global.rootp()->addModulep(packagep);
         packagep->addStmtp(nodep);
