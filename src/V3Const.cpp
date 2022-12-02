@@ -1453,12 +1453,16 @@ private:
             return false;
         }
     }
-    bool ifSameAssign(const AstNodeIf* nodep) {
+    bool ifSameAssignNoFuncCall(const AstNodeIf* nodep) {
         const AstNodeAssign* const thensp = VN_CAST(nodep->thensp(), NodeAssign);
         const AstNodeAssign* const elsesp = VN_CAST(nodep->elsesp(), NodeAssign);
         if (!thensp || thensp->nextp()) return false;  // Must be SINGLE statement
         if (!elsesp || elsesp->nextp()) return false;
         if (thensp->type() != elsesp->type()) return false;  // Can't mix an assigndly with assign
+        if (VN_IS(thensp->rhsp(), NodeFTaskRef) || VN_IS(elsesp->rhsp(), NodeFTaskRef))
+            return false;  // Current function handling causes evaluation of function call on both
+                           // sides of conditional operator. It leads to incorrect behavior if the
+                           // functions have side effects.
         if (!thensp->lhsp()->sameGateTree(elsesp->lhsp())) return false;
         if (!thensp->rhsp()->gateTree()) return false;
         if (!elsesp->rhsp()->gateTree()) return false;
@@ -2981,7 +2985,7 @@ private:
                 ifp->branchPred(nodep->branchPred().invert());
                 nodep->replaceWith(ifp);
                 VL_DO_DANGLING(nodep->deleteTree(), nodep);
-            } else if (ifSameAssign(nodep)) {
+            } else if (ifSameAssignNoFuncCall(nodep)) {
                 UINFO(
                     4,
                     "IF({a}) ASSIGN({b},{c}) else ASSIGN({b},{d}) => ASSIGN({b}, {a}?{c}:{d})\n");

@@ -36,6 +36,36 @@ module t();
       queue_ret = '{101};
    endfunction
 
+   function int get_1_push(ref q_t q);
+`ifdef TEST_NOINLINE
+      // verilator no_inline_task
+`endif
+      q.push_back(1);
+      return 1;
+   endfunction
+
+   function int get_2_push(ref q_t q);
+`ifdef TEST_NOINLINE
+      // verilator no_inline_task
+`endif
+      q.push_back(2);
+      return 2;
+   endfunction
+
+   function void check_sizes(int cond);
+`ifdef TEST_NOINLINE
+      // verilator no_inline_task
+`endif
+      q_t q;
+      int func_call_result;
+      if (cond < 1)
+        func_call_result = get_1_push(q);
+      else
+        func_call_result = get_2_push(q);
+
+      if (q.size() != 1) $stop;
+   endfunction
+
    initial begin
       q_t iq;
       queue_set(iq);
@@ -47,6 +77,8 @@ module t();
 
       iq = queue_ret();
       if (iq[0] != 101) $stop;
+
+      check_sizes(2);
 
       $write("*-* All Finished *-*\n");
       $finish;
