@@ -549,8 +549,8 @@ private:
         }
     }
     static string displayPad(size_t fmtsize, char pad, bool left, const string& in) VL_MT_SAFE;
-    string displayed(FileLine* fl, const string& vformat) const VL_MT_SAFE;
-    string displayed(const string& vformat) const VL_MT_SAFE {
+    string displayed(FileLine* fl, const string& vformat) const;
+    string displayed(const string& vformat) const {
         return displayed(m_fileline, vformat);
     }
 
@@ -571,7 +571,7 @@ public:
     V3Number& setMask(int nbits);  // IE if nbits=1, then 0b1, if 2->0b11, if 3->0b111 etc
 
     // ACCESSORS
-    string ascii(bool prefixed = true, bool cleanVerilog = false) const VL_MT_SAFE;
+    string ascii(bool prefixed = true, bool cleanVerilog = false) const;
     string displayed(AstNode* nodep, const string& vformat) const;
     static bool displayedFmtLegal(char format, bool isScan);  // Is this a valid format letter?
     int width() const VL_MT_SAFE { return m_data.width(); }
@@ -624,14 +624,14 @@ public:
     bool isAnyXZ() const;
     bool isAnyZ() const VL_MT_SAFE;
     bool isMsbXZ() const { return bitIsXZ(m_data.width() - 1); }
-    uint32_t toUInt() const VL_MT_SAFE;
-    int32_t toSInt() const VL_MT_SAFE;
-    uint64_t toUQuad() const VL_MT_SAFE;
-    int64_t toSQuad() const VL_MT_SAFE;
-    string toString() const VL_MT_SAFE;
+    uint32_t toUInt() const;
+    int32_t toSInt() const;
+    uint64_t toUQuad() const;
+    int64_t toSQuad() const;
+    string toString() const;
     string toDecimalS() const VL_MT_SAFE;  // return ASCII signed decimal number
     string toDecimalU() const VL_MT_SAFE;  // return ASCII unsigned decimal number
-    double toDouble() const VL_MT_SAFE;
+    double toDouble() const;
     V3Hash toHash() const;
     uint32_t edataWord(int eword) const;
     uint8_t dataByte(int byte) const;

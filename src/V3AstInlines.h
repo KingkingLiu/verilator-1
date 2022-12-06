@@ -61,10 +61,10 @@ bool AstNode::sameGateTree(const AstNode* node2p) const {
     return sameTreeIter(this, node2p, true, true);
 }
 
-int AstNodeArrayDType::left() const VL_MT_SAFE { return rangep()->leftConst(); }
-int AstNodeArrayDType::right() const VL_MT_SAFE { return rangep()->rightConst(); }
-int AstNodeArrayDType::hi() const VL_MT_SAFE { return rangep()->hiConst(); }
-int AstNodeArrayDType::lo() const VL_MT_SAFE { return rangep()->loConst(); }
+int AstNodeArrayDType::left() const { return rangep()->leftConst(); }
+int AstNodeArrayDType::right() const { return rangep()->rightConst(); }
+int AstNodeArrayDType::hi() const { return rangep()->hiConst(); }
+int AstNodeArrayDType::lo() const { return rangep()->loConst(); }
 int AstNodeArrayDType::elementsConst() const VL_MT_SAFE { return rangep()->elementsConst(); }
 VNumRange AstNodeArrayDType::declRange() const VL_MT_SAFE { return VNumRange{left(), right()}; }
 

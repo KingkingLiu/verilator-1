@@ -2261,19 +2261,19 @@ public:
     inline AstRange(FileLine* fl, int left, int right);
     inline AstRange(FileLine* fl, const VNumRange& range);
     ASTGEN_MEMBERS_AstRange;
-    inline int leftConst() const VL_MT_SAFE;
-    inline int rightConst() const VL_MT_SAFE;
-    int hiConst() const VL_MT_SAFE {
+    inline int leftConst() const;
+    inline int rightConst() const;
+    int hiConst() const {
         const int l = leftConst();
         const int r = rightConst();
         return l > r ? l : r;
     }
-    int loConst() const VL_MT_SAFE {
+    int loConst() const {
         const int l = leftConst();
         const int r = rightConst();
         return l > r ? r : l;
     }
-    int elementsConst() const VL_MT_SAFE { return hiConst() - loConst() + 1; }
+    int elementsConst() const { return hiConst() - loConst() + 1; }
     bool littleEndian() const { return leftConst() < rightConst(); }
     void dump(std::ostream& str) const override;
     virtual string emitC() { V3ERROR_NA_RETURN(""); }

@@ -37,6 +37,8 @@ void V3Waiver::addEntry(V3ErrorCode errorCode, const std::string& filename,
 
 void V3Waiver::write(const std::string& filename) VL_MT_SAFE {
     const std::unique_ptr<std::ofstream> ofp{V3File::new_ofstream(filename)};
+    const VerilatedLockGuard guard{s_mutex};
+
     if (ofp->fail()) v3fatal("Can't write " << filename);
 
     *ofp << "// DESCR"
@@ -48,8 +50,6 @@ void V3Waiver::write(const std::string& filename) VL_MT_SAFE {
     *ofp << "//   1. Fix the reason for the linter warning\n";
     *ofp << "//   2. Keep the waiver permanently if you are sure this is okay\n";
     *ofp << "//   3. Keep the waiver temporarily to suppress the output\n\n";
-
-    const VerilatedLockGuard lg{s_mutex};
 
     if (s_waiverList.empty()) *ofp << "// No waivers needed - great!\n";
 

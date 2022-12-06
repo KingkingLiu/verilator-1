@@ -1056,7 +1056,7 @@ void AstNode::checkIter() const {
     }
 }
 
-void AstNode::dumpPtrs(std::ostream& os) const {
+void AstNode::dumpPtrs(std::ostream& os) const VL_MT_SAFE {
     os << "This=" << typeName() << " " << cvtToHex(this);
     os << " back=" << cvtToHex(backp());
     if (nextp()) os << " next=" << cvtToHex(nextp());
@@ -1082,7 +1082,7 @@ void AstNode::dumpPtrs(std::ostream& os) const {
     os << std::endl;
 }
 
-void AstNode::dumpTree(std::ostream& os, const string& indent, int maxDepth) const {
+void AstNode::dumpTree(std::ostream& os, const string& indent, int maxDepth) const VL_MT_SAFE {
     static int s_debugFileline = v3Global.opt.debugSrcLevel("fileline");  // --debugi-fileline 9
     os << indent << " " << this << '\n';
     if (debug() > 8) {
@@ -1186,7 +1186,7 @@ void AstNode::dumpTreeDotFile(const string& filename, bool append, bool doDump) 
     }
 }
 
-void AstNode::v3errorEndFatal(std::ostringstream& str) const VL_MT_SAFE {
+void AstNode::v3errorEndFatal(std::ostringstream& str) const {
     v3errorEnd(str);
     assert(0);  // LCOV_EXCL_LINE
     VL_UNREACHABLE;

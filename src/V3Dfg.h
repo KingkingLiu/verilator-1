@@ -82,8 +82,8 @@ public:
         : m_e{_e} {}
     constexpr operator en() const { return m_e; }
 };
-constexpr bool operator==(VDfgType lhs, VDfgType rhs) { return lhs.m_e == rhs.m_e; }
-constexpr bool operator==(VDfgType lhs, VDfgType::en rhs) { return lhs.m_e == rhs; }
+constexpr bool operator==(VDfgType lhs, VDfgType rhs) VL_PURE { return lhs.m_e == rhs.m_e; }
+constexpr bool operator==(VDfgType lhs, VDfgType::en rhs) VL_PURE { return lhs.m_e == rhs; }
 constexpr bool operator==(VDfgType::en lhs, VDfgType rhs) { return lhs == rhs.m_e; }
 inline std::ostream& operator<<(std::ostream& os, const VDfgType& t) { return os << t.ascii(); }
 

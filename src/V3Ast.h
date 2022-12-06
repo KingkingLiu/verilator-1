@@ -1853,8 +1853,8 @@ public:
     static AstBasicDType* findInsertSameDType(AstBasicDType* nodep);
 
     // METHODS - dump and error
-    void v3errorEnd(std::ostringstream& str) const VL_MT_SAFE;
-    void v3errorEndFatal(std::ostringstream& str) const VL_ATTR_NORETURN VL_MT_SAFE;
+    void v3errorEnd(std::ostringstream& str) const;
+    void v3errorEndFatal(std::ostringstream& str) const VL_ATTR_NORETURN;
     string warnContextPrimary() const { return fileline()->warnContextPrimary(); }
     string warnContextSecondary() const { return fileline()->warnContextSecondary(); }
     string warnMore() const { return fileline()->warnMore(); }
