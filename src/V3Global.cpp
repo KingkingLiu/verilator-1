@@ -88,7 +88,7 @@ void V3Global::readFiles() {
 }
 
 string V3Global::debugFilename(const string& nameComment, int newNumber) VL_MT_SAFE {
-    VerilatedLockGuard lock {m_mutex};
+    VerilatedLockGuard lock{m_mutex};
     ++m_debugFileNumber;
     if (newNumber) m_debugFileNumber = newNumber;
     return opt.hierTopDataDir() + "/" + opt.prefix() + "_" + digitsFilename(m_debugFileNumber)

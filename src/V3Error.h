@@ -157,11 +157,9 @@ public:
     V3ErrorCode()
         : m_e{EC_MIN} {}
     // cppcheck-suppress noExplicitConstructor
-    constexpr V3ErrorCode(en _e) VL_PURE
-        : m_e{_e} {}
-    constexpr V3ErrorCode(const V3ErrorCode &_e) VL_PURE
-        : m_e{_e} {}
-    constexpr void operator=(const V3ErrorCode &rhs) VL_PURE { m_e = rhs.m_e; }
+    constexpr V3ErrorCode(en _e) VL_PURE : m_e{_e} {}
+    constexpr V3ErrorCode(const V3ErrorCode& _e) VL_PURE : m_e{_e} {}
+    constexpr void operator=(const V3ErrorCode& rhs) VL_PURE { m_e = rhs.m_e; }
     explicit V3ErrorCode(const char* msgp);  // Matching code or ERROR
     explicit V3ErrorCode(int _e)
         : m_e(static_cast<en>(_e)) {}  // Need () or GCC 4.8 false warning
@@ -246,8 +244,12 @@ public:
 constexpr bool operator==(const V3ErrorCode& lhs, const V3ErrorCode& rhs) VL_PURE {
     return lhs.m_e == rhs.m_e;
 }
-constexpr bool operator==(const V3ErrorCode& lhs, V3ErrorCode::en rhs) VL_PURE { return lhs.m_e == rhs; }
-constexpr bool operator==(V3ErrorCode::en lhs, const V3ErrorCode& rhs) VL_PURE { return lhs == rhs.m_e; }
+constexpr bool operator==(const V3ErrorCode& lhs, V3ErrorCode::en rhs) VL_PURE {
+    return lhs.m_e == rhs;
+}
+constexpr bool operator==(V3ErrorCode::en lhs, const V3ErrorCode& rhs) VL_PURE {
+    return lhs == rhs.m_e;
+}
 inline std::ostream& operator<<(std::ostream& os, const V3ErrorCode& rhs) {
     return os << rhs.ascii();
 }
@@ -258,9 +260,12 @@ public:
     using MessagesSet = std::set<std::string>;
     using ErrorExitCb = void (*)(void);
     bool m_describedWarnings VL_GUARDED_BY(m_mutex);  // Told user how to disable warns
-    std::array<bool, V3ErrorCode::_ENUM_MAX> m_describedEachWarn VL_GUARDED_BY(m_mutex);  // Told user specifics about this warning
-    std::array<bool, V3ErrorCode::_ENUM_MAX> m_pretendError VL_GUARDED_BY(m_mutex);  // Pretend this warning is an error
-    int m_tellManual VL_GUARDED_BY(m_mutex);  // Tell user to see manual, 0=not yet, 1=doit, 2=disable
+    std::array<bool, V3ErrorCode::_ENUM_MAX>
+        m_describedEachWarn VL_GUARDED_BY(m_mutex);  // Told user specifics about this warning
+    std::array<bool, V3ErrorCode::_ENUM_MAX>
+        m_pretendError VL_GUARDED_BY(m_mutex);  // Pretend this warning is an error
+    int m_tellManual
+        VL_GUARDED_BY(m_mutex);  // Tell user to see manual, 0=not yet, 1=doit, 2=disable
     V3ErrorCode m_errorCode VL_GUARDED_BY(m_mutex);  // Error string being formed will abort
     bool m_errorSuppressed VL_GUARDED_BY(m_mutex);  // Error being formed should be suppressed
     MessagesSet m_messages VL_GUARDED_BY(m_mutex);  // What errors we've outputted
@@ -311,21 +316,21 @@ public:
     static string msgPrefix() VL_MT_SAFE;  // returns %Error/%Warn
     static int errorCount() VL_MT_SAFE { return s_errCount; }
     static int warnCount() VL_MT_SAFE {
-        const VerilatedLockGuard guard {singleton().m_mutex};
+        const VerilatedLockGuard guard{singleton().m_mutex};
         return singleton().m_warnCount;
     }
     static bool errorContexted() VL_MT_SAFE {
-        const VerilatedLockGuard guard {singleton().m_mutex};
+        const VerilatedLockGuard guard{singleton().m_mutex};
         return singleton().m_errorContexted;
     }
     static void errorContexted(bool flag) VL_MT_SAFE {
-        const VerilatedLockGuard guard {singleton().m_mutex};
+        const VerilatedLockGuard guard{singleton().m_mutex};
         singleton().errorContexted(flag);
     }
     // METHODS
     static void incErrors() VL_MT_SAFE;
     static void incWarnings() VL_MT_SAFE {
-        const VerilatedLockGuard guard {singleton().m_mutex};
+        const VerilatedLockGuard guard{singleton().m_mutex};
         singleton().incWarnings();
     }
     static void init() VL_MT_SAFE;

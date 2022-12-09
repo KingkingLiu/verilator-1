@@ -550,9 +550,7 @@ private:
     }
     static string displayPad(size_t fmtsize, char pad, bool left, const string& in) VL_MT_SAFE;
     string displayed(FileLine* fl, const string& vformat) const;
-    string displayed(const string& vformat) const {
-        return displayed(m_fileline, vformat);
-    }
+    string displayed(const string& vformat) const { return displayed(m_fileline, vformat); }
 
 public:
     void v3errorEnd(const std::ostringstream& sstr) const;
