@@ -245,13 +245,14 @@ public:
     }
     // Given a list of clocking declarations, put them in clocking items
     AstClockingItem* makeClockingItemList(FileLine* flp, const VDirection direction,
-                                          AstNodeExpr* const skewp, AstNode* const clockingDeclps) {
+                                          AstNodeExpr* const skewp,
+                                          AstNode* const clockingDeclps) {
         AstClockingItem* itemsp = nullptr;
         for (AstNode *nodep = clockingDeclps, *nextp; nodep; nodep = nextp) {
             nextp = nodep->nextp();
             if (nextp) nextp->unlinkFrBackWithNext();
-            AstClockingItem* itemp
-                = new AstClockingItem{flp, direction, itemsp ? skewp->cloneTree(false) : skewp, nodep};
+            AstClockingItem* itemp = new AstClockingItem{
+                flp, direction, itemsp ? skewp->cloneTree(false) : skewp, nodep};
             itemsp = itemsp ? itemsp->addNext(itemp) : itemp;
         }
         return itemsp;
